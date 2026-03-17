@@ -17,7 +17,7 @@ jest.mock('../../utils/mail.util');
 jest.mock('../../utils/password.util');
 
 describe('AuthService - Signup (Đăng ký tài khoản)', () => {
-    const validEmail = 'signup-test@example.com';
+    const validEmail = 'user@gmail.com';
     const validPassword = 'Password123!';
 
     beforeEach(() => {

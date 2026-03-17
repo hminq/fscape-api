@@ -24,7 +24,7 @@ describe('LocationService - deleteLocation', () => {
     it('Xóa địa điểm thành công', async () => {
         const mockLocation = { 
             id: 1, 
-            name: 'Quận 1', 
+            name: 'Hà Nội', 
             destroy: jest.fn().mockResolvedValue(true) 
         };
         Location.findByPk.mockResolvedValue(mockLocation);
@@ -35,7 +35,7 @@ describe('LocationService - deleteLocation', () => {
 
         console.log(`[TEST]: Xóa địa điểm thành công`);
         console.log(`- Input   : ID=1`);
-        console.log(`- Expected: "Location \"Quận 1\" deleted successfully"`);
+        console.log(`- Expected: "Location \"Hà Nội\" deleted successfully"`);
         console.log(`- Actual  : "${result.message}"`);
 
         expect(result.message).toContain('deleted successfully');
@@ -58,7 +58,7 @@ describe('LocationService - deleteLocation', () => {
     });
 
     it('Không thể xóa địa điểm vì có dữ liệu liên kết', async () => {
-        const mockLocation = { id: 1, name: 'Quận 1' };
+        const mockLocation = { id: 1, name: 'Hà Nội' };
         Location.findByPk.mockResolvedValue(mockLocation);
         Building.count.mockResolvedValue(1); 
         University.count.mockResolvedValue(0);

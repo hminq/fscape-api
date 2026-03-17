@@ -20,7 +20,7 @@ describe('LocationService - getAllLocations', () => {
     });
 
     it('Lấy danh sách địa điểm thành công', async () => {
-        const mockRows = [{ id: 1, name: 'Quận 1' }];
+        const mockRows = [{ id: 1, name: 'Hà Nội' }];
         Location.findAndCountAll.mockResolvedValue({ count: 1, rows: mockRows });
 
         const query = { page: 1, limit: 10 };
@@ -36,17 +36,17 @@ describe('LocationService - getAllLocations', () => {
     });
 
     it('Tìm kiếm địa điểm theo tên', async () => {
-        const mockRows = [{ id: 1, name: 'Quận 7' }];
+        const mockRows = [{ id: 1, name: 'Đà Nẵng' }];
         Location.findAndCountAll.mockResolvedValue({ count: 1, rows: mockRows });
 
-        const query = { search: 'Quận 7' };
+        const query = { search: 'Đà Nẵng' };
         const result = await LocationService.getAllLocations(query);
 
         console.log(`[TEST]: Tìm kiếm địa điểm`);
-        console.log(`- Input   : Search="Quận 7"`);
-        console.log(`- Expected: Name="Quận 7"`);
+        console.log(`- Input   : Search="Đà Nẵng"`);
+        console.log(`- Expected: Name="Đà Nẵng"`);
         console.log(`- Actual  : Name="${result.data[0].name}"`);
 
-        expect(result.data[0].name).toBe('Quận 7');
+        expect(result.data[0].name).toBe('Đà Nẵng');
     });
 });
