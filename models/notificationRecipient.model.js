@@ -80,7 +80,7 @@ const NotificationRecipient = sequelize.define('NotificationRecipient', {
   });
 
 NotificationRecipient.associate = (models) => {
-  NotificationRecipient.belongsTo(models.Notification, { foreignKey: 'notification_id' });
+  NotificationRecipient.belongsTo(models.Notification, { foreignKey: 'notification_id', as: 'notification' });
   NotificationRecipient.belongsTo(models.User, { foreignKey: 'user_id' });
 };
 module.exports = NotificationRecipient;
