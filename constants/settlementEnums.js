@@ -1,0 +1,31 @@
+// constants/settlementEnums.js
+// Domain enums for settlement and penalty lifecycle.
+
+const SETTLEMENT_STATUS = Object.freeze({
+  DRAFT: 'DRAFT',
+  FINALIZED: 'FINALIZED',
+  PAID: 'PAID',
+  CLOSED: 'CLOSED',
+  CANCELLED: 'CANCELLED',
+});
+
+const SETTLEMENT_ITEM_TYPE = Object.freeze({
+  ASSET_PENALTY: 'ASSET_PENALTY',
+  VIOLATION_PENALTY: 'VIOLATION_PENALTY',
+  UNBILLED_SERVICE: 'UNBILLED_SERVICE',
+  ADJUSTMENT: 'ADJUSTMENT',
+  DEPOSIT_OFFSET: 'DEPOSIT_OFFSET',
+});
+
+const VIOLATION_PENALTY_STATUS = Object.freeze({
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  VOIDED: 'VOIDED',
+  SETTLED: 'SETTLED',
+});
+
+module.exports = {
+  SETTLEMENT_STATUS,
+  SETTLEMENT_ITEM_TYPE,
+  VIOLATION_PENALTY_STATUS,
+};
