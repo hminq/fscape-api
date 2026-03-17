@@ -3,7 +3,7 @@ const { body, param } = require('express-validator');
 exports.createUser = [
   body('email')
     .isEmail().withMessage('Email không hợp lệ')
-    .normalizeEmail(),
+    .normalizeEmail({ gmail_remove_dots: false }),
   body('role')
     .isIn(['ADMIN', 'BUILDING_MANAGER', 'STAFF']).withMessage('Role phải là ADMIN, BUILDING_MANAGER hoặc STAFF'),
   body('first_name')
