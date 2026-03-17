@@ -496,9 +496,15 @@ const createBatchRooms = async ({
 };
 
 // ─── GET /api/rooms/stats ────────────────────────────────────
-const getRoomStats = async () => {
+const getRoomStats = async (user) => {
+  const where = {};
+  if (user && ['BUILDING_MANAGER', 'STAFF'].includes(user.role)) {
+    where.building_id = user.building_id;
+  }
+
   const rooms = await Room.findAll({
     attributes: ['status', 'building_id'],
+    where,
     include: [{ model: Building, as: 'building', attributes: ['id', 'name'] }],
     raw: true,
     nest: true,
