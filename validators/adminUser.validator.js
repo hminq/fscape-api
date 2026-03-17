@@ -32,5 +32,6 @@ exports.updateUserStatus = [
 exports.assignBuilding = [
   param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
   body('building_id')
+    .optional({ values: 'null' })
     .isUUID().withMessage('building_id phải là UUID hợp lệ'),
 ];
