@@ -8,20 +8,20 @@ class InternalAuthService {
   // ========= LOGIN =========
   static async login({ email, password }) {
     if (!email || !password) {
-      throw new Error("Email and password are required");
+      throw new Error("Vui lòng nhập email và mật khẩu");
     }
 
     const user = await User.findOne({ where: { email } });
     if (!user) {
-      throw new Error("Email not found");
+      throw new Error("Không tìm thấy email này");
     }
 
     if (!INTERNAL_LOGIN_ROLES.includes(user.role)) {
-      throw new Error("This account is not allowed to login here. Please use customer login");
+      throw new Error("Tài khoản không được phép đăng nhập tại đây. Vui lòng sử dụng trang đăng nhập dành cho khách hàng");
     }
 
     if (!user.is_active) {
-      throw new Error("Account is inactive. Please contact administrator");
+      throw new Error("Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên");
     }
 
     const auth = await AuthProvider.findOne({
@@ -32,12 +32,12 @@ class InternalAuthService {
     });
 
     if (!auth || !auth.password_hash) {
-      throw new Error("No password set for this account. Please contact administrator");
+      throw new Error("Tài khoản chưa thiết lập mật khẩu. Vui lòng liên hệ quản trị viên");
     }
 
     const match = await bcrypt.compare(password, auth.password_hash);
     if (!match) {
-      throw new Error("Incorrect password");
+      throw new Error("Mật khẩu không chính xác");
     }
 
     const token = jwt.sign(
@@ -67,11 +67,11 @@ class InternalAuthService {
   static async changePassword(userId, oldPassword, newPassword) {
     const user = await User.findByPk(userId);
     if (!user) {
-      throw new Error("User not found");
+      throw new Error("Không tìm thấy người dùng");
     }
 
     if (!INTERNAL_LOGIN_ROLES.includes(user.role)) {
-      throw new Error("This account cannot change password here");
+      throw new Error("Tài khoản không được phép đổi mật khẩu tại đây");
     }
 
     const auth = await AuthProvider.findOne({
@@ -82,12 +82,12 @@ class InternalAuthService {
     });
 
     if (!auth || !auth.password_hash) {
-      throw new Error("Invalid authentication method");
+      throw new Error("Phương thức xác thực không hợp lệ");
     }
 
     const match = await bcrypt.compare(oldPassword, auth.password_hash);
     if (!match) {
-      throw new Error("Old password is incorrect");
+      throw new Error("Mật khẩu cũ không chính xác");
     }
 
     const newHash = await bcrypt.hash(newPassword, 10);
