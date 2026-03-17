@@ -73,11 +73,11 @@ exports.update = [
 
 exports.replaceTemplateAssets = [
   param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
-  body('assets')
+  body()
     .isArray({ min: 0, max: 50 }).withMessage('Danh sách tài sản phải từ 0–50 mục'),
-  body('assets.*.asset_type_id')
+  body('*.asset_type_id')
     .isUUID().withMessage('asset_type_id phải là UUID hợp lệ'),
-  body('assets.*.quantity')
+  body('*.quantity')
     .isInt({ min: 1 }).withMessage('Số lượng phải >= 1'),
 ];
 
