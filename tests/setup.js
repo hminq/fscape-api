@@ -22,6 +22,7 @@ require("../models/roomTypeAsset.model");
 require("../models/contract.model");
 require("../models/assetHistory.model");
 require("../models/assetInspection.model");
+require("../models/assetInspectionItem.model");
 require("../models/contractExtension.model");
 require("../models/invoice.model");
 require("../models/settlement.model");

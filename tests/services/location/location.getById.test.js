@@ -22,17 +22,17 @@ describe('LocationService - getLocationById', () => {
     });
 
     it('Lấy chi tiết địa điểm thành công', async () => {
-        const mockLocation = { id: 1, name: 'Quận 1' };
+        const mockLocation = { id: 1, name: 'Hà Nội' };
         Location.findByPk.mockResolvedValue(mockLocation);
 
         const result = await LocationService.getLocationById(1);
 
         console.log(`[TEST]: Lấy chi tiết địa điểm`);
         console.log(`- Input   : ID=1`);
-        console.log(`- Expected: Name="Quận 1"`);
+        console.log(`- Expected: Name="Hà Nội"`);
         console.log(`- Actual  : Name="${result.name}"`);
 
-        expect(result.name).toBe('Quận 1');
+        expect(result.name).toBe('Hà Nội');
     });
 
     it('ID bị null', async () => {

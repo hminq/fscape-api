@@ -3,7 +3,7 @@ const { body } = require('express-validator');
 exports.login = [
   body('email')
     .isEmail().withMessage('Email không hợp lệ')
-    .normalizeEmail(),
+    .normalizeEmail({ gmail_remove_dots: false }),
   body('password')
     .notEmpty().withMessage('Mật khẩu không được để trống'),
 ];

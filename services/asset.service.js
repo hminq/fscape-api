@@ -119,6 +119,15 @@ const createAsset = async (data) => {
             }
         }
 
+        // Auto-fill price from AssetType if not provided
+        if (!data.price && data.asset_type_id) {
+            const AssetType = require('../models/assetType.model');
+            const at = await AssetType.findByPk(data.asset_type_id);
+            if (at && at.default_price) {
+                data.price = at.default_price;
+            }
+        }
+
         const asset = await Asset.create(data, { transaction });
 
         await AssetHistory.create({
@@ -152,10 +161,14 @@ const createBatchAssets = async (data) => {
     const building = await Building.findByPk(building_id);
     if (!building) throw { status: 404, message: 'Building not found' };
 
+    let resolvedPrice = price || null;
     if (asset_type_id) {
         const AssetType = require('../models/assetType.model');
         const at = await AssetType.findByPk(asset_type_id);
         if (!at) throw { status: 404, message: 'Asset type not found' };
+        if (!resolvedPrice && at.default_price) {
+            resolvedPrice = at.default_price;
+        }
     }
 
     const transaction = await sequelize.transaction();
@@ -167,7 +180,7 @@ const createBatchAssets = async (data) => {
                 name,
                 building_id,
                 asset_type_id: asset_type_id || null,
-                price: price || null,
+                price: resolvedPrice,
                 qr_code,
                 status: 'AVAILABLE',
             }, { transaction });

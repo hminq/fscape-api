@@ -17,7 +17,7 @@ exports.changePassword = async (req, res) => {
 
     if (!old_password || !new_password) {
       return res.status(400).json({
-        message: 'old_password and new_password are required',
+        message: 'Vui lòng nhập mật khẩu cũ và mật khẩu mới',
       });
     }
 
@@ -28,7 +28,7 @@ exports.changePassword = async (req, res) => {
     );
 
     res.json({
-      message: 'Password changed successfully',
+      message: 'Đổi mật khẩu thành công',
     });
   } catch (err) {
     res.status(400).json({

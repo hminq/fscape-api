@@ -21,7 +21,7 @@ describe('LocationService - createLocation', () => {
     });
 
     it('Tạo địa điểm thành công', async () => {
-        const newData = { name: 'Thủ Đức' };
+        const newData = { name: 'Hà Nội' };
         Location.findOne.mockResolvedValue(null);
         Location.create.mockResolvedValue({ id: 10, ...newData });
 
@@ -29,10 +29,10 @@ describe('LocationService - createLocation', () => {
 
         console.log(`[TEST]: Tạo địa điểm mới`);
         console.log(`- Input   : Name="${newData.name}"`);
-        console.log(`- Expected: Name="Thủ Đức"`);
+        console.log(`- Expected: Name="Hà Nội"`);
         console.log(`- Actual  : Name="${result.name}"`);
 
-        expect(result.name).toBe('Thủ Đức');
+        expect(result.name).toBe('Hà Nội');
     });
 
     it('Tên địa điểm bị null', async () => {
@@ -55,12 +55,12 @@ describe('LocationService - createLocation', () => {
     });
 
     it('Địa điểm đã tồn tại (Trùng tên)', async () => {
-        const newData = { name: 'Quận 1' };
-        Location.findOne.mockResolvedValue({ id: 1, name: 'Quận 1' });
-        const expectedError = 'Location "Quận 1" already exists';
+        const newData = { name: 'Hà Nội' };
+        Location.findOne.mockResolvedValue({ id: 1, name: 'Hà Nội' });
+        const expectedError = 'Location "Hà Nội" already exists';
 
         console.log(`[TEST]: Trùng tên địa điểm`);
-        console.log(`- Input   : Name="Quận 1"`);
+        console.log(`- Input   : Name="Hà Nội"`);
         console.log(`- Expected Error: "${expectedError}"`);
 
         try {

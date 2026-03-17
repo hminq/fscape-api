@@ -5,17 +5,17 @@ const passwordUtil = require('../../../utils/password.util');
 const tokenUtil = require('../../../utils/token.util');
 
 // Giả lập các phụ thuộc
-jest.mock('../../models/user.model');
-jest.mock('../../models/authProvider.model', () => ({
+jest.mock('../../../models/user.model');
+jest.mock('../../../models/authProvider.model', () => ({
     AuthProvider: {
         findOne: jest.fn()
     }
 }));
-jest.mock('../../utils/password.util');
-jest.mock('../../utils/token.util');
+jest.mock('../../../utils/password.util');
+jest.mock('../../../utils/token.util');
 
 describe('AuthService - Signin (Đăng nhập)', () => {
-    const email = 'login@example.com';
+    const email = 'user@gmail.com';
     const password = 'Password123!';
     const mockUser = {
         id: 'user-id',

@@ -10,7 +10,7 @@ const newPasswordRules = body('new_password')
 
 const emailRules = body('email')
   .isEmail().withMessage('Email không hợp lệ')
-  .normalizeEmail();
+  .normalizeEmail({ gmail_remove_dots: false });
 
 const otpRules = body('otp')
   .isLength({ min: 6, max: 6 }).withMessage('OTP phải gồm 6 ký tự');
