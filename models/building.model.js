@@ -42,7 +42,7 @@ const Building = sequelize.define('Building', {
   },
   total_floors: {
     type: DataTypes.SMALLINT,
-    allowNull: true
+    allowNull: false
   },
   thumbnail_url: {
     type: DataTypes.TEXT,

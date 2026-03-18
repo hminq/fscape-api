@@ -45,9 +45,9 @@ const createBuilding = async (req, res) => {
             manager_id
         } = req.body;
 
-        if (!location_id || !name || !address || latitude === undefined || longitude === undefined) {
+        if (!location_id || !name || !address || latitude === undefined || longitude === undefined || !total_floors) {
             return res.status(400).json({
-                message: 'Missing required fields: location_id, name, address, latitude, longitude'
+                message: 'Missing required fields: location_id, name, address, latitude, longitude, total_floors'
             });
         }
 

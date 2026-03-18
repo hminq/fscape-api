@@ -144,8 +144,9 @@ const createBuilding = async (data) => {
         throw { status: 400, message: 'A building can have a maximum of 20 facilities' };
     }
 
-    if (buildingData.total_floors && buildingData.total_floors > 100) {
-        throw { status: 400, message: 'A building can have a maximum of 100 floors' };
+    if (buildingData.total_floors !== undefined && buildingData.total_floors !== null &&
+        (buildingData.total_floors < 1 || buildingData.total_floors > 99)) {
+        throw { status: 400, message: 'Số tầng phải từ 1 đến 99' };
     }
 
     // Check for duplicate building name
@@ -197,8 +198,9 @@ const updateBuilding = async (id, data) => {
         throw { status: 400, message: 'A building can have a maximum of 20 facilities' };
     }
 
-    if (updateData.total_floors && updateData.total_floors > 100) {
-        throw { status: 400, message: 'A building can have a maximum of 100 floors' };
+    if (updateData.total_floors !== undefined && updateData.total_floors !== null &&
+        (updateData.total_floors < 1 || updateData.total_floors > 99)) {
+        throw { status: 400, message: 'Số tầng phải từ 1 đến 99' };
     }
 
     const building = await Building.findByPk(id);
@@ -243,6 +245,9 @@ const deleteBuilding = async (id) => {
     if (roomsCount > 0) {
         throw { status: 400, message: `Building cannot be deleted because it contains ${roomsCount} associated room(s). Delete the rooms first.` };
     }
+
+    // Unassign manager/staff before deletion to avoid FK constraint violation
+    await User.update({ building_id: null }, { where: { building_id: id } });
 
     await building.destroy();
     return { message: `Building "${building.name}" deleted successfully` };

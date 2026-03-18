@@ -23,8 +23,8 @@ exports.create = [
     .isString()
     .isLength({ max: 2000 }).withMessage('Mô tả tối đa 2000 ký tự'),
   body('total_floors')
-    .optional()
-    .isInt({ min: 1, max: 100 }).withMessage('Số tầng phải từ 1–100'),
+    .notEmpty().withMessage('Số tầng không được để trống')
+    .isInt({ min: 1, max: 99 }).withMessage('Số tầng phải từ 1 đến 99'),
   body('thumbnail_url')
     .optional()
     .isURL().withMessage('URL thumbnail không hợp lệ'),
@@ -73,7 +73,7 @@ exports.update = [
     .isLength({ max: 2000 }).withMessage('Mô tả tối đa 2000 ký tự'),
   body('total_floors')
     .optional()
-    .isInt({ min: 1, max: 100 }).withMessage('Số tầng phải từ 1–100'),
+    .isInt({ min: 1, max: 99 }).withMessage('Số tầng phải từ 1 đến 99'),
   body('thumbnail_url')
     .optional()
     .isURL().withMessage('URL thumbnail không hợp lệ'),
