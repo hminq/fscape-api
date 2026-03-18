@@ -179,7 +179,7 @@ const getUnreadCount = async (userId) => {
  */
 const createBmNotification = async (caller, { title, content, target, room_id }) => {
   if (!caller.building_id) {
-    throw { status: 400, message: "Building manager is not assigned to any building" };
+    throw { status: 400, message: "Quản lý tòa nhà chưa được phân công tòa nhà nào" };
   }
 
   let recipientIds = [];
@@ -201,14 +201,14 @@ const createBmNotification = async (caller, { title, content, target, room_id })
     recipientIds = [...new Set(contracts.map((c) => c.customer_id))];
   } else if (target === "room") {
     if (!room_id) {
-      throw { status: 400, message: "room_id is required when target is 'room'" };
+      throw { status: 400, message: "room_id là bắt buộc khi đối tượng gửi là 'room'" };
     }
 
     // Kiểm tra room thuộc building của BM
     const room = await Room.findByPk(room_id, { attributes: ["id", "building_id"] });
-    if (!room) throw { status: 404, message: "Room not found" };
+    if (!room) throw { status: 404, message: "Không tìm thấy phòng" };
     if (room.building_id !== caller.building_id) {
-      throw { status: 403, message: "Room does not belong to your building" };
+      throw { status: 403, message: "Phòng không thuộc tòa nhà của bạn" };
     }
 
     const contracts = await Contract.findAll({
@@ -218,11 +218,11 @@ const createBmNotification = async (caller, { title, content, target, room_id })
 
     recipientIds = [...new Set(contracts.map((c) => c.customer_id))];
   } else {
-    throw { status: 400, message: "Invalid target. Must be 'building' or 'room'" };
+    throw { status: 400, message: "Đối tượng gửi không hợp lệ. Phải là 'building' hoặc 'room'" };
   }
 
   if (recipientIds.length === 0) {
-    throw { status: 404, message: "No active residents found for the specified target" };
+    throw { status: 404, message: "Không tìm thấy cư dân đang hoạt động cho đối tượng được chỉ định" };
   }
 
   const notification = await createNotification({

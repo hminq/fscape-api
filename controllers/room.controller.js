@@ -3,7 +3,7 @@ const roomService = require('../services/room.service');
 const handleError = (res, err) => {
     console.error('[RoomController]', err);
     const status = err.status || 500;
-    const message = err.message || 'Internal Server Error';
+    const message = err.message || 'Lỗi hệ thống';
     return res.status(status).json({ message });
 };
 
@@ -30,15 +30,14 @@ const createRoom = async (req, res) => {
         const roomData = { ...req.body };
 
         if (!roomData.room_number || !roomData.building_id || !roomData.room_type_id || roomData.floor === undefined) {
-            return res.status(400).json({
-                message: 'Missing required fields: room_number, building_id, room_type_id, floor'
-            });
+            console.warn('[RoomController] createRoom: missing required fields');
+            return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
         }
 
         const room = await roomService.createRoom(roomData);
 
         return res.status(201).json({
-            message: 'Room created successfully',
+            message: 'Tạo phòng thành công',
             data: room
         });
 
@@ -55,16 +54,14 @@ const createBatchRooms = async (req, res) => {
         } = req.body;
 
         if (!building_id || !room_type_id || floor === undefined || !count) {
-            return res.status(400).json({
-                message: 'Missing required fields: building_id, room_type_id, floor, count'
-            });
+            console.warn('[RoomController] createBatchRooms: missing required fields');
+            return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
         }
 
         const parsedCount = Number(count);
         if (!Number.isInteger(parsedCount) || parsedCount < 1 || parsedCount > 50) {
-            return res.status(400).json({
-                message: 'count must be an integer between 1 and 50'
-            });
+            console.warn('[RoomController] createBatchRooms: count out of range:', parsedCount);
+            return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
         }
 
         const result = await roomService.createBatchRooms({
@@ -79,7 +76,7 @@ const createBatchRooms = async (req, res) => {
         });
 
         return res.status(201).json({
-            message: `${result.count} rooms created successfully`,
+            message: `Đã tạo thành công ${result.count} phòng`,
             data: result
         });
     } catch (err) {
@@ -93,7 +90,7 @@ const updateRoom = async (req, res) => {
         const room = await roomService.updateRoom(req.params.id, updateData);
 
         return res.status(200).json({
-            message: 'Room updated successfully',
+            message: 'Cập nhật phòng thành công',
             data: room
         });
 
@@ -116,12 +113,13 @@ const toggleRoomStatus = async (req, res) => {
         const { status } = req.body;
 
         if (!status) {
-            return res.status(400).json({ message: 'Missing required field: status' });
+            console.warn('[RoomController] toggleRoomStatus: missing status');
+            return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
         }
 
         const room = await roomService.toggleRoomStatus(req.params.id, status, req.user);
         return res.status(200).json({
-            message: `Room status updated to ${status}`,
+            message: `Đã cập nhật trạng thái phòng thành ${status}`,
             data: room
         });
     } catch (err) {

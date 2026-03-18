@@ -3,7 +3,7 @@ const facilityService = require('../services/facility.service');
 const handleError = (res, err) => {
     console.error('[FacilityController]', err);
     const status = err.status || 500;
-    const message = err.message || 'Internal Server Error';
+    const message = err.message || 'Lỗi hệ thống';
     return res.status(status).json({ message });
 };
 
@@ -30,7 +30,7 @@ const createFacility = async (req, res) => {
         const { name, is_active } = req.body;
 
         if (!name) {
-            return res.status(400).json({ message: 'Facility name is required' });
+            return res.status(400).json({ message: 'Tên tiện ích là bắt buộc' });
         }
 
         const facility = await facilityService.createFacility({
@@ -38,7 +38,7 @@ const createFacility = async (req, res) => {
             is_active
         });
 
-        return res.status(201).json({ message: 'Facility created successfully', data: facility });
+        return res.status(201).json({ message: 'Tạo tiện ích thành công', data: facility });
     } catch (err) {
         return handleError(res, err);
     }
@@ -51,7 +51,7 @@ const updateFacility = async (req, res) => {
 
         const facility = await facilityService.updateFacility(req.params.id, updatedData);
 
-        return res.status(200).json({ message: 'Facility updated successfully', data: facility });
+        return res.status(200).json({ message: 'Cập nhật tiện ích thành công', data: facility });
     } catch (err) {
         return handleError(res, err);
     }

@@ -3,7 +3,7 @@ const requestService = require('../services/request.service');
 const handleError = (res, err) => {
     console.error('[RequestController]', err);
     const status = err.status || 500;
-    const message = err.message || 'Internal Server Error';
+    const message = err.message || 'Lỗi hệ thống';
     return res.status(status).json({ message });
 };
 
@@ -43,9 +43,8 @@ const createRequest = async (req, res) => {
         requestData.resident_id = req.user.id;
 
         if (!requestData.room_id || !requestData.request_type || !requestData.title) {
-            return res.status(400).json({
-                message: 'Missing required fields: room_id, request_type, title'
-            });
+            console.warn('[RequestController] createRequest: missing required fields');
+            return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
         }
 
         // image_urls now comes pre-uploaded from the client
@@ -54,7 +53,7 @@ const createRequest = async (req, res) => {
         const request = await requestService.createRequest(requestData);
 
         return res.status(201).json({
-            message: 'Request created successfully',
+            message: 'Tạo yêu cầu thành công',
             data: request
         });
     } catch (err) {
@@ -68,13 +67,14 @@ const assignRequest = async (req, res) => {
         const { assigned_staff_id } = req.body;
 
         if (!assigned_staff_id) {
-            return res.status(400).json({ message: 'Missing assigned_staff_id' });
+            console.warn('[RequestController] assignRequest: missing assigned_staff_id');
+            return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
         }
 
         const request = await requestService.assignRequest(req.params.id, assigned_staff_id, req.user.id);
 
         return res.status(200).json({
-            message: 'Request assigned successfully',
+            message: 'Phân công yêu cầu thành công',
             data: request
         });
     } catch (err) {
@@ -91,9 +91,8 @@ const updateRequestStatus = async (req, res) => {
         updateData.caller_role = req.user.role;
 
         if (!updateData.status) {
-            return res.status(400).json({
-                message: 'Missing required field: status'
-            });
+            console.warn('[RequestController] updateRequestStatus: missing status');
+            return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
         }
 
         updateData.completionImages = updateData.completion_images || [];
@@ -101,7 +100,7 @@ const updateRequestStatus = async (req, res) => {
         const request = await requestService.updateRequestStatus(id, updateData);
 
         return res.status(200).json({
-            message: `Request status updated to ${updateData.status}`,
+            message: `Đã cập nhật trạng thái yêu cầu thành ${updateData.status}`,
             data: request
         });
     } catch (err) {

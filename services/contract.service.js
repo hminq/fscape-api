@@ -146,7 +146,7 @@ const getContractById = async (id, user) => {
             { model: ContractTemplate, as: 'template' }
         ]
     });
-    if (!contract) throw { status: 404, message: 'Contract not found' };
+    if (!contract) throw { status: 404, message: 'Không tìm thấy hợp đồng' };
 
     // BM scope check
     if (user.role === ROLES.BUILDING_MANAGER) {
@@ -163,7 +163,7 @@ const getContractById = async (id, user) => {
     // RESIDENT / CUSTOMER: only own contracts
     if (user.role === ROLES.RESIDENT || user.role === ROLES.CUSTOMER) {
         if (contract.customer_id !== user.id) {
-            throw { status: 403, message: 'You do not have access to this contract' };
+            throw { status: 403, message: 'Bạn không có quyền truy cập hợp đồng này' };
         }
     }
 
@@ -184,13 +184,13 @@ const updateContract = async (id, data, user) => {
             include: [{ model: Building, as: 'building' }]
         }]
     });
-    if (!contract) throw { status: 404, message: 'Contract not found' };
+    if (!contract) throw { status: 404, message: 'Không tìm thấy hợp đồng' };
 
     // BM scope check
     if (user.role === ROLES.BUILDING_MANAGER) {
         const contractBuildingId = contract.room?.building?.id;
         if (!contractBuildingId || contractBuildingId !== user.building_id) {
-            throw { status: 403, message: 'You do not have permission to edit this contract' };
+            throw { status: 403, message: 'Bạn không có quyền chỉnh sửa hợp đồng này' };
         }
     }
 
@@ -254,9 +254,9 @@ const createContractFromBooking = async (bookingId) => {
             transaction
         });
 
-        if (!booking) throw { status: 404, message: 'Booking not found' };
+        if (!booking) throw { status: 404, message: 'Không tìm thấy đơn đặt phòng' };
         if (booking.status !== 'DEPOSIT_PAID') {
-            throw { status: 400, message: 'Booking is not in DEPOSIT_PAID status' };
+            throw { status: 400, message: 'Đơn đặt phòng chưa ở trạng thái đã đặt cọc' };
         }
 
         const room = booking.room;
@@ -268,21 +268,21 @@ const createContractFromBooking = async (bookingId) => {
             include: [{ model: CustomerProfile, as: 'profile' }],
             transaction
         });
-        if (!customer) throw { status: 404, message: 'Customer not found' };
+        if (!customer) throw { status: 404, message: 'Không tìm thấy khách hàng' };
 
         // 3. Lấy building manager
         const manager = await User.findOne({
             where: { building_id: building.id, role: ROLES.BUILDING_MANAGER, is_active: true },
             transaction
         });
-        if (!manager) throw { status: 400, message: 'No active Building Manager found for this building' };
+        if (!manager) throw { status: 400, message: 'Không tìm thấy Quản lý tòa nhà đang hoạt động cho tòa nhà này' };
 
         // 4. Lấy default contract template
         const template = await ContractTemplate.findOne({
             where: { is_default: true, is_active: true },
             transaction
         });
-        if (!template) throw { status: 400, message: 'No active default contract template found' };
+        if (!template) throw { status: 400, message: 'Không tìm thấy mẫu hợp đồng mặc định đang hoạt động' };
 
         // 5. Tính toán dates + term/billing
         const durationMonths = Number(booking.duration_months);
@@ -411,7 +411,7 @@ const renewContract = async (contractId, body, user) => {
             }],
             transaction
         });
-        if (!oldContract) throw { status: 404, message: 'Contract not found' };
+        if (!oldContract) throw { status: 404, message: 'Không tìm thấy hợp đồng' };
 
         // 2. Only RESIDENT who owns the contract can renew
         if (user.role !== ROLES.RESIDENT) {
@@ -459,21 +459,21 @@ const renewContract = async (contractId, body, user) => {
             include: [{ model: CustomerProfile, as: 'profile' }],
             transaction
         });
-        if (!customer) throw { status: 404, message: 'Customer not found' };
+        if (!customer) throw { status: 404, message: 'Không tìm thấy khách hàng' };
 
         // 8. Fetch building manager
         const manager = await User.findOne({
             where: { building_id: building.id, role: ROLES.BUILDING_MANAGER, is_active: true },
             transaction
         });
-        if (!manager) throw { status: 400, message: 'No active Building Manager found for this building' };
+        if (!manager) throw { status: 400, message: 'Không tìm thấy Quản lý tòa nhà đang hoạt động cho tòa nhà này' };
 
         // 9. Fetch default contract template
         const template = await ContractTemplate.findOne({
             where: { is_default: true, is_active: true },
             transaction
         });
-        if (!template) throw { status: 400, message: 'No active default contract template found' };
+        if (!template) throw { status: 400, message: 'Không tìm thấy mẫu hợp đồng mặc định đang hoạt động' };
 
         // 10. Calculate dates
         const durationMonths = Number(duration_months);
@@ -590,18 +590,18 @@ const customerSign = async (contractId, signatureUrl, user, req) => {
             include: [{ model: Building, as: 'building' }]
         }]
     });
-    if (!contract) throw { status: 404, message: 'Contract not found' };
+    if (!contract) throw { status: 404, message: 'Không tìm thấy hợp đồng' };
 
     if (contract.status !== 'PENDING_CUSTOMER_SIGNATURE') {
-        throw { status: 400, message: 'Contract is not awaiting customer signature' };
+        throw { status: 400, message: 'Hợp đồng không ở trạng thái chờ khách hàng ký' };
     }
 
     if (contract.signature_expires_at && new Date() > new Date(contract.signature_expires_at)) {
-        throw { status: 400, message: 'Signing deadline has expired' };
+        throw { status: 400, message: 'Thời hạn ký đã hết' };
     }
 
     if (contract.customer_id !== user.id) {
-        throw { status: 403, message: 'You do not have permission to sign this contract' };
+        throw { status: 403, message: 'Bạn không có quyền ký hợp đồng này' };
     }
 
     const oldStatus = contract.status;
@@ -678,20 +678,20 @@ const managerSign = async (contractId, signatureUrl, user, req) => {
             }],
             transaction
         });
-        if (!contract) throw { status: 404, message: 'Contract not found' };
+        if (!contract) throw { status: 404, message: 'Không tìm thấy hợp đồng' };
 
         if (contract.status !== 'PENDING_MANAGER_SIGNATURE') {
-            throw { status: 400, message: 'Contract is not awaiting manager signature' };
+            throw { status: 400, message: 'Hợp đồng không ở trạng thái chờ quản lý ký' };
         }
 
         if (contract.signature_expires_at && new Date() > new Date(contract.signature_expires_at)) {
-            throw { status: 400, message: 'Signing deadline has expired' };
+            throw { status: 400, message: 'Thời hạn ký đã hết' };
         }
 
         // BM scope check
         const contractBuildingId = contract.room?.building?.id;
         if (!contractBuildingId || contractBuildingId !== user.building_id) {
-            throw { status: 403, message: 'You do not have permission to sign this contract' };
+            throw { status: 403, message: 'Bạn không có quyền ký hợp đồng này' };
         }
 
         const oldStatus = contract.status;

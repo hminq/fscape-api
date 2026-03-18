@@ -26,7 +26,7 @@ const getAllBuildings = async ({ page = 1, limit = 10, location_id, search, is_a
     // Block Managers and Staff from standard generic /buildings list list 
     // Usually they use a specialized manager portal or get their assigned building directly.
     if (userRole === 'BUILDING_MANAGER' || userRole === 'STAFF') {
-        throw { status: 403, message: 'Managers and staff must access their specific assigned building endpoint' };
+        throw { status: 403, message: 'Quản lý và nhân viên phải sử dụng endpoint tòa nhà được phân công' };
     }
 
     // Public attributes — exclude timestamps for non-admin
@@ -81,7 +81,7 @@ const getBuildingById = async (id, user) => {
 
     // Block Managers and Staff from fetching any random building if it's not theirs
     if (userRole === 'BUILDING_MANAGER' || userRole === 'STAFF') {
-        throw { status: 403, message: 'Managers and staff must access their specific assigned building endpoint' };
+        throw { status: 403, message: 'Quản lý và nhân viên phải sử dụng endpoint tòa nhà được phân công' };
     }
 
     const publicBuildingAttrs = [
@@ -108,7 +108,7 @@ const getBuildingById = async (id, user) => {
         ]
     });
 
-    if (!building) throw { status: 404, message: 'Building not found' };
+    if (!building) throw { status: 404, message: 'Không tìm thấy tòa nhà' };
 
     const rooms = await Room.findAll({
         where: { building_id: id },
@@ -141,7 +141,7 @@ const createBuilding = async (data) => {
     const { facilities, images, manager_id, ...buildingData } = data;
 
     if (facilities && facilities.length > 20) {
-        throw { status: 400, message: 'A building can have a maximum of 20 facilities' };
+        throw { status: 400, message: 'Một tòa nhà chỉ được gán tối đa 20 tiện ích' };
     }
 
     if (buildingData.total_floors !== undefined && buildingData.total_floors !== null &&
@@ -152,16 +152,16 @@ const createBuilding = async (data) => {
     // Check for duplicate building name
     const existing = await Building.findOne({ where: { name: buildingData.name } });
     if (existing) {
-        throw { status: 409, message: `Building "${buildingData.name}" already exists` };
+        throw { status: 409, message: `Tòa nhà "${buildingData.name}" đã tồn tại` };
     }
 
     // Validate manager if provided
     if (manager_id) {
         const manager = await User.findByPk(manager_id);
-        if (!manager) throw { status: 404, message: 'Manager not found' };
-        if (manager.role !== 'BUILDING_MANAGER') throw { status: 400, message: 'Selected user is not a building manager' };
-        if (!manager.is_active) throw { status: 400, message: 'Selected manager is inactive' };
-        if (manager.building_id) throw { status: 400, message: 'Selected manager is already assigned to another building' };
+        if (!manager) throw { status: 404, message: 'Không tìm thấy quản lý' };
+        if (manager.role !== 'BUILDING_MANAGER') throw { status: 400, message: 'Người dùng được chọn không phải quản lý tòa nhà' };
+        if (!manager.is_active) throw { status: 400, message: 'Quản lý được chọn đã bị vô hiệu hóa' };
+        if (manager.building_id) throw { status: 400, message: 'Quản lý được chọn đã được phân công tòa nhà khác' };
     }
 
     const transaction = await sequelize.transaction();
@@ -195,7 +195,7 @@ const updateBuilding = async (id, data) => {
     const { facilities, images, is_active, ...updateData } = data;
 
     if (facilities && facilities.length > 20) {
-        throw { status: 400, message: 'A building can have a maximum of 20 facilities' };
+        throw { status: 400, message: 'Một tòa nhà chỉ được gán tối đa 20 tiện ích' };
     }
 
     if (updateData.total_floors !== undefined && updateData.total_floors !== null &&
@@ -204,12 +204,12 @@ const updateBuilding = async (id, data) => {
     }
 
     const building = await Building.findByPk(id);
-    if (!building) throw { status: 404, message: 'Building not found' };
+    if (!building) throw { status: 404, message: 'Không tìm thấy tòa nhà' };
 
     // Check for duplicate name if renaming
     if (updateData.name && updateData.name !== building.name) {
         const duplicate = await Building.findOne({ where: { name: updateData.name, id: { [Op.ne]: id } } });
-        if (duplicate) throw { status: 409, message: 'Building name already exists' };
+        if (duplicate) throw { status: 409, message: 'Tên tòa nhà đã tồn tại' };
     }
 
     const transaction = await sequelize.transaction();
@@ -238,31 +238,31 @@ const updateBuilding = async (id, data) => {
 
 const deleteBuilding = async (id) => {
     const building = await Building.findByPk(id);
-    if (!building) throw { status: 404, message: 'Building not found' };
+    if (!building) throw { status: 404, message: 'Không tìm thấy tòa nhà' };
 
     // Prevent deletion if the building has existing rooms associated with it
     const roomsCount = await Room.count({ where: { building_id: id } });
     if (roomsCount > 0) {
-        throw { status: 400, message: `Building cannot be deleted because it contains ${roomsCount} associated room(s). Delete the rooms first.` };
+        throw { status: 400, message: `Không thể xóa tòa nhà vì đang chứa ${roomsCount} phòng. Vui lòng xóa các phòng trước.` };
     }
 
     // Unassign manager/staff before deletion to avoid FK constraint violation
     await User.update({ building_id: null }, { where: { building_id: id } });
 
     await building.destroy();
-    return { message: `Building "${building.name}" deleted successfully` };
+    return { message: `Đã xóa tòa nhà "${building.name}" thành công` };
 };
 
 const toggleBuildingStatus = async (id, isActive, user) => {
     const building = await Building.findByPk(id)
-    if (!building) throw { status: 404, message: 'Building not found' }
+    if (!building) throw { status: 404, message: 'Không tìm thấy tòa nhà' }
 
     if (user && user.role === 'BUILDING_MANAGER' && user.building_id !== building.id) {
-        throw { status: 403, message: 'You are only allowed to manage your assigned building' }
+        throw { status: 403, message: 'Bạn chỉ được quản lý tòa nhà được phân công' }
     }
 
     if (building.is_active === isActive) {
-        throw { status: 400, message: `Building is already ${isActive ? 'active' : 'inactive'}` }
+        throw { status: 400, message: `Tòa nhà đã ở trạng thái ${isActive ? 'hoạt động' : 'ngừng hoạt động'}` }
     }
 
     // Block disabling if building has active contracts or bookings

@@ -1,25 +1,32 @@
-const nodemailer = require('nodemailer');
-const emailAuditService = require('../services/emailAudit.service');
-const { sequelize } = require('../config/db');
+const nodemailer = require("nodemailer");
+const emailAuditService = require("../services/emailAudit.service");
+const { sequelize } = require("../config/db");
 
-if (process.env.NODE_ENV !== 'test' && (!process.env.MAIL_USER || !process.env.MAIL_PASS)) {
-  throw new Error('MAIL credentials missing');
+if (
+  process.env.NODE_ENV !== "test" &&
+  (!process.env.MAIL_USER || !process.env.MAIL_PASS)
+) {
+  throw new Error("MAIL credentials missing");
 }
 
-const transporter = process.env.NODE_ENV === 'test' ? null : nodemailer.createTransport({
-  host: process.env.MAIL_HOST,
-  port: Number(process.env.MAIL_PORT),
-  secure: false,
-  auth: {
-    user: process.env.MAIL_USER,
-    pass: process.env.MAIL_PASS,
-  },
-});
+const transporter =
+  process.env.NODE_ENV === "test"
+    ? null
+    : nodemailer.createTransport({
+        host: process.env.MAIL_HOST,
+        port: Number(process.env.MAIL_PORT),
+        secure: false,
+        auth: {
+          user: process.env.MAIL_USER,
+          pass: process.env.MAIL_PASS,
+        },
+      });
 
-const FSCAPE_LOGO_URL = 'https://res.cloudinary.com/dz0rxiivc/image/upload/v1772824029/fscape-logo_qkmcfz.svg';
+const FSCAPE_LOGO_URL =
+  "https://res.cloudinary.com/dz0rxiivc/image/upload/v1772824029/fscape-logo_qkmcfz.svg";
 
 /**
- * Tạo email wrapper HTML với branding FScape.
+ * Email template with FScape logo.
  */
 const wrapEmailTemplate = (bodyContent) => `
 <!DOCTYPE html>
@@ -60,7 +67,13 @@ const wrapEmailTemplate = (bodyContent) => `
 </html>
 `;
 
-const sendMailWithAudit = async ({ to, subject, html, templateKey, context }) => {
+const sendMailWithAudit = async ({
+  to,
+  subject,
+  html,
+  templateKey,
+  context,
+}) => {
   try {
     await transporter.sendMail({
       from: `"FScape" <${process.env.MAIL_USER}>`,
@@ -74,16 +87,13 @@ const sendMailWithAudit = async ({ to, subject, html, templateKey, context }) =>
       subject,
       templateKey,
       reason: error.message,
-      context
+      context,
     });
     throw error;
   }
 };
 
 // ── Email dedup helpers (prevent duplicate sends across cron cycles) ──
-
-// Raw SQL to avoid Sequelize auto-including `user_id` from the
-// EmailLog → User association (column doesn't exist in the DB table).
 const wasEmailSent = async (templateKey, entityId) => {
   const [results] = await sequelize.query(
     `SELECT id FROM email_logs
@@ -91,9 +101,14 @@ const wasEmailSent = async (templateKey, entityId) => {
        AND metadata @> :meta::jsonb
      LIMIT 1`,
     {
-      replacements: { meta: JSON.stringify({ template_key: templateKey, entity_id: String(entityId) }) },
-      type: sequelize.QueryTypes.SELECT
-    }
+      replacements: {
+        meta: JSON.stringify({
+          template_key: templateKey,
+          entity_id: String(entityId),
+        }),
+      },
+      type: sequelize.QueryTypes.SELECT,
+    },
   );
   return !!results;
 };
@@ -106,18 +121,21 @@ const logEmailSent = async (recipientEmail, subject, templateKey, entityId) => {
       replacements: {
         recipientEmail,
         subject,
-        meta: JSON.stringify({ template_key: templateKey, entity_id: String(entityId) })
-      }
-    }
+        meta: JSON.stringify({
+          template_key: templateKey,
+          entity_id: String(entityId),
+        }),
+      },
+    },
   );
 };
 
 exports.sendOtpMail = async (email, code) => {
   await sendMailWithAudit({
     to: email,
-    subject: 'Mã xác thực OTP — FScape',
-    templateKey: 'OTP_VERIFICATION',
-    context: { flow: 'AUTH' },
+    subject: "Mã xác thực OTP — FScape",
+    templateKey: "OTP_VERIFICATION",
+    context: { flow: "AUTH" },
     html: wrapEmailTemplate(`
       <h2 style="margin:0 0 8px; color:#011936;">Mã xác thực OTP</h2>
       <p style="margin:0 0 16px; color:#52525b;">Vui lòng sử dụng mã bên dưới để xác thực tài khoản của bạn:</p>
@@ -135,11 +153,21 @@ exports.sendOtpMail = async (email, code) => {
 /**
  * Gửi email thông báo cho BM rằng customer đã ký, mời BM ký xác nhận.
  */
-exports.sendManagerSigningEmail = async (email, { managerName, customerName, contractNumber, roomNumber, buildingName, signingUrl }) => {
+exports.sendManagerSigningEmail = async (
+  email,
+  {
+    managerName,
+    customerName,
+    contractNumber,
+    roomNumber,
+    buildingName,
+    signingUrl,
+  },
+) => {
   await sendMailWithAudit({
     to: email,
     subject: `Hợp đồng ${contractNumber} — Khách hàng đã ký, chờ bạn xác nhận`,
-    templateKey: 'CONTRACT_MANAGER_SIGNING',
+    templateKey: "CONTRACT_MANAGER_SIGNING",
     context: { contractNumber, roomNumber, buildingName },
     html: wrapEmailTemplate(`
       <h2 style="margin:0 0 8px; color:#011936;">Xin chào ${managerName},</h2>
@@ -196,11 +224,14 @@ exports.sendManagerSigningEmail = async (email, { managerName, customerName, con
 /**
  * Gửi email xác nhận hợp đồng đã được kích hoạt cho resident.
  */
-exports.sendContractActivatedEmail = async (email, { customerName, contractNumber, roomNumber, buildingName, startDate }) => {
+exports.sendContractActivatedEmail = async (
+  email,
+  { customerName, contractNumber, roomNumber, buildingName, startDate },
+) => {
   await sendMailWithAudit({
     to: email,
     subject: `Hợp đồng ${contractNumber} — Đã kích hoạt thành công`,
-    templateKey: 'CONTRACT_ACTIVATED',
+    templateKey: "CONTRACT_ACTIVATED",
     context: { contractNumber, roomNumber, buildingName },
     html: wrapEmailTemplate(`
       <h2 style="margin:0 0 8px; color:#011936;">Xin chào ${customerName},</h2>
@@ -246,12 +277,24 @@ exports.sendContractActivatedEmail = async (email, { customerName, contractNumbe
 /**
  * Gửi email thông báo hóa đơn mới cần thanh toán.
  */
-exports.sendInvoiceCreatedEmail = async (email, { customerName, invoiceNumber, invoiceId, roomNumber, buildingName, billingPeriod, totalAmount, dueDate }) => {
-  const invoiceUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/my-invoices?invoiceId=${invoiceId}`;
+exports.sendInvoiceCreatedEmail = async (
+  email,
+  {
+    customerName,
+    invoiceNumber,
+    invoiceId,
+    roomNumber,
+    buildingName,
+    billingPeriod,
+    totalAmount,
+    dueDate,
+  },
+) => {
+  const invoiceUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/my-invoices?invoiceId=${invoiceId}`;
   await sendMailWithAudit({
     to: email,
     subject: `Hóa đơn ${invoiceNumber} — Vui lòng thanh toán trước ${dueDate}`,
-    templateKey: 'INVOICE_CREATED',
+    templateKey: "INVOICE_CREATED",
     context: { invoiceNumber, roomNumber, buildingName },
     html: wrapEmailTemplate(`
       <h2 style="margin:0 0 8px; color:#011936;">Xin chào ${customerName},</h2>
@@ -316,11 +359,14 @@ exports.sendInvoiceCreatedEmail = async (email, { customerName, invoiceNumber, i
 /**
  * Gửi email mời ký hợp đồng cho customer.
  */
-exports.sendContractSigningEmail = async (email, { customerName, contractNumber, roomNumber, buildingName, signingUrl }) => {
+exports.sendContractSigningEmail = async (
+  email,
+  { customerName, contractNumber, roomNumber, buildingName, signingUrl },
+) => {
   await sendMailWithAudit({
     to: email,
     subject: `Hợp đồng ${contractNumber} — Vui lòng ký xác nhận`,
-    templateKey: 'CONTRACT_CUSTOMER_SIGNING',
+    templateKey: "CONTRACT_CUSTOMER_SIGNING",
     context: { contractNumber, roomNumber, buildingName },
     html: wrapEmailTemplate(`
       <h2 style="margin:0 0 8px; color:#011936;">Xin chào ${customerName},</h2>
@@ -373,11 +419,23 @@ exports.sendContractSigningEmail = async (email, { customerName, contractNumber,
 /**
  * Gửi email mời ký hợp đồng gia hạn cho resident.
  */
-exports.sendRenewalSigningEmail = async (email, { customerName, contractNumber, oldContractNumber, roomNumber, buildingName, startDate, endDate, signingUrl }) => {
+exports.sendRenewalSigningEmail = async (
+  email,
+  {
+    customerName,
+    contractNumber,
+    oldContractNumber,
+    roomNumber,
+    buildingName,
+    startDate,
+    endDate,
+    signingUrl,
+  },
+) => {
   await sendMailWithAudit({
     to: email,
     subject: `Gia hạn hợp đồng ${contractNumber} — Vui lòng ký xác nhận`,
-    templateKey: 'CONTRACT_RENEWAL_SIGNING',
+    templateKey: "CONTRACT_RENEWAL_SIGNING",
     context: { contractNumber, oldContractNumber, roomNumber, buildingName },
     html: wrapEmailTemplate(`
       <h2 style="margin:0 0 8px; color:#011936;">Xin chào ${customerName},</h2>
@@ -443,13 +501,23 @@ exports.sendRenewalSigningEmail = async (email, { customerName, contractNumber, 
 /**
  * Gửi email thông báo hợp đồng sắp hết hạn cho resident.
  */
-exports.sendContractExpiringSoonEmail = async (email, { customerName, contractNumber, contractId, roomNumber, buildingName, endDate }) => {
-  if (await wasEmailSent('CONTRACT_EXPIRING_SOON', contractId)) return;
+exports.sendContractExpiringSoonEmail = async (
+  email,
+  {
+    customerName,
+    contractNumber,
+    contractId,
+    roomNumber,
+    buildingName,
+    endDate,
+  },
+) => {
+  if (await wasEmailSent("CONTRACT_EXPIRING_SOON", contractId)) return;
   const subject = `Hợp đồng ${contractNumber} — Sắp hết hạn vào ${endDate}`;
   await sendMailWithAudit({
     to: email,
     subject,
-    templateKey: 'CONTRACT_EXPIRING_SOON',
+    templateKey: "CONTRACT_EXPIRING_SOON",
     context: { contractNumber, roomNumber, buildingName },
     html: wrapEmailTemplate(`
       <h2 style="margin:0 0 8px; color:#011936;">Xin chào ${customerName},</h2>
@@ -491,18 +559,29 @@ exports.sendContractExpiringSoonEmail = async (email, { customerName, contractNu
       </p>
     `),
   });
-  await logEmailSent(email, subject, 'CONTRACT_EXPIRING_SOON', contractId);
+  await logEmailSent(email, subject, "CONTRACT_EXPIRING_SOON", contractId);
 };
 
 // ── Signing Reminder & Cancellation Emails ──
 
-exports.sendSigningReminderEmail = async (email, { customerName, contractNumber, contractId, roomNumber, buildingName, hoursRemaining, signingUrl }) => {
-  if (await wasEmailSent('CONTRACT_SIGNING_REMINDER', contractId)) return;
+exports.sendSigningReminderEmail = async (
+  email,
+  {
+    customerName,
+    contractNumber,
+    contractId,
+    roomNumber,
+    buildingName,
+    hoursRemaining,
+    signingUrl,
+  },
+) => {
+  if (await wasEmailSent("CONTRACT_SIGNING_REMINDER", contractId)) return;
   const subject = `Nhắc nhở: Hợp đồng ${contractNumber} — Vui lòng ký trước khi hết hạn`;
   await sendMailWithAudit({
     to: email,
     subject,
-    templateKey: 'CONTRACT_SIGNING_REMINDER',
+    templateKey: "CONTRACT_SIGNING_REMINDER",
     context: { contractNumber, roomNumber, buildingName },
     html: wrapEmailTemplate(`
       <h2 style="margin:0 0 8px; color:#011936;">Xin chào ${customerName},</h2>
@@ -550,16 +629,26 @@ exports.sendSigningReminderEmail = async (email, { customerName, contractNumber,
       </p>
     `),
   });
-  await logEmailSent(email, subject, 'CONTRACT_SIGNING_REMINDER', contractId);
+  await logEmailSent(email, subject, "CONTRACT_SIGNING_REMINDER", contractId);
 };
 
-exports.sendSigningUrgentReminderEmail = async (email, { customerName, contractNumber, contractId, roomNumber, buildingName, signingUrl }) => {
-  if (await wasEmailSent('CONTRACT_SIGNING_URGENT', contractId)) return;
+exports.sendSigningUrgentReminderEmail = async (
+  email,
+  {
+    customerName,
+    contractNumber,
+    contractId,
+    roomNumber,
+    buildingName,
+    signingUrl,
+  },
+) => {
+  if (await wasEmailSent("CONTRACT_SIGNING_URGENT", contractId)) return;
   const subject = `KHẨN: Hợp đồng ${contractNumber} — Chỉ còn 1 giờ để ký`;
   await sendMailWithAudit({
     to: email,
     subject,
-    templateKey: 'CONTRACT_SIGNING_URGENT',
+    templateKey: "CONTRACT_SIGNING_URGENT",
     context: { contractNumber, roomNumber, buildingName },
     html: wrapEmailTemplate(`
       <h2 style="margin:0 0 8px; color:#dc2626;">Xin chào ${customerName},</h2>
@@ -604,16 +693,19 @@ exports.sendSigningUrgentReminderEmail = async (email, { customerName, contractN
       </p>
     `),
   });
-  await logEmailSent(email, subject, 'CONTRACT_SIGNING_URGENT', contractId);
+  await logEmailSent(email, subject, "CONTRACT_SIGNING_URGENT", contractId);
 };
 
-exports.sendSigningCancelledEmail = async (email, { customerName, contractNumber, contractId, roomNumber, buildingName }) => {
-  if (await wasEmailSent('CONTRACT_SIGNING_CANCELLED', contractId)) return;
+exports.sendSigningCancelledEmail = async (
+  email,
+  { customerName, contractNumber, contractId, roomNumber, buildingName },
+) => {
+  if (await wasEmailSent("CONTRACT_SIGNING_CANCELLED", contractId)) return;
   const subject = `Hợp đồng ${contractNumber} — Đã bị hủy do hết hạn ký`;
   await sendMailWithAudit({
     to: email,
     subject,
-    templateKey: 'CONTRACT_SIGNING_CANCELLED',
+    templateKey: "CONTRACT_SIGNING_CANCELLED",
     context: { contractNumber, roomNumber, buildingName },
     html: wrapEmailTemplate(`
       <h2 style="margin:0 0 8px; color:#011936;">Xin chào ${customerName},</h2>
@@ -650,19 +742,30 @@ exports.sendSigningCancelledEmail = async (email, { customerName, contractNumber
       </p>
     `),
   });
-  await logEmailSent(email, subject, 'CONTRACT_SIGNING_CANCELLED', contractId);
+  await logEmailSent(email, subject, "CONTRACT_SIGNING_CANCELLED", contractId);
 };
 
 // ── Payment Reminder & Cancellation Emails ──
 
-exports.sendPaymentReminderEmail = async (email, { customerName, invoiceNumber, invoiceId, roomNumber, buildingName, totalAmount, dueDate }) => {
-  if (await wasEmailSent('FIRST_RENT_PAYMENT_REMINDER', invoiceId)) return;
-  const invoiceUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/my-invoices?invoiceId=${invoiceId}`;
+exports.sendPaymentReminderEmail = async (
+  email,
+  {
+    customerName,
+    invoiceNumber,
+    invoiceId,
+    roomNumber,
+    buildingName,
+    totalAmount,
+    dueDate,
+  },
+) => {
+  if (await wasEmailSent("FIRST_RENT_PAYMENT_REMINDER", invoiceId)) return;
+  const invoiceUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/my-invoices?invoiceId=${invoiceId}`;
   const subject = `Nhắc nhở: Hóa đơn ${invoiceNumber} — Thanh toán trước ${dueDate}`;
   await sendMailWithAudit({
     to: email,
     subject,
-    templateKey: 'FIRST_RENT_PAYMENT_REMINDER',
+    templateKey: "FIRST_RENT_PAYMENT_REMINDER",
     context: { invoiceNumber, roomNumber, buildingName },
     html: wrapEmailTemplate(`
       <h2 style="margin:0 0 8px; color:#011936;">Xin chào ${customerName},</h2>
@@ -718,17 +821,28 @@ exports.sendPaymentReminderEmail = async (email, { customerName, invoiceNumber, 
       </p>
     `),
   });
-  await logEmailSent(email, subject, 'FIRST_RENT_PAYMENT_REMINDER', invoiceId);
+  await logEmailSent(email, subject, "FIRST_RENT_PAYMENT_REMINDER", invoiceId);
 };
 
-exports.sendPaymentUrgentReminderEmail = async (email, { customerName, invoiceNumber, invoiceId, roomNumber, buildingName, totalAmount, dueDate }) => {
-  if (await wasEmailSent('FIRST_RENT_PAYMENT_URGENT', invoiceId)) return;
-  const invoiceUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/my-invoices?invoiceId=${invoiceId}`;
+exports.sendPaymentUrgentReminderEmail = async (
+  email,
+  {
+    customerName,
+    invoiceNumber,
+    invoiceId,
+    roomNumber,
+    buildingName,
+    totalAmount,
+    dueDate,
+  },
+) => {
+  if (await wasEmailSent("FIRST_RENT_PAYMENT_URGENT", invoiceId)) return;
+  const invoiceUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/my-invoices?invoiceId=${invoiceId}`;
   const subject = `KHẨN: Hóa đơn ${invoiceNumber} — Hôm nay là hạn cuối`;
   await sendMailWithAudit({
     to: email,
     subject,
-    templateKey: 'FIRST_RENT_PAYMENT_URGENT',
+    templateKey: "FIRST_RENT_PAYMENT_URGENT",
     context: { invoiceNumber, roomNumber, buildingName },
     html: wrapEmailTemplate(`
       <h2 style="margin:0 0 8px; color:#dc2626;">Xin chào ${customerName},</h2>
@@ -781,16 +895,27 @@ exports.sendPaymentUrgentReminderEmail = async (email, { customerName, invoiceNu
       </p>
     `),
   });
-  await logEmailSent(email, subject, 'FIRST_RENT_PAYMENT_URGENT', invoiceId);
+  await logEmailSent(email, subject, "FIRST_RENT_PAYMENT_URGENT", invoiceId);
 };
 
-exports.sendFirstRentCancelledEmail = async (email, { customerName, invoiceNumber, invoiceId, contractNumber, roomNumber, buildingName, totalAmount }) => {
-  if (await wasEmailSent('FIRST_RENT_CANCELLED', invoiceId)) return;
+exports.sendFirstRentCancelledEmail = async (
+  email,
+  {
+    customerName,
+    invoiceNumber,
+    invoiceId,
+    contractNumber,
+    roomNumber,
+    buildingName,
+    totalAmount,
+  },
+) => {
+  if (await wasEmailSent("FIRST_RENT_CANCELLED", invoiceId)) return;
   const subject = `Hợp đồng ${contractNumber} — Đã bị hủy do chưa thanh toán kỳ đầu`;
   await sendMailWithAudit({
     to: email,
     subject,
-    templateKey: 'FIRST_RENT_CANCELLED',
+    templateKey: "FIRST_RENT_CANCELLED",
     context: { contractNumber, invoiceNumber, roomNumber, buildingName },
     html: wrapEmailTemplate(`
       <h2 style="margin:0 0 8px; color:#011936;">Xin chào ${customerName},</h2>
@@ -835,5 +960,5 @@ exports.sendFirstRentCancelledEmail = async (email, { customerName, invoiceNumbe
       </p>
     `),
   });
-  await logEmailSent(email, subject, 'FIRST_RENT_CANCELLED', invoiceId);
+  await logEmailSent(email, subject, "FIRST_RENT_CANCELLED", invoiceId);
 };

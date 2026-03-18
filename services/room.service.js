@@ -84,14 +84,14 @@ const getRoomById = async (id, user = {}) => {
     ]
   });
 
-  if (!room) throw { status: 404, message: 'Room not found' };
+  if (!room) throw { status: 404, message: 'Không tìm thấy phòng' };
 
   // Building-scoped: BUILDING_MANAGER and STAFF can only see rooms in their building
   if (
     (role === ROLES.BUILDING_MANAGER || role === ROLES.STAFF) &&
     user.building_id !== room.building_id
   ) {
-    throw { status: 403, message: 'You can only view rooms in your assigned building' };
+    throw { status: 403, message: 'Bạn chỉ có thể xem phòng trong tòa nhà được phân công' };
   }
 
   const data = room.toJSON();
@@ -170,7 +170,7 @@ const createRoom = async (data) => {
     where: { building_id: roomData.building_id, room_number: roomData.room_number }
   });
   if (existingRoom) {
-    throw { status: 409, message: `Room number ${roomData.room_number} already exists in this building` };
+    throw { status: 409, message: `Số phòng ${roomData.room_number} đã tồn tại trong tòa nhà này` };
   }
 
   const transaction = await sequelize.transaction();
@@ -213,7 +213,7 @@ const updateRoom = async (id, data) => {
   const { gallery_images, ...updateData } = data;
 
   const room = await Room.findByPk(id);
-  if (!room) throw { status: 404, message: 'Room not found' };
+  if (!room) throw { status: 404, message: 'Không tìm thấy phòng' };
 
   // Guard against changing fundamental identity parameters if there are active bookings or contracts
   const hasCriticalChanges = updateData.building_id || updateData.room_type_id || updateData.room_number;
@@ -222,14 +222,14 @@ const updateRoom = async (id, data) => {
       where: { room_id: id, status: { [Op.in]: ACTIVE_BOOKING_STATUSES } }
     });
     if (activeBooking) {
-      throw { status: 409, message: 'Cannot change building, room type, or room number of a room with active bookings' };
+      throw { status: 409, message: 'Không thể thay đổi tòa nhà, loại phòng hoặc số phòng khi phòng có đặt chỗ đang hoạt động' };
     }
 
     const activeContract = await Contract.findOne({
       where: { room_id: id, status: { [Op.in]: ACTIVE_CONTRACT_STATUSES } }
     });
     if (activeContract) {
-      throw { status: 409, message: 'Cannot change building, room type, or room number of a room with active contracts' };
+      throw { status: 409, message: 'Không thể thay đổi tòa nhà, loại phòng hoặc số phòng khi phòng có hợp đồng đang hoạt động' };
     }
   }
 
@@ -238,7 +238,7 @@ const updateRoom = async (id, data) => {
       where: { building_id: room.building_id, room_number: updateData.room_number }
     });
     if (existingRoom) {
-      throw { status: 409, message: `Room number ${updateData.room_number} already exists in this building` };
+      throw { status: 409, message: `Số phòng ${updateData.room_number} đã tồn tại trong tòa nhà này` };
     }
   }
 
@@ -268,14 +268,14 @@ const updateRoom = async (id, data) => {
 // ─── DELETE /api/rooms/:id (soft delete) ─────────────────────
 const deleteRoom = async (id) => {
   const room = await Room.findByPk(id);
-  if (!room) throw { status: 404, message: 'Room not found' };
+  if (!room) throw { status: 404, message: 'Không tìm thấy phòng' };
 
   // Guard: cannot delete if active bookings exist
   const activeBooking = await Booking.findOne({
     where: { room_id: id, status: { [Op.in]: ACTIVE_BOOKING_STATUSES } }
   });
   if (activeBooking) {
-    throw { status: 409, message: 'Cannot delete room with active bookings' };
+    throw { status: 409, message: 'Không thể xóa phòng có đặt chỗ đang hoạt động' };
   }
 
   // Guard: cannot delete if active contracts exist
@@ -283,37 +283,37 @@ const deleteRoom = async (id) => {
     where: { room_id: id, status: { [Op.in]: ACTIVE_CONTRACT_STATUSES } }
   });
   if (activeContract) {
-    throw { status: 409, message: 'Cannot delete room with active contracts' };
+    throw { status: 409, message: 'Không thể xóa phòng có hợp đồng đang hoạt động' };
   }
 
   await room.destroy(); // paranoid: sets deleted_at
-  return { message: `Room ${room.room_number} deleted successfully` };
+  return { message: `Đã xóa phòng ${room.room_number} thành công` };
 };
 
 // ─── PATCH /api/rooms/:id/status ─────────────────────────────
 const toggleRoomStatus = async (id, targetStatus, user) => {
   if (!['AVAILABLE', 'LOCKED'].includes(targetStatus)) {
-    throw { status: 400, message: 'Status must be AVAILABLE or LOCKED' };
+    throw { status: 400, message: 'Trạng thái phải là AVAILABLE hoặc LOCKED' };
   }
 
   const room = await Room.findByPk(id);
-  if (!room) throw { status: 404, message: 'Room not found' };
+  if (!room) throw { status: 404, message: 'Không tìm thấy phòng' };
 
   // Building-scoped: managers can only toggle rooms in their building
   if (user.role === ROLES.BUILDING_MANAGER && user.building_id !== room.building_id) {
-    throw { status: 403, message: 'You can only manage rooms in your assigned building' };
+    throw { status: 403, message: 'Bạn chỉ có thể quản lý phòng trong tòa nhà được phân công' };
   }
 
   if (room.status === targetStatus) {
-    throw { status: 400, message: `Room is already ${targetStatus}` };
+    throw { status: 400, message: `Phòng đã ở trạng thái ${targetStatus}` };
   }
 
   // Can only lock AVAILABLE rooms, can only unlock LOCKED rooms
   if (targetStatus === 'LOCKED' && room.status !== 'AVAILABLE') {
-    throw { status: 409, message: `Cannot lock a room with status ${room.status}` };
+    throw { status: 409, message: `Không thể khóa phòng có trạng thái ${room.status}` };
   }
   if (targetStatus === 'AVAILABLE' && room.status !== 'LOCKED') {
-    throw { status: 409, message: `Cannot unlock a room with status ${room.status}` };
+    throw { status: 409, message: `Không thể mở khóa phòng có trạng thái ${room.status}` };
   }
 
   // Guard: cannot lock if active bookings or contracts
@@ -322,14 +322,14 @@ const toggleRoomStatus = async (id, targetStatus, user) => {
       where: { room_id: id, status: { [Op.in]: ACTIVE_BOOKING_STATUSES } }
     });
     if (activeBooking) {
-      throw { status: 409, message: 'Cannot lock room with active bookings' };
+      throw { status: 409, message: 'Không thể khóa phòng có đặt chỗ đang hoạt động' };
     }
 
     const activeContract = await Contract.findOne({
       where: { room_id: id, status: { [Op.in]: ACTIVE_CONTRACT_STATUSES } }
     });
     if (activeContract) {
-      throw { status: 409, message: 'Cannot lock room with active contracts' };
+      throw { status: 409, message: 'Không thể khóa phòng có hợp đồng đang hoạt động' };
     }
   }
 
@@ -355,7 +355,7 @@ const getRoomsByBuilding = async (buildingId, query = {}, user = {}) => {
     (user.role === ROLES.BUILDING_MANAGER || user.role === ROLES.STAFF) &&
     user.building_id !== buildingId
   ) {
-    throw { status: 403, message: 'You can only view rooms in your assigned building' };
+    throw { status: 403, message: 'Bạn chỉ có thể xem phòng trong tòa nhà được phân công' };
   }
 
   const rooms = await Room.findAll({
@@ -444,10 +444,10 @@ const createBatchRooms = async ({
   thumbnail_url, image_3d_url, blueprint_url, gallery_images
 }) => {
   const building = await Building.findByPk(building_id);
-  if (!building) throw { status: 404, message: 'Building not found' };
+  if (!building) throw { status: 404, message: 'Không tìm thấy tòa nhà' };
 
   const roomType = await RoomType.findByPk(room_type_id);
-  if (!roomType) throw { status: 404, message: 'Room type not found' };
+  if (!roomType) throw { status: 404, message: 'Không tìm thấy loại phòng' };
 
   const existingRooms = await Room.findAll({
     where: { building_id },

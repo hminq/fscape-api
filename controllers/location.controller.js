@@ -15,13 +15,13 @@ const getAllLocations = async (req, res) => {
         });
 
         return res.status(200).json({
-            message: "Fetched all locations successfully",
+            message: "Lấy danh sách khu vực thành công",
             ...result
         });
     } catch (error) {
         console.error("❌ Controller Error (getAllLocations):", error);
         return res.status(error.status || 500).json({
-            message: error.message || "Internal Server Error"
+            message: error.message || "Lỗi hệ thống"
         });
     }
 };
@@ -40,7 +40,7 @@ const getLocationById = async (req, res) => {
     } catch (error) {
         console.error(`❌ Controller Error (getLocationById - ${req.params.id}):`, error);
         return res.status(error.status || 500).json({
-            message: error.message || "Internal Server Error"
+            message: error.message || "Lỗi hệ thống"
         });
     }
 };
@@ -53,13 +53,13 @@ const createLocation = async (req, res) => {
         const location = await locationService.createLocation(req.body);
 
         return res.status(201).json({
-            message: "Location created successfully",
+            message: "Tạo khu vực thành công",
             data: location
         });
     } catch (error) {
         console.error("❌ Controller Error (createLocation):", error);
         return res.status(error.status || 500).json({
-            message: error.message || "Internal Server Error"
+            message: error.message || "Lỗi hệ thống"
         });
     }
 };
@@ -73,13 +73,13 @@ const updateLocation = async (req, res) => {
         const updatedLocation = await locationService.updateLocation(id, req.body);
 
         return res.status(200).json({
-            message: "Location updated successfully",
+            message: "Cập nhật khu vực thành công",
             data: updatedLocation
         });
     } catch (error) {
         console.error(`❌ Controller Error (updateLocation - ${req.params.id}):`, error);
         return res.status(error.status || 500).json({
-            message: error.message || "Internal Server Error"
+            message: error.message || "Lỗi hệ thống"
         });
     }
 };
@@ -98,7 +98,7 @@ const deleteLocation = async (req, res) => {
     } catch (error) {
         console.error(`❌ Controller Error (deleteLocation - ${req.params.id}):`, error);
         return res.status(error.status || 500).json({
-            message: error.message || "Internal Server Error"
+            message: error.message || "Lỗi hệ thống"
         });
     }
 };
@@ -108,19 +108,20 @@ const toggleLocationStatus = async (req, res) => {
         const { is_active } = req.body;
 
         if (typeof is_active !== 'boolean') {
+            console.warn('[LocationController] toggleLocationStatus: is_active is not boolean');
             return res.status(400).json({
-                message: 'is_active must be a boolean'
+                message: 'Dữ liệu không hợp lệ'
             });
         }
 
         const location = await locationService.toggleLocationStatus(req.params.id, is_active)
         return res.status(200).json({
-            message: 'Location status updated successfully',
+            message: 'Cập nhật trạng thái khu vực thành công',
             data: location
         })
     } catch (err) {
         return res.status(err.status || 500).json({
-            message: err.message || "Internal Server Error"
+            message: err.message || "Lỗi hệ thống"
         });
     }
 }

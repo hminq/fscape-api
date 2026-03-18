@@ -2,7 +2,7 @@ const universityService = require('../services/university.service');
 
 const handleError = (res, err) => {
     console.error('[UniversityController]', err);
-    return res.status(err.status || 500).json({ message: err.message || 'Internal Server Error' });
+    return res.status(err.status || 500).json({ message: err.message || 'Lỗi hệ thống' });
 };
 
 const getAllUniversities = async (req, res) => {
@@ -23,7 +23,8 @@ const createUniversity = async (req, res) => {
     try {
         const { name, location_id } = req.body;
         if (!name || !location_id) {
-            return res.status(400).json({ message: 'Name and location_id are required' });
+            console.warn('[UniversityController] createUniversity: missing name or location_id');
+            return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
         }
         const university = await universityService.createUniversity(req.body);
         return res.status(201).json({ data: university });
@@ -49,14 +50,15 @@ const toggleUniversityStatus = async (req, res) => {
         const { is_active } = req.body;
 
         if (typeof is_active !== 'boolean') {
+            console.warn('[UniversityController] toggleUniversityStatus: is_active is not boolean');
             return res.status(400).json({
-                message: 'is_active must be a boolean'
+                message: 'Dữ liệu không hợp lệ'
             });
         }
 
         const university = await universityService.toggleUniversityStatus(req.params.id, is_active)
         return res.status(200).json({
-            message: 'University status updated successfully',
+            message: 'Cập nhật trạng thái trường đại học thành công',
             data: university
         })
     } catch (err) {

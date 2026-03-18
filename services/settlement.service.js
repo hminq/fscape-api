@@ -165,7 +165,7 @@ const getSettlement = async (settlementId) => {
     });
 
     if (!settlement) {
-        throw { status: 404, message: 'Settlement not found' };
+        throw { status: 404, message: 'Không tìm thấy quyết toán' };
     }
 
     return settlement;
@@ -186,7 +186,7 @@ const getSettlementByContract = async (contractId) => {
     });
 
     if (!settlement) {
-        throw { status: 404, message: 'Settlement not found for this contract' };
+        throw { status: 404, message: 'Không tìm thấy quyết toán cho hợp đồng này' };
     }
 
     return settlement;
@@ -199,11 +199,11 @@ const closeSettlement = async (settlementId, user) => {
     const settlement = await Settlement.findByPk(settlementId);
 
     if (!settlement) {
-        throw { status: 404, message: 'Settlement not found' };
+        throw { status: 404, message: 'Không tìm thấy quyết toán' };
     }
 
     if (settlement.status !== SETTLEMENT_STATUS.FINALIZED) {
-        throw { status: 400, message: `Cannot close settlement with status ${settlement.status}. Only FINALIZED settlements can be closed.` };
+        throw { status: 400, message: `Không thể đóng quyết toán với trạng thái ${settlement.status}. Chỉ quyết toán ở trạng thái FINALIZED mới có thể đóng.` };
     }
 
     await settlement.update({

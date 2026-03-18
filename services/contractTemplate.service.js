@@ -33,15 +33,15 @@ const getAllTemplates = async (query = {}) => {
 // ─── GET /api/contract-templates/:id ─────────────────────────
 const getTemplateById = async (id) => {
     const template = await ContractTemplate.findByPk(id);
-    if (!template) throw { status: 404, message: 'Template not found' };
+    if (!template) throw { status: 404, message: 'Không tìm thấy mẫu hợp đồng' };
     return template;
 };
 
 // ─── POST /api/contract-templates ────────────────────────────
 const createTemplate = async (data, userId) => {
-    if (!data.name) throw { status: 400, message: 'Template name is required' };
-    if (!data.content) throw { status: 400, message: 'Template content (HTML) is required' };
-    if (!data.version) throw { status: 400, message: 'Template version is required' };
+    if (!data.name) throw { status: 400, message: 'Tên mẫu hợp đồng là bắt buộc' };
+    if (!data.content) throw { status: 400, message: 'Nội dung mẫu (HTML) là bắt buộc' };
+    if (!data.version) throw { status: 400, message: 'Phiên bản mẫu là bắt buộc' };
 
     if (data.is_default) {
         await ContractTemplate.update({ is_default: false }, { where: { is_default: true } });
@@ -57,7 +57,7 @@ const createTemplate = async (data, userId) => {
 // ─── PUT /api/contract-templates/:id ─────────────────────────
 const updateTemplate = async (id, data) => {
     const template = await ContractTemplate.findByPk(id);
-    if (!template) throw { status: 404, message: 'Template not found' };
+    if (!template) throw { status: 404, message: 'Không tìm thấy mẫu hợp đồng' };
 
     if (data.is_default) {
         await ContractTemplate.update(
@@ -73,10 +73,10 @@ const updateTemplate = async (id, data) => {
 // ─── DELETE /api/contract-templates/:id (soft delete) ────────
 const deleteTemplate = async (id) => {
     const template = await ContractTemplate.findByPk(id);
-    if (!template) throw { status: 404, message: 'Template not found' };
+    if (!template) throw { status: 404, message: 'Không tìm thấy mẫu hợp đồng' };
 
     await template.update({ is_active: false });
-    return { message: `Template "${template.name}" has been deactivated` };
+    return { message: `Đã vô hiệu hóa mẫu hợp đồng "${template.name}"` };
 };
 
 module.exports = { getAllTemplates, getTemplateById, createTemplate, updateTemplate, deleteTemplate };

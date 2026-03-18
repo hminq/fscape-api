@@ -3,7 +3,7 @@ const buildingService = require('../services/building.service');
 const handleError = (res, err) => {
     console.error('[BuildingController]', err);
     const status = err.status || 500;
-    const message = err.message || 'Internal Server Error';
+    const message = err.message || 'Lỗi hệ thống';
     return res.status(status).json({ message });
 };
 
@@ -46,9 +46,8 @@ const createBuilding = async (req, res) => {
         } = req.body;
 
         if (!location_id || !name || !address || latitude === undefined || longitude === undefined || !total_floors) {
-            return res.status(400).json({
-                message: 'Missing required fields: location_id, name, address, latitude, longitude, total_floors'
-            });
+            console.warn('[BuildingController] createBuilding: missing required fields');
+            return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
         }
 
         // Xử lý mảng facilities
@@ -77,7 +76,7 @@ const createBuilding = async (req, res) => {
         });
 
         return res.status(201).json({
-            message: 'Building created successfully',
+            message: 'Tạo tòa nhà thành công',
             data: building
         });
 
@@ -101,7 +100,7 @@ const updateBuilding = async (req, res) => {
         const building = await buildingService.updateBuilding(req.params.id, updateData);
 
         return res.status(200).json({
-            message: 'Building updated successfully',
+            message: 'Cập nhật tòa nhà thành công',
             data: building
         });
 
@@ -115,7 +114,7 @@ const deleteBuilding = async (req, res) => {
         const result = await buildingService.deleteBuilding(req.params.id);
 
         return res.status(200).json({
-            message: 'Building deleted successfully',
+            message: 'Xóa tòa nhà thành công',
             ...result
         });
 
@@ -130,14 +129,13 @@ const toggleBuildingStatus = async (req, res) => {
         const { is_active } = req.body;
 
         if (typeof is_active !== 'boolean') {
-            return res.status(400).json({
-                message: 'is_active must be a boolean'
-            });
+            console.warn('[BuildingController] toggleBuildingStatus: is_active is not boolean');
+            return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
         }
 
         const building = await buildingService.toggleBuildingStatus(req.params.id, is_active, req.user)
         return res.status(200).json({
-            message: 'Building status updated successfully',
+            message: 'Cập nhật trạng thái tòa nhà thành công',
             data: building
         })
     } catch (err) {

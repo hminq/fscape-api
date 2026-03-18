@@ -3,7 +3,7 @@ const roomTypeService = require('../services/roomType.service')
 const handleError = (res, err) => {
     console.error('[RoomTypeController]', err)
     const status = err.status || 500
-    const message = err.message || 'Internal Server Error'
+    const message = err.message || 'Lỗi hệ thống'
     return res.status(status).json({ message })
 }
 
@@ -29,7 +29,7 @@ const createRoomType = async (req, res) => {
     try {
         const data = await roomTypeService.createRoomType(req.body)
         return res.status(201).json({
-            message: 'Room type created successfully',
+            message: 'Tạo loại phòng thành công',
             data
         })
     } catch (err) {
@@ -41,7 +41,7 @@ const updateRoomType = async (req, res) => {
     try {
         const data = await roomTypeService.updateRoomType(req.params.id, req.body)
         return res.status(200).json({
-            message: 'Room type updated successfully',
+            message: 'Cập nhật loại phòng thành công',
             data
         })
     } catch (err) {
@@ -70,7 +70,7 @@ const getTemplateAssets = async (req, res) => {
 const replaceTemplateAssets = async (req, res) => {
     try {
         const data = await roomTypeService.replaceTemplateAssets(req.params.id, req.body)
-        return res.status(200).json({ message: 'Template updated', data })
+        return res.status(200).json({ message: 'Cập nhật mẫu tài sản thành công', data })
     } catch (err) {
         return handleError(res, err)
     }

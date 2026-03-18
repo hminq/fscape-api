@@ -2,7 +2,7 @@ const inspectionService = require('../services/inspection.service');
 
 const handleError = (res, err) => {
     console.error('[InspectionController]', err);
-    return res.status(err.status || 500).json({ message: err.message || 'Internal Server Error' });
+    return res.status(err.status || 500).json({ message: err.message || 'Lỗi hệ thống' });
 };
 
 const VALID_CONDITIONS = ['GOOD', 'BROKEN'];
@@ -29,11 +29,13 @@ const previewInspection = async (req, res) => {
     try {
         const { room_id, assets } = req.body;
         if (!room_id) {
-            return res.status(400).json({ message: 'room_id is required' });
+            console.warn('[InspectionController] previewInspection: missing room_id');
+            return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
         }
         const validationError = validateAssetsInput(assets);
         if (validationError) {
-            return res.status(400).json({ message: validationError });
+            console.warn('[InspectionController] previewInspection:', validationError);
+            return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
         }
         const result = await inspectionService.previewInspection(room_id, assets, req.user);
         return res.status(200).json({ data: result });
@@ -44,14 +46,16 @@ const confirmInspection = async (req, res) => {
     try {
         const { room_id, assets, notes } = req.body;
         if (!room_id) {
-            return res.status(400).json({ message: 'room_id is required' });
+            console.warn('[InspectionController] confirmInspection: missing room_id');
+            return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
         }
         const validationError = validateAssetsInput(assets);
         if (validationError) {
-            return res.status(400).json({ message: validationError });
+            console.warn('[InspectionController] confirmInspection:', validationError);
+            return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
         }
         const result = await inspectionService.confirmInspection(room_id, assets, notes, req.user);
-        return res.status(201).json({ message: 'Inspection recorded', data: result });
+        return res.status(201).json({ message: 'Đã ghi nhận kiểm tra', data: result });
     } catch (err) { return handleError(res, err); }
 };
 
@@ -61,7 +65,8 @@ const residentPreviewCheckIn = async (req, res) => {
     try {
         const validationError = validateAssetsInput(req.body.assets);
         if (validationError) {
-            return res.status(400).json({ message: validationError });
+            console.warn('[InspectionController] residentPreviewCheckIn:', validationError);
+            return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
         }
         const result = await inspectionService.residentPreviewCheckIn(req.body.assets, req.user);
         return res.status(200).json({ data: result });
@@ -72,10 +77,11 @@ const residentConfirmCheckIn = async (req, res) => {
     try {
         const validationError = validateAssetsInput(req.body.assets);
         if (validationError) {
-            return res.status(400).json({ message: validationError });
+            console.warn('[InspectionController] residentConfirmCheckIn:', validationError);
+            return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
         }
         const result = await inspectionService.residentConfirmCheckIn(req.body.assets, req.body.notes, req.user);
-        return res.status(201).json({ message: 'Check-in successful', data: result });
+        return res.status(201).json({ message: 'Check-in thành công', data: result });
     } catch (err) {
         if (err.data) {
             return res.status(err.status || 400).json({ message: err.message, data: err.data });

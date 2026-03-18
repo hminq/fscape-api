@@ -17,31 +17,31 @@ class AdminUserService {
 
     // --- Required fields ---
     if (!email || !role || !first_name || !last_name || !phone) {
-      throw new Error('email, role, first_name, last_name, and phone are required');
+      throw new Error('Email, vai trò, họ, tên và số điện thoại là bắt buộc');
     }
 
     // --- Format validation ---
     if (!ADMIN_MANAGEABLE_ROLES.includes(role)) {
-      throw new Error(`Role must be one of: ${ADMIN_MANAGEABLE_ROLES.join(', ')}`);
+      throw new Error(`Vai trò phải là một trong: ${ADMIN_MANAGEABLE_ROLES.join(', ')}`);
     }
 
     const generatedPassword = crypto.randomBytes(4).toString('hex');
 
     if (phone.length < 9 || phone.length > 15) {
-      throw new Error('Phone must be between 9 and 15 characters');
+      throw new Error('Số điện thoại phải từ 9 đến 15 ký tự');
     }
 
     // --- Email uniqueness ---
     const existed = await User.findOne({ where: { email } });
     if (existed) {
-      throw new Error('Email already exists');
+      throw new Error('Email đã tồn tại');
     }
 
     // --- Building validation ---
     if (building_id) {
       const building = await Building.findByPk(building_id);
       if (!building) {
-        throw new Error('Building not found');
+        throw new Error('Không tìm thấy tòa nhà');
       }
 
       if (role === ROLES.BUILDING_MANAGER) {
@@ -53,7 +53,7 @@ class AdminUserService {
           },
         });
         if (existingManager) {
-          throw new Error('This building already has an active manager');
+          throw new Error('Tòa nhà này đã có quản lý đang hoạt động');
         }
       }
     }
@@ -140,7 +140,7 @@ class AdminUserService {
 
     if (caller.role === ROLES.BUILDING_MANAGER) {
       if (!caller.building_id) {
-        throw new Error('Building manager is not assigned to any building');
+        throw new Error('Quản lý tòa nhà chưa được phân công tòa nhà nào');
       }
 
       where.building_id = caller.building_id;
@@ -165,7 +165,7 @@ class AdminUserService {
       };
     }
 
-    throw new Error('Permission denied');
+    throw new Error('Bạn không có quyền thực hiện hành động này');
   }
 
   // =========================
@@ -192,7 +192,7 @@ class AdminUserService {
     const where = {};
 
     if (caller.role === ROLES.BUILDING_MANAGER) {
-      if (!caller.building_id) throw new Error('Building manager is not assigned to any building');
+      if (!caller.building_id) throw new Error('Quản lý tòa nhà chưa được phân công tòa nhà nào');
       where.building_id = caller.building_id;
     }
 
@@ -223,15 +223,15 @@ class AdminUserService {
   static async updateUserStatus(userId, isActive) {
     const user = await User.findByPk(userId);
     if (!user) {
-      throw new Error('User not found');
+      throw new Error('Không tìm thấy người dùng');
     }
 
     if (user.role === ROLES.ADMIN) {
-      throw new Error('Cannot change admin account status');
+      throw new Error('Không thể thay đổi trạng thái tài khoản quản trị viên');
     }
 
     if (user.is_active === isActive) {
-      throw new Error(`User status is already ${isActive ? 'active' : 'inactive'}`);
+      throw new Error(`Trạng thái người dùng đã là ${isActive ? 'hoạt động' : 'ngừng hoạt động'}`);
     }
 
     user.is_active = isActive;
@@ -244,16 +244,16 @@ class AdminUserService {
   // =========================
   static async assignBuilding(userId, buildingId) {
     const user = await User.findByPk(userId);
-    if (!user) throw new Error('User not found');
+    if (!user) throw new Error('Không tìm thấy người dùng');
 
     if (!ADMIN_MANAGEABLE_ROLES.includes(user.role)) {
-      throw new Error('Can only assign buildings to managers or staff');
+      throw new Error('Chỉ có thể phân công tòa nhà cho quản lý hoặc nhân viên');
     }
 
     // buildingId = null means unassign
     if (buildingId) {
       const building = await Building.findByPk(buildingId);
-      if (!building) throw new Error('Building not found');
+      if (!building) throw new Error('Không tìm thấy tòa nhà');
 
       // BM uniqueness: one active BM per building
       if (user.role === ROLES.BUILDING_MANAGER) {
@@ -266,7 +266,7 @@ class AdminUserService {
           },
         });
         if (existingBM) {
-          throw new Error('This building already has an active manager. Remove the current manager first.');
+          throw new Error('Tòa nhà này đã có quản lý đang hoạt động. Vui lòng gỡ quản lý hiện tại trước.');
         }
       }
     }

@@ -49,7 +49,7 @@ const getLocationById = async (id) => {
         ]
     });
 
-    if (!location) throw { status: 404, message: 'Location not found' };
+    if (!location) throw { status: 404, message: 'Không tìm thấy khu vực' };
     return location;
 };
 
@@ -61,7 +61,7 @@ const createLocation = async (data) => {
     const { name } = data;
 
     const existing = await Location.findOne({ where: { name } });
-    if (existing) throw { status: 409, message: `Location "${name}" already exists` };
+    if (existing) throw { status: 409, message: `Khu vực "${name}" đã tồn tại` };
 
     return await Location.create(data);
 };
@@ -72,13 +72,13 @@ const createLocation = async (data) => {
 const updateLocation = async (id, data) => {
     const { Location } = sequelize.models;
     const location = await Location.findByPk(id);
-    if (!location) throw { status: 404, message: 'Location not found' };
+    if (!location) throw { status: 404, message: 'Không tìm thấy khu vực' };
 
     if (data.name && data.name !== location.name) {
         const duplicate = await Location.findOne({
             where: { name: data.name, id: { [Op.ne]: id } }
         });
-        if (duplicate) throw { status: 409, message: `Location "${data.name}" already exists` };
+        if (duplicate) throw { status: 409, message: `Khu vực "${data.name}" đã tồn tại` };
     }
 
     // Restrict what can be updated via generic PUT (e.g., prevent changing is_active)
@@ -93,7 +93,7 @@ const updateLocation = async (id, data) => {
 const deleteLocation = async (id) => {
     const { Location, Building, University } = sequelize.models;
     const location = await Location.findByPk(id);
-    if (!location) throw { status: 404, message: 'Location not found' };
+    if (!location) throw { status: 404, message: 'Không tìm thấy khu vực' };
 
     const [buildingsCount, universitiesCount] = await Promise.all([
         Building.count({ where: { location_id: id } }),
@@ -103,21 +103,21 @@ const deleteLocation = async (id) => {
     if (buildingsCount > 0 || universitiesCount > 0) {
         throw {
             status: 400,
-            message: 'Cannot delete location: Associated data exists.'
+            message: 'Không thể xóa khu vực: Vẫn còn dữ liệu liên kết.'
         };
     }
 
     await location.destroy();
-    return { message: `Location "${location.name}" deleted successfully` };
+    return { message: `Đã xóa khu vực "${location.name}" thành công` };
 };
 
 const toggleLocationStatus = async (id, isActive) => {
     const { Location } = sequelize.models;
     const location = await Location.findByPk(id)
-    if (!location) throw { status: 404, message: 'Location not found' }
+    if (!location) throw { status: 404, message: 'Không tìm thấy khu vực' }
 
     if (location.is_active === isActive) {
-        throw { status: 400, message: `Location is already ${isActive ? 'active' : 'inactive'}` }
+        throw { status: 400, message: `Khu vực đã ở trạng thái ${isActive ? 'hoạt động' : 'ngừng hoạt động'}` }
     }
 
     location.is_active = isActive

@@ -2,7 +2,7 @@ const assetTypeService = require('../services/assetType.service');
 
 const handleError = (res, err) => {
     console.error('[AssetTypeController]', err);
-    return res.status(err.status || 500).json({ message: err.message || 'Internal Server Error' });
+    return res.status(err.status || 500).json({ message: err.message || 'Lỗi hệ thống' });
 };
 
 const getAllAssetTypes = async (req, res) => {
@@ -22,14 +22,14 @@ const getAssetTypeById = async (req, res) => {
 const createAssetType = async (req, res) => {
     try {
         const data = await assetTypeService.createAssetType(req.body);
-        return res.status(201).json({ message: 'Asset type created', data });
+        return res.status(201).json({ message: 'Tạo loại tài sản thành công', data });
     } catch (err) { return handleError(res, err); }
 };
 
 const updateAssetType = async (req, res) => {
     try {
         const data = await assetTypeService.updateAssetType(req.params.id, req.body);
-        return res.status(200).json({ message: 'Asset type updated', data });
+        return res.status(200).json({ message: 'Cập nhật loại tài sản thành công', data });
     } catch (err) { return handleError(res, err); }
 };
 

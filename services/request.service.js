@@ -73,18 +73,18 @@ const TRANSITION_MAP = {
 const validateTransition = (fromStatus, toStatus, callerRole, body) => {
     const fromMap = TRANSITION_MAP[fromStatus];
     if (!fromMap || !fromMap[toStatus]) {
-        throw { status: 400, message: `Invalid status transition: ${fromStatus} → ${toStatus}` };
+        throw { status: 400, message: `Chuyển trạng thái không hợp lệ: ${fromStatus} → ${toStatus}` };
     }
 
     const rule = fromMap[toStatus];
 
     if (!rule.roles.includes(callerRole)) {
-        throw { status: 403, message: `Role ${callerRole} is not allowed to change status from ${fromStatus} to ${toStatus}` };
+        throw { status: 403, message: `Vai trò ${callerRole} không được phép chuyển trạng thái từ ${fromStatus} sang ${toStatus}` };
     }
 
     for (const field of rule.required) {
         if (body[field] === undefined || body[field] === null || body[field] === '') {
-            throw { status: 400, message: `Missing required field: ${field} (for transition ${fromStatus} → ${toStatus})` };
+            throw { status: 400, message: `Thiếu trường bắt buộc: ${field} (cho chuyển trạng thái ${fromStatus} → ${toStatus})` };
         }
     }
 };
@@ -129,7 +129,7 @@ const getAllRequests = async (caller, { page = 1, limit = 10, status, request_ty
     }
 
     if (caller.role === ROLES.BUILDING_MANAGER) {
-        if (!caller.building_id) throw new Error('Building manager is not assigned to any building');
+        if (!caller.building_id) throw new Error('Quản lý tòa nhà chưa được phân công tòa nhà nào');
         roomInclude.where = { building_id: caller.building_id };
         roomInclude.required = true;
     } else if (caller.role === ROLES.STAFF) {
@@ -215,20 +215,20 @@ const getRequestById = async (caller, id) => {
         order: [[{ model: RequestStatusHistory, as: 'status_history' }, 'created_at', 'DESC']]
     });
 
-    if (!request) throw { status: 404, message: 'Request not found' };
+    if (!request) throw { status: 404, message: 'Không tìm thấy yêu cầu' };
 
     // Access check
     if (caller.role === ROLES.BUILDING_MANAGER) {
         if (request.room?.building_id !== caller.building_id) {
-            throw { status: 403, message: 'Permission denied' };
+            throw { status: 403, message: 'Bạn không có quyền thực hiện hành động này' };
         }
     } else if (caller.role === ROLES.STAFF) {
         if (request.assigned_staff_id !== caller.id) {
-            throw { status: 403, message: 'Permission denied' };
+            throw { status: 403, message: 'Bạn không có quyền thực hiện hành động này' };
         }
     } else if (caller.role === ROLES.RESIDENT) {
         if (request.resident_id !== caller.id) {
-            throw { status: 403, message: 'Permission denied' };
+            throw { status: 403, message: 'Bạn không có quyền thực hiện hành động này' };
         }
     }
 
@@ -241,7 +241,7 @@ const createRequest = async (data) => {
 
     try {
         const room = await Room.findByPk(requestData.room_id, { transaction });
-        if (!room) throw { status: 404, message: 'Room not found' };
+        if (!room) throw { status: 404, message: 'Không tìm thấy phòng' };
 
         requestData.request_number = await generateRequestNumber();
         requestData.status = 'PENDING';
@@ -307,10 +307,10 @@ const createRequest = async (data) => {
 
 const assignRequest = async (id, staff_id, manager_id) => {
     const request = await Request.findByPk(id);
-    if (!request) throw { status: 404, message: 'Request not found' };
+    if (!request) throw { status: 404, message: 'Không tìm thấy yêu cầu' };
 
     if (request.status !== 'PENDING') {
-        throw { status: 400, message: `Cannot assign: request status is ${request.status}, expected PENDING` };
+        throw { status: 400, message: `Không thể phân công: trạng thái yêu cầu là ${request.status}, yêu cầu PENDING` };
     }
 
     const transaction = await sequelize.transaction();
@@ -358,7 +358,7 @@ const updateRequestStatus = async (id, updateData) => {
     } = updateData;
 
     const request = await Request.findByPk(id);
-    if (!request) throw { status: 404, message: 'Request not found' };
+    if (!request) throw { status: 404, message: 'Không tìm thấy yêu cầu' };
 
     const oldStatus = request.status;
 

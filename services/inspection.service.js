@@ -23,7 +23,7 @@ function ensureBuildingAccess(user, room) {
         (user.role === ROLES.BUILDING_MANAGER || user.role === ROLES.STAFF) &&
         user.building_id !== room.building_id
     ) {
-        throw { status: 403, message: 'You can only inspect rooms in your assigned building' };
+        throw { status: 403, message: 'Bạn chỉ có thể kiểm tra phòng trong tòa nhà được phân công' };
     }
 }
 
@@ -54,7 +54,7 @@ async function computeCheckInDiff(room, qrCodes) {
     const conflicts = scannedAssets.filter(a => a.current_room_id && a.current_room_id !== room.id);
     if (conflicts.length > 0) {
         const qrs = conflicts.map(a => a.qr_code).join(', ');
-        throw { status: 409, message: `Assets already assigned to another room: ${qrs}` };
+        throw { status: 409, message: `Tài sản đã được gán cho phòng khác: ${qrs}` };
     }
 
     // Group scanned by asset_type_id
@@ -185,7 +185,7 @@ function buildConditionMap(assetsInput) {
 // ─── POST /api/inspections/preview (staff, CHECK_OUT only) ────
 const previewInspection = async (roomId, assetsInput, user) => {
     const room = await Room.findByPk(roomId);
-    if (!room) throw { status: 404, message: 'Room not found' };
+    if (!room) throw { status: 404, message: 'Không tìm thấy phòng' };
     ensureBuildingAccess(user, room);
 
     const qrCodes = assetsInput.map(a => a.qr_code);
@@ -282,7 +282,7 @@ const previewInspection = async (roomId, assetsInput, user) => {
 // ─── POST /api/inspections (staff, CHECK_OUT only) ───────────
 const confirmInspection = async (roomId, assetsInput, notes, user) => {
     const room = await Room.findByPk(roomId);
-    if (!room) throw { status: 404, message: 'Room not found' };
+    if (!room) throw { status: 404, message: 'Không tìm thấy phòng' };
     ensureBuildingAccess(user, room);
 
     return confirmCheckOut(room, assetsInput, notes, user);
@@ -532,7 +532,7 @@ async function resolveResidentContract(user) {
     });
 
     if (!contract || !contract.room) {
-        throw { status: 403, message: 'No active contract found' };
+        throw { status: 403, message: 'Không tìm thấy hợp đồng đang hoạt động' };
     }
 
     return { contract, room: contract.room };

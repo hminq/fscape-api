@@ -5,7 +5,8 @@ const uploadFiles = async (req, res) => {
     const { type } = req.query;
 
     if (!type) {
-      return res.status(400).json({ message: 'Missing required query parameter: type' });
+      console.warn('[UploadController] uploadFiles: missing type query parameter');
+      return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
     }
 
     const urls = await uploadService.uploadFiles(req, type);
@@ -14,7 +15,7 @@ const uploadFiles = async (req, res) => {
   } catch (err) {
     console.error('[UploadController]', err);
     const status = err.status || 500;
-    const message = err.message || 'Upload failed';
+    const message = err.message || 'Tải lên thất bại';
     return res.status(status).json({ message });
   }
 };

@@ -42,15 +42,14 @@ exports.updateUserStatus = async (req, res) => {
     const { is_active } = req.body;
 
     if (typeof is_active !== 'boolean') {
-      return res.status(400).json({
-        message: 'is_active must be boolean',
-      });
+      console.warn('[AdminUserController] updateUserStatus: is_active is not boolean');
+      return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
     }
 
     const user = await AdminUserService.updateUserStatus(id, is_active);
 
     return res.json({
-      message: 'User status updated',
+      message: 'Cập nhật trạng thái người dùng thành công',
       data: {
         id: user.id,
         is_active: user.is_active,
@@ -67,13 +66,14 @@ exports.assignBuilding = async (req, res) => {
     const { building_id } = req.body;
 
     if (building_id !== null && typeof building_id !== 'string') {
-      return res.status(400).json({ message: 'building_id must be a UUID string or null' });
+      console.warn('[AdminUserController] assignBuilding: building_id must be UUID string or null');
+      return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
     }
 
     const user = await AdminUserService.assignBuilding(id, building_id);
 
     return res.json({
-      message: 'Building assignment updated',
+      message: 'Cập nhật phân công tòa nhà thành công',
       data: {
         id: user.id,
         building_id: user.building_id,

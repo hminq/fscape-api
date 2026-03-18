@@ -17,7 +17,7 @@ exports.generateOtp = async (email, type) => {
   });
 
   if (count >= OTP_LIMIT_PER_DAY) {
-    throw new Error('OTP request limit exceeded (5/day)');
+    throw new Error('Đã vượt quá giới hạn yêu cầu OTP (5 lần/ngày)');
   }
 
   const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -41,7 +41,7 @@ exports.verifyOtp = async (email, code, type) => {
     }
   });
 
-  if (!otp) throw new Error('Invalid or expired OTP');
+  if (!otp) throw new Error('Mã OTP không hợp lệ hoặc đã hết hạn');
 
   otp.is_used = true;
   await otp.save();

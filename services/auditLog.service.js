@@ -55,7 +55,7 @@ class AuditLogService {
 
     if (caller.role === ROLES.BUILDING_MANAGER) {
       if (!caller.building_id) {
-        throw new Error('Building manager is not assigned to any building');
+        throw new Error('Quản lý tòa nhà chưa được phân công tòa nhà nào');
       }
       includeUser.where = { building_id: caller.building_id };
       includeUser.required = true;

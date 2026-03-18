@@ -9,12 +9,12 @@ class AuthService {
   // STEP 1: signup -> send OTP
   static async signup(email, password) {
     const existed = await User.findOne({ where: { email } });
-    if (existed) throw new Error("Email already exists");
+    if (existed) throw new Error("Email đã được đăng ký");
 
     const otp = await generateOtp(email, "EMAIL_VERIFICATION");
     await sendOtpMail(email, otp.code);
 
-    return { message: "OTP sent to email" };
+    return { message: "Đã gửi mã OTP đến email" };
   }
 
   // STEP 2: verify OTP + create user
@@ -57,15 +57,15 @@ class AuthService {
       ],
     });
 
-    if (!auth || !auth.is_verified) throw new Error("Invalid credentials");
+    if (!auth || !auth.is_verified) throw new Error("Thông tin đăng nhập không hợp lệ");
     if (!auth.User || auth.User.is_active === false) {
       if (auth.User.is_active === false) {
         console.log("Account is inactive", auth.User.id, auth.User.email, auth.User.is_active);
-        throw new Error("User account is deactivated");
+        throw new Error("Tài khoản đã bị vô hiệu hóa");
       }
     }
     const match = await comparePassword(password, auth.password_hash);
-    if (!match) throw new Error("Invalid credentials");
+    if (!match) throw new Error("Thông tin đăng nhập không hợp lệ");
 
     return {
       access_token: generateAccessToken(auth.User),
@@ -92,14 +92,14 @@ class AuthService {
       ],
     });
 
-    if (!auth || !auth.is_verified) throw new Error("Invalid credentials");
-    if (!auth.User) throw new Error("Invalid credentials");
+    if (!auth || !auth.is_verified) throw new Error("Thông tin đăng nhập không hợp lệ");
+    if (!auth.User) throw new Error("Thông tin đăng nhập không hợp lệ");
     const CLIENT_ROLES = ['CUSTOMER', 'RESIDENT'];
     if (!CLIENT_ROLES.includes(auth.User.role)) throw new Error("Tài khoản nội bộ không được phép đăng nhập tại đây");
-    if (auth.User.is_active === false) throw new Error("User account is deactivated");
+    if (auth.User.is_active === false) throw new Error("Tài khoản đã bị vô hiệu hóa");
 
     const match = await comparePassword(password, auth.password_hash);
-    if (!match) throw new Error("Invalid credentials");
+    if (!match) throw new Error("Thông tin đăng nhập không hợp lệ");
 
     await auth.User.update({ last_login_at: new Date() });
 
@@ -119,7 +119,7 @@ class AuthService {
   static async forgotPassword(email) {
     const otp = await generateOtp(email, "PASSWORD_RESET");
     await sendOtpMail(email, otp.code);
-    return { message: "OTP sent" };
+    return { message: "Đã gửi mã OTP" };
   }
 
   static async resetPassword(email, otp, newPassword) {
@@ -129,21 +129,21 @@ class AuthService {
       where: { provider: "EMAIL", provider_id: email },
     });
 
-    if (!auth) throw new Error("Account not found");
+    if (!auth) throw new Error("Không tìm thấy tài khoản");
 
     auth.password_hash = await hashPassword(newPassword);
     await auth.save();
 
-    return { message: "Password updated" };
+    return { message: "Đã cập nhật mật khẩu" };
   }
 
   static async googleSignInStep1(idToken) {
     const payload = await verifyGoogleIdToken(idToken);
     const email = payload.email;
-    if (!payload.email_verified) throw new Error("Google email not verified");
+    if (!payload.email_verified) throw new Error("Email Google chưa được xác minh");
     const otp = await generateOtp(email, OTP_TYPES.EMAIL_VERIFICATION);
     await sendOtpMail(email, otp.code);
-    return { message: "OTP sent to email" };
+    return { message: "Đã gửi mã OTP đến email" };
   }
 
   static async googleSignInStep2(idToken, otpCode) {
@@ -162,7 +162,7 @@ class AuthService {
 
       if (existingGoogleAuth) {
         if (existingGoogleAuth.user_id !== user.id) {
-          throw new Error("Google account already linked to another user");
+          throw new Error("Tài khoản Google đã được liên kết với người dùng khác");
         }
       } else {
         await AuthProvider.create({

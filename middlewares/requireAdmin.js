@@ -4,7 +4,7 @@ module.exports = function requireAdmin(req, res, next) {
   console.log('req.user =', req.user);
   if (!req.user || req.user.role !== ROLES.ADMIN) {
     return res.status(403).json({
-      message: 'Admin permission required',
+      message: 'Cần quyền quản trị viên',
     });
   }
   next();

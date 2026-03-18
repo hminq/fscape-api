@@ -49,7 +49,7 @@ const getAllAssetTypes = async (query = {}, user = {}) => {
 
 const getAssetTypeById = async (id, user = {}) => {
     const assetType = await AssetType.findByPk(id);
-    if (!assetType) throw { status: 404, message: 'Asset type not found' };
+    if (!assetType) throw { status: 404, message: 'Không tìm thấy loại tài sản' };
 
     if (user.role !== ROLES.ADMIN) {
         const data = assetType.toJSON();
@@ -61,16 +61,16 @@ const getAssetTypeById = async (id, user = {}) => {
 
 const createAssetType = async (data) => {
     if (!data.name) {
-        throw { status: 400, message: 'Asset type name is required' };
+        throw { status: 400, message: 'Tên loại tài sản là bắt buộc' };
     }
 
     const duplicate = await AssetType.findOne({ where: { name: data.name } });
     if (duplicate) {
-        throw { status: 409, message: `Asset type "${data.name}" already exists` };
+        throw { status: 409, message: `Loại tài sản "${data.name}" đã tồn tại` };
     }
 
     if (data.default_price !== undefined && data.default_price < 0) {
-        throw { status: 400, message: 'default_price must be >= 0' };
+        throw { status: 400, message: 'Giá mặc định phải từ 0 trở lên' };
     }
 
     return AssetType.create(data);
@@ -78,19 +78,19 @@ const createAssetType = async (data) => {
 
 const updateAssetType = async (id, data) => {
     const assetType = await AssetType.findByPk(id);
-    if (!assetType) throw { status: 404, message: 'Asset type not found' };
+    if (!assetType) throw { status: 404, message: 'Không tìm thấy loại tài sản' };
 
     if (data.name && data.name !== assetType.name) {
         const duplicate = await AssetType.findOne({
             where: { name: data.name, id: { [Op.ne]: id } }
         });
         if (duplicate) {
-            throw { status: 409, message: `Asset type "${data.name}" already exists` };
+            throw { status: 409, message: `Loại tài sản "${data.name}" đã tồn tại` };
         }
     }
 
     if (data.default_price !== undefined && data.default_price < 0) {
-        throw { status: 400, message: 'default_price must be >= 0' };
+        throw { status: 400, message: 'Giá mặc định phải từ 0 trở lên' };
     }
 
     await assetType.update(data);
@@ -99,10 +99,10 @@ const updateAssetType = async (id, data) => {
 
 const deleteAssetType = async (id) => {
     const assetType = await AssetType.findByPk(id);
-    if (!assetType) throw { status: 404, message: 'Asset type not found' };
+    if (!assetType) throw { status: 404, message: 'Không tìm thấy loại tài sản' };
 
     await assetType.update({ is_active: false });
-    return { message: `Asset type "${assetType.name}" has been deactivated` };
+    return { message: `Đã vô hiệu hóa loại tài sản "${assetType.name}"` };
 };
 
 // ─── GET /api/asset-types/stats ──────────────────────────────

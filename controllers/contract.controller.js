@@ -3,7 +3,7 @@ const contractService = require('../services/contract.service');
 const handleError = (res, err) => {
     console.error('[ContractController]', err);
     const status = err.status || 500;
-    const message = err.message || 'Internal Server Error';
+    const message = err.message || 'Lỗi hệ thống';
     return res.status(status).json({ message });
 };
 
@@ -27,11 +27,11 @@ const getContractById = async (req, res) => {
 const updateContract = async (req, res) => {
     try {
         if (Object.keys(req.body).length === 0) {
-            return res.status(400).json({ message: 'Body is empty' });
+            return res.status(400).json({ message: 'Dữ liệu gửi lên rỗng' });
         }
         const contract = await contractService.updateContract(req.params.id, req.body, req.user);
         return res.status(200).json({
-            message: 'Contract updated successfully',
+            message: 'Cập nhật hợp đồng thành công',
             data: contract
         });
     } catch (err) { return handleError(res, err); }
@@ -50,7 +50,8 @@ const customerSign = async (req, res) => {
     try {
         const { signature_url } = req.body;
         if (!signature_url) {
-            return res.status(400).json({ message: 'signature_url is required' });
+            console.warn('[ContractController] customerSign: missing signature_url');
+            return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
         }
 
         const contract = await contractService.customerSign(
@@ -58,7 +59,7 @@ const customerSign = async (req, res) => {
         );
 
         return res.status(200).json({
-            message: 'Contract signed successfully',
+            message: 'Ký hợp đồng thành công',
             data: contract
         });
     } catch (err) { return handleError(res, err); }
@@ -69,7 +70,8 @@ const managerSign = async (req, res) => {
     try {
         const { signature_url } = req.body;
         if (!signature_url) {
-            return res.status(400).json({ message: 'signature_url is required' });
+            console.warn('[ContractController] managerSign: missing signature_url');
+            return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
         }
 
         const contract = await contractService.managerSign(
@@ -77,7 +79,7 @@ const managerSign = async (req, res) => {
         );
 
         return res.status(200).json({
-            message: 'Contract signed and activated successfully',
+            message: 'Ký và kích hoạt hợp đồng thành công',
             data: contract
         });
     } catch (err) { return handleError(res, err); }
@@ -90,7 +92,7 @@ const renewContract = async (req, res) => {
             req.params.id, req.body, req.user
         );
         return res.status(201).json({
-            message: 'Renewal contract created successfully',
+            message: 'Tạo hợp đồng gia hạn thành công',
             data: contract
         });
     } catch (err) { return handleError(res, err); }

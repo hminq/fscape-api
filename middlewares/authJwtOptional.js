@@ -22,7 +22,7 @@ module.exports = async function authJwtOptional(req, res, next) {
 
         if (!user.is_active) {
             return res.status(403).json({
-                message: 'Account is inactive',
+                message: 'Tài khoản đã bị vô hiệu hóa',
             });
         }
 

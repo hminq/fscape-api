@@ -56,7 +56,7 @@ const getFacilityById = async (id) => {
         }]
     })
 
-    if (!facility) throw { status: 404, message: 'Facility not found' }
+    if (!facility) throw { status: 404, message: 'Không tìm thấy tiện ích' }
     return facility
 }
 
@@ -65,7 +65,7 @@ const createFacility = async (data) => {
 
     // Check duplicate name
     const duplicate = await Facility.findOne({ where: { name } });
-    if (duplicate) throw { status: 409, message: `Facility "${name}" already exists` };
+    if (duplicate) throw { status: 409, message: `Tiện ích "${name}" đã tồn tại` };
 
     const facility = await Facility.create({
         name,
@@ -77,13 +77,13 @@ const createFacility = async (data) => {
 
 const updateFacility = async (id, data) => {
     const facility = await Facility.findByPk(id)
-    if (!facility) throw { status: 404, message: 'Facility not found' }
+    if (!facility) throw { status: 404, message: 'Không tìm thấy tiện ích' }
 
     if (data.name && data.name !== facility.name) {
         const duplicate = await Facility.findOne({
             where: { name: data.name, id: { [Op.ne]: id } }
         })
-        if (duplicate) throw { status: 409, message: `Facility "${data.name}" already exists` }
+        if (duplicate) throw { status: 409, message: `Tiện ích "${data.name}" đã tồn tại` }
     }
 
     await facility.update(data)
@@ -92,15 +92,15 @@ const updateFacility = async (id, data) => {
 
 const deleteFacility = async (id) => {
     const facility = await Facility.findByPk(id)
-    if (!facility) throw { status: 404, message: 'Facility not found' }
+    if (!facility) throw { status: 404, message: 'Không tìm thấy tiện ích' }
 
     const linkedBuildingsCount = await BuildingFacility.count({ where: { facility_id: id } });
     if (linkedBuildingsCount > 0) {
-        throw { status: 400, message: `Facility cannot be deleted because it is assigned to ${linkedBuildingsCount} building(s).` };
+        throw { status: 400, message: `Không thể xóa tiện ích vì đang được gán cho ${linkedBuildingsCount} tòa nhà.` };
     }
 
     await facility.destroy()
-    return { message: `Facility "${facility.name}" deleted successfully` }
+    return { message: `Đã xóa tiện ích "${facility.name}" thành công` }
 }
 
 module.exports = {

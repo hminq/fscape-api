@@ -6,7 +6,7 @@ module.exports = async function authJwt(req, res, next) {
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({
-      message: 'Missing or invalid Authorization header',
+      message: 'Thiếu hoặc sai định dạng header Authorization',
     });
   }
 
@@ -17,12 +17,12 @@ module.exports = async function authJwt(req, res, next) {
 
     const user = await User.findByPk(payload.sub);
     if (!user) {
-      return res.status(401).json({ message: 'User not found' });
+      return res.status(401).json({ message: 'Không tìm thấy người dùng' });
     }
 
     if (!user.is_active) {
       return res.status(403).json({
-        message: 'Account is inactive',
+        message: 'Tài khoản đã bị vô hiệu hóa',
       });
     }
 
@@ -35,7 +35,7 @@ module.exports = async function authJwt(req, res, next) {
     next();
   } catch (err) {
     return res.status(401).json({
-      message: 'Invalid or expired token',
+      message: 'Token không hợp lệ hoặc đã hết hạn',
     });
   }
 };

@@ -10,7 +10,7 @@ const { UPLOAD_CATEGORIES } = require('../constants/upload');
 async function uploadFiles(req, categoryKey) {
   const config = UPLOAD_CATEGORIES[categoryKey];
   if (!config) {
-    const err = new Error(`Unknown upload type: ${categoryKey}`);
+    const err = new Error(`Loại upload không xác định: ${categoryKey}`);
     err.status = 400;
     throw err;
   }
@@ -18,7 +18,7 @@ async function uploadFiles(req, categoryKey) {
   const files = await parseMultipart(req, config);
 
   if (files.length === 0) {
-    const err = new Error('No files provided');
+    const err = new Error('Không có file nào được gửi lên');
     err.status = 400;
     throw err;
   }
@@ -152,7 +152,7 @@ function uploadToCloudinary(buffer, { folder, resourceType, extension = '' }) {
 async function uploadBuffer(buffer, categoryKey, filename) {
   const config = UPLOAD_CATEGORIES[categoryKey];
   if (!config) {
-    const err = new Error(`Unknown upload type: ${categoryKey}`);
+    const err = new Error(`Loại upload không xác định: ${categoryKey}`);
     err.status = 400;
     throw err;
   }
