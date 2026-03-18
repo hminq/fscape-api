@@ -8,6 +8,7 @@ const Booking = require('../models/booking.model');
 const Contract = require('../models/contract.model');
 const Request = require('../models/request.model');
 const User = require('../models/user.model');
+const Asset = require('../models/asset.model');
 
 const { ROLES } = require('../constants/roles');
 const { generateRoomNumbers } = require('../utils/roomNumber.util');
@@ -429,6 +430,13 @@ const getMyRooms = async (userId) => {
           model: RoomType,
           as: 'room_type',
           attributes: ['id', 'name', 'area_sqm', 'bedrooms', 'bathrooms', 'capacity_max']
+        },
+        {
+          model: Asset,
+          as: 'assets',
+          attributes: ['id', 'name', 'status', 'qr_code'],
+          where: { status: 'IN_USE' },
+          required: false
         }
       ]
     }],
