@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
 const AssetType = require('../models/assetType.model');
+const { sequelize } = require('../config/db');
 const Asset = require('../models/asset.model');
 const { ROLES } = require('../constants/roles');
 
@@ -64,29 +65,45 @@ const createAssetType = async (data) => {
         throw { status: 400, message: 'Tên loại tài sản là bắt buộc' };
     }
 
-    const duplicate = await AssetType.findOne({ where: { name: data.name } });
+    const normalizedName = data.name.trim();
+    const duplicate = await AssetType.findOne({
+        where: sequelize.where(
+            sequelize.fn('LOWER', sequelize.col('name')),
+            normalizedName.toLowerCase()
+        )
+    });
     if (duplicate) {
-        throw { status: 409, message: `Loại tài sản "${data.name}" đã tồn tại` };
+        throw { status: 409, message: `Loại tài sản "${normalizedName}" đã tồn tại` };
     }
 
     if (data.default_price !== undefined && data.default_price < 0) {
         throw { status: 400, message: 'Giá mặc định phải từ 0 trở lên' };
     }
 
-    return AssetType.create(data);
+    return AssetType.create({ ...data, name: normalizedName });
 };
 
 const updateAssetType = async (id, data) => {
     const assetType = await AssetType.findByPk(id);
     if (!assetType) throw { status: 404, message: 'Không tìm thấy loại tài sản' };
 
-    if (data.name && data.name !== assetType.name) {
+    if (data.name && data.name.trim() !== assetType.name) {
+        const normalizedName = data.name.trim();
         const duplicate = await AssetType.findOne({
-            where: { name: data.name, id: { [Op.ne]: id } }
+            where: {
+                [Op.and]: [
+                    sequelize.where(
+                        sequelize.fn('LOWER', sequelize.col('name')),
+                        normalizedName.toLowerCase()
+                    ),
+                    { id: { [Op.ne]: id } }
+                ]
+            }
         });
         if (duplicate) {
-            throw { status: 409, message: `Loại tài sản "${data.name}" đã tồn tại` };
+            throw { status: 409, message: `Loại tài sản "${normalizedName}" đã tồn tại` };
         }
+        data.name = normalizedName;
     }
 
     if (data.default_price !== undefined && data.default_price < 0) {
@@ -101,8 +118,14 @@ const deleteAssetType = async (id) => {
     const assetType = await AssetType.findByPk(id);
     if (!assetType) throw { status: 404, message: 'Không tìm thấy loại tài sản' };
 
-    await assetType.update({ is_active: false });
-    return { message: `Đã vô hiệu hóa loại tài sản "${assetType.name}"` };
+    // Check if any assets are using this type
+    const count = await Asset.count({ where: { asset_type_id: id } });
+    if (count > 0) {
+        throw { status: 400, message: `Không thể xóa loại tài sản đang có ${count} tài sản sử dụng. Vui lòng gán lại loại tài sản cho các tài sản đó trước.` };
+    }
+
+    await assetType.destroy();
+    return { message: `Đã xóa loại tài sản "${assetType.name}" thành công` };
 };
 
 // ─── GET /api/asset-types/stats ──────────────────────────────

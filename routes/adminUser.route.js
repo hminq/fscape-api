@@ -22,4 +22,6 @@ router.patch('/:id/status', requireRoles(ROLES.ADMIN), validator.updateUserStatu
 
 router.patch('/:id/building', requireRoles(ROLES.ADMIN), validator.assignBuilding, validate, controller.assignBuilding);
 
+router.post('/:id/reset-password', requireRoles(ROLES.ADMIN), controller.resetPassword);
+
 module.exports = router;

@@ -72,9 +72,17 @@ const createRoomType = async (data) => {
         throw { status: 400, message: 'Tên loại phòng là bắt buộc' }
     }
 
-    const duplicate = await RoomType.findOne({ where: { name: data.name } })
+    const normalizedName = data.name.trim();
+
+    const duplicate = await RoomType.findOne({
+        where: sequelize.where(
+            sequelize.fn('LOWER', sequelize.col('name')),
+            normalizedName.toLowerCase()
+        )
+    })
+
     if (duplicate) {
-        throw { status: 409, message: `Loại phòng "${data.name}" đã tồn tại` }
+        throw { status: 409, message: `Loại phòng "${normalizedName}" đã tồn tại` }
     }
 
     if (data.base_price < 0 || data.base_price > 999999999999) {
@@ -110,7 +118,7 @@ const createRoomType = async (data) => {
         throw { status: 400, message: 'Diện tích phải lớn hơn 0 và không quá 1000 m²' }
     }
 
-    const roomType = await RoomType.create(data)
+    const roomType = await RoomType.create({ ...data, name: normalizedName })
 
     return roomType
 }
@@ -120,11 +128,23 @@ const updateRoomType = async (id, data) => {
     const roomType = await RoomType.findByPk(id)
     if (!roomType) throw { status: 404, message: 'Không tìm thấy loại phòng' }
 
-    if (data.name && data.name !== roomType.name) {
-        const duplicate = await RoomType.findOne({ where: { name: data.name, id: { [Op.ne]: id } } })
+    if (data.name && data.name.trim().toLowerCase() !== roomType.name.toLowerCase()) {
+        const normalizedName = data.name.trim();
+        const duplicate = await RoomType.findOne({
+            where: {
+                [Op.and]: [
+                    sequelize.where(
+                        sequelize.fn('LOWER', sequelize.col('name')),
+                        normalizedName.toLowerCase()
+                    ),
+                    { id: { [Op.ne]: id } }
+                ]
+            }
+        })
         if (duplicate) {
-            throw { status: 409, message: `Loại phòng "${data.name}" đã tồn tại` }
+            throw { status: 409, message: `Loại phòng "${normalizedName}" đã tồn tại` }
         }
+        data.name = normalizedName;
     }
 
     if (data.base_price !== undefined && (data.base_price < 0 || data.base_price > 999999999999)) {

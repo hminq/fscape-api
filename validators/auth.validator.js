@@ -1,12 +1,10 @@
 const { body } = require('express-validator');
 
 const passwordRules = body('password')
-  .isLength({ min: 8 }).withMessage('Mật khẩu phải có ít nhất 8 ký tự')
-  .matches(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/).withMessage('Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt');
+  .isLength({ min: 6 }).withMessage('Mật khẩu phải có ít nhất 6 ký tự');
 
 const newPasswordRules = body('new_password')
-  .isLength({ min: 8 }).withMessage('Mật khẩu mới phải có ít nhất 8 ký tự')
-  .matches(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/).withMessage('Mật khẩu mới phải chứa ít nhất 1 ký tự đặc biệt');
+  .isLength({ min: 6 }).withMessage('Mật khẩu mới phải có ít nhất 6 ký tự');
 
 const emailRules = body('email')
   .isEmail().withMessage('Email không hợp lệ')

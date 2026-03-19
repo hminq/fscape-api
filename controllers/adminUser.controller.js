@@ -84,3 +84,13 @@ exports.assignBuilding = async (req, res) => {
     return res.status(400).json({ message: err.message });
   }
 };
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await AdminUserService.resetPassword(id);
+    return res.json(result);
+  } catch (err) {
+    return res.status(400).json({ message: err.message });
+  }
+};
