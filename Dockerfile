@@ -13,7 +13,7 @@ COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev
 
 # ── Stage 2: Production image ──
-FROM node:20-slim
+FROM node:22-slim
 
 # System libs required by Chromium (bundled by Puppeteer)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -25,6 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxkbcommon0 \
     libxcomposite1 \
     libxdamage1 \
+    libxfixes3 \
     libxrandr2 \
     libgbm1 \
     libpango-1.0-0 \
@@ -32,12 +33,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libasound2 \
     libxshmfence1 \
     fonts-liberation \
+    libx11-xcb1 \
+    libxcursor1 \
+    libxext6 \
+    libxi6 \
+    libxtst6 \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy production node_modules (includes Puppeteer's Chromium binary)
+# Copy production node_modules
 COPY --from=deps /app/node_modules ./node_modules
+
+# Copy Puppeteer's chromium cache
+COPY --from=deps /root/.cache/puppeteer /root/.cache/puppeteer
 
 # Copy application code
 COPY . .
