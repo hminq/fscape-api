@@ -37,4 +37,5 @@ app.use('/api/audit-logs', require('./routes/auditLog.routes'));
 app.use('/api/invoices', require('./routes/invoice.routes'));
 app.use('/api/settlements', require('./routes/settlement.routes'));
 app.use('/api/notifications', require('./routes/notification.routes'));
+app.use('/api/utils', require('./routes/utils.routes'));
 module.exports = app
