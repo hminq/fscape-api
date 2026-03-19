@@ -120,7 +120,7 @@ const getMyBookings = async (userId) => {
         attributes: [
             'id', 'booking_number', 'status', 'check_in_date', 'duration_months',
             'room_price_snapshot', 'deposit_amount', 'deposit_paid_at',
-            'expires_at', 'cancelled_at', 'cancellation_reason', 'createdAt'
+            'expires_at', 'cancelled_at', 'cancellation_reason', 'contract_id', 'createdAt'
         ],
         include: [{
             model: Room,
