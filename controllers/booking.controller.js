@@ -56,9 +56,22 @@ const getBookingById = async (req, res) => {
         });
     }
 };
+const getAllBookings = async (req, res) => {
+    try {
+        const bookings = await bookingService.getAllBookings();
 
+        return res.status(200).json({
+            data: bookings
+        });
+    } catch (error) {
+        return res.status(error.status || 500).json({
+            message: error.message || 'Internal Server Error'
+        });
+    }
+};
 module.exports = {
     createBooking,
     getMyBookings,
-    getBookingById
+    getBookingById,
+    getAllBookings,
 };

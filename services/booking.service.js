@@ -209,9 +209,51 @@ const getBookingById = async (id, userId) => {
 
   return booking;
 };
-
+const getAllBookings = async () => {
+    const { Booking, Room, Building, RoomType, User, CustomerProfile } = sequelize.models;
+    return await Booking.findAll({
+        attributes: [
+            'id', 'booking_number', 'status', 'check_in_date', 'duration_months',
+            'room_price_snapshot', 'deposit_amount', 'deposit_paid_at',
+            'expires_at', 'cancelled_at', 'cancellation_reason', 'createdAt'
+        ],
+        include: [
+            {
+                model: Room,
+                as: 'room',
+                attributes: ['id', 'room_number', 'floor', 'thumbnail_url'],
+                include: [
+                    {
+                        model: Building,
+                        as: 'building',
+                        attributes: ['id', 'name', 'address']
+                    },
+                    {
+                        model: RoomType,
+                        as: 'room_type',
+                        attributes: ['id', 'name', 'area_sqm', 'bedrooms', 'bathrooms']
+                    }
+                ]
+            },
+            {
+                model: User,
+                as: 'customer',
+                attributes: ['id', 'first_name', 'last_name', 'email', 'phone'],
+                include: [
+                    {
+                        model: CustomerProfile,
+                        as: 'profile',
+                        attributes: ['gender', 'date_of_birth', 'permanent_address']
+                    }
+                ]
+            }
+        ],
+        order: [['createdAt', 'DESC']]
+    });
+};
 module.exports = {
   createBooking,
   getMyBookings,
   getBookingById,
+  getAllBookings,
 };

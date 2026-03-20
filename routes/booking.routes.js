@@ -11,6 +11,8 @@ router.post('/', authJwt, requireRoles(ROLES.CUSTOMER, ROLES.RESIDENT), validato
 
 router.get('/my', authJwt, requireRoles(ROLES.CUSTOMER, ROLES.RESIDENT), bookingController.getMyBookings);
 
+router.get('/all', authJwt, requireRoles(ROLES.ADMIN, ROLES.BUILDING_MANAGER, ROLES.STAFF), bookingController.getAllBookings);
+
 router.get('/:id', authJwt, validator.paramId, validate, bookingController.getBookingById);
 
 module.exports = router;
