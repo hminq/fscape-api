@@ -149,10 +149,16 @@ const createBuilding = async (data) => {
         throw { status: 400, message: 'Số tầng phải từ 1 đến 99' };
     }
 
-    // Check for duplicate building name
-    const existing = await Building.findOne({ where: { name: buildingData.name } });
+    // Check for duplicate building name (trim and ignore case)
+    const normalizedName = buildingData.name.trim();
+    const existing = await Building.findOne({
+        where: sequelize.where(
+            sequelize.fn('LOWER', sequelize.col('name')),
+            normalizedName.toLowerCase()
+        )
+    });
     if (existing) {
-        throw { status: 409, message: `Tòa nhà "${buildingData.name}" đã tồn tại` };
+        throw { status: 409, message: `Tòa nhà "${normalizedName}" đã tồn tại` };
     }
 
     // Validate manager if provided
@@ -206,9 +212,20 @@ const updateBuilding = async (id, data) => {
     const building = await Building.findByPk(id);
     if (!building) throw { status: 404, message: 'Không tìm thấy tòa nhà' };
 
-    // Check for duplicate name if renaming
-    if (updateData.name && updateData.name !== building.name) {
-        const duplicate = await Building.findOne({ where: { name: updateData.name, id: { [Op.ne]: id } } });
+    // Check for duplicate name if renaming (trim and ignore case)
+    if (updateData.name && updateData.name.trim() !== building.name) {
+        const normalizedName = updateData.name.trim();
+        const duplicate = await Building.findOne({
+            where: {
+                [Op.and]: [
+                    sequelize.where(
+                        sequelize.fn('LOWER', sequelize.col('name')),
+                        normalizedName.toLowerCase()
+                    ),
+                    { id: { [Op.ne]: id } }
+                ]
+            }
+        });
         if (duplicate) throw { status: 409, message: 'Tên tòa nhà đã tồn tại' };
     }
 

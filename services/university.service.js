@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
 const University = require('../models/university.model');
+const { sequelize } = require('../config/db');
 const Location = require('../models/location.model');
 const Building = require('../models/building.model');
 
@@ -72,10 +73,16 @@ const createUniversity = async (data) => {
     if (!location_id) throw { status: 400, message: 'Mã khu vực là bắt buộc' };
     if (!address) throw { status: 400, message: 'Địa chỉ là bắt buộc' };
 
-    const existing = await University.findOne({ where: { name } });
-    if (existing) throw { status: 409, message: `Trường đại học "${name}" đã tồn tại` };
+    const normalizedName = name.trim();
+    const existing = await University.findOne({
+        where: sequelize.where(
+            sequelize.fn('LOWER', sequelize.col('name')),
+            normalizedName.toLowerCase()
+        )
+    });
+    if (existing) throw { status: 409, message: `Trường đại học "${normalizedName}" đã tồn tại` };
 
-    return await University.create(data);
+    return await University.create({ ...data, name: normalizedName });
 };
 
 const updateUniversity = async (id, data) => {
@@ -86,8 +93,19 @@ const updateUniversity = async (id, data) => {
     if (data.location_id !== undefined && !data.location_id) throw { status: 400, message: 'Mã khu vực không được để trống' };
     if (data.address !== undefined && !data.address) throw { status: 400, message: 'Địa chỉ không được để trống' };
 
-    if (data.name && data.name !== university.name) {
-        const duplicate = await University.findOne({ where: { name: data.name, id: { [Op.ne]: id } } });
+    if (data.name && data.name.trim() !== university.name) {
+        const normalizedName = data.name.trim();
+        const duplicate = await University.findOne({
+            where: {
+                [Op.and]: [
+                    sequelize.where(
+                        sequelize.fn('LOWER', sequelize.col('name')),
+                        normalizedName.toLowerCase()
+                    ),
+                    { id: { [Op.ne]: id } }
+                ]
+            }
+        });
         if (duplicate) throw { status: 409, message: 'Tên trường đại học đã tồn tại' };
     }
 

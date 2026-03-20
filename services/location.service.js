@@ -59,11 +59,16 @@ const getLocationById = async (id) => {
 const createLocation = async (data) => {
     const { Location } = sequelize.models;
     const { name } = data;
+    const normalizedName = name.trim();
+    const existing = await Location.findOne({
+        where: sequelize.where(
+            sequelize.fn('LOWER', sequelize.col('name')),
+            normalizedName.toLowerCase()
+        )
+    });
+    if (existing) throw { status: 409, message: `Khu vực "${normalizedName}" đã tồn tại` };
 
-    const existing = await Location.findOne({ where: { name } });
-    if (existing) throw { status: 409, message: `Khu vực "${name}" đã tồn tại` };
-
-    return await Location.create(data);
+    return await Location.create({ ...data, name: normalizedName });
 };
 
 /**
@@ -74,11 +79,20 @@ const updateLocation = async (id, data) => {
     const location = await Location.findByPk(id);
     if (!location) throw { status: 404, message: 'Không tìm thấy khu vực' };
 
-    if (data.name && data.name !== location.name) {
+    if (data.name && data.name.trim() !== location.name) {
+        const normalizedName = data.name.trim();
         const duplicate = await Location.findOne({
-            where: { name: data.name, id: { [Op.ne]: id } }
+            where: {
+                [Op.and]: [
+                    sequelize.where(
+                        sequelize.fn('LOWER', sequelize.col('name')),
+                        normalizedName.toLowerCase()
+                    ),
+                    { id: { [Op.ne]: id } }
+                ]
+            }
         });
-        if (duplicate) throw { status: 409, message: `Khu vực "${data.name}" đã tồn tại` };
+        if (duplicate) throw { status: 409, message: `Khu vực "${normalizedName}" đã tồn tại` };
     }
 
     // Restrict what can be updated via generic PUT (e.g., prevent changing is_active)

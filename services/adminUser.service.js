@@ -31,10 +31,15 @@ class AdminUserService {
       throw new Error('Số điện thoại phải từ 9 đến 15 ký tự');
     }
 
-    // --- Email uniqueness ---
-    const existed = await User.findOne({ where: { email } });
-    if (existed) {
+    // --- Email & Phone uniqueness ---
+    const existedEmail = await User.findOne({ where: { email } });
+    if (existedEmail) {
       throw new Error('Email đã tồn tại');
+    }
+
+    const existedPhone = await User.findOne({ where: { phone } });
+    if (existedPhone) {
+      throw new Error('Số điện thoại đã tồn tại');
     }
 
     // --- Building validation ---
@@ -275,6 +280,33 @@ class AdminUserService {
     await user.save();
 
     return user;
+  }
+
+  // =========================
+  // RESET USER PASSWORD
+  // =========================
+  static async resetPassword(userId) {
+    const user = await User.findByPk(userId);
+    if (!user) throw new Error('Không tìm thấy người dùng');
+
+    if (user.role === ROLES.ADMIN) {
+      throw new Error('Không thể đặt lại mật khẩu cho quản trị viên tối cao');
+    }
+
+    const newPassword = crypto.randomBytes(4).toString('hex');
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    const auth = await AuthProvider.findOne({ where: { user_id: userId, provider: 'EMAIL' } });
+    if (!auth) throw new Error('Người dùng không có thông tin đăng nhập bằng email');
+
+    auth.password_hash = passwordHash;
+    await auth.save();
+
+    return {
+      success: true,
+      message: 'Đặt lại mật khẩu thành công',
+      new_password: newPassword,
+    };
   }
 }
 

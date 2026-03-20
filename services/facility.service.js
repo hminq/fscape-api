@@ -2,6 +2,7 @@ const { Op } = require('sequelize')
 const Facility = require('../models/facility.model')
 const Building = require('../models/building.model')
 const BuildingFacility = require('../models/buildingFacility.model')
+const { sequelize } = require('../config/db')
 
 const getAllFacilities = async ({ page = 1, limit = 10, search, is_active, building_id } = {}, user) => {
     const offset = (page - 1) * limit
@@ -62,13 +63,18 @@ const getFacilityById = async (id) => {
 
 const createFacility = async (data) => {
     const { name, is_active } = data;
-
-    // Check duplicate name
-    const duplicate = await Facility.findOne({ where: { name } });
-    if (duplicate) throw { status: 409, message: `Tiện ích "${name}" đã tồn tại` };
+    // Check duplicate name (trim and ignore case)
+    const normalizedName = name.trim();
+    const duplicate = await Facility.findOne({
+        where: sequelize.where(
+            sequelize.fn('LOWER', sequelize.col('name')),
+            normalizedName.toLowerCase()
+        )
+    });
+    if (duplicate) throw { status: 409, message: `Tiện ích "${normalizedName}" đã tồn tại` };
 
     const facility = await Facility.create({
-        name,
+        name: normalizedName,
         is_active
     });
 
@@ -79,11 +85,20 @@ const updateFacility = async (id, data) => {
     const facility = await Facility.findByPk(id)
     if (!facility) throw { status: 404, message: 'Không tìm thấy tiện ích' }
 
-    if (data.name && data.name !== facility.name) {
+    if (data.name && data.name.trim() !== facility.name) {
+        const normalizedName = data.name.trim();
         const duplicate = await Facility.findOne({
-            where: { name: data.name, id: { [Op.ne]: id } }
-        })
-        if (duplicate) throw { status: 409, message: `Tiện ích "${data.name}" đã tồn tại` }
+            where: {
+                [Op.and]: [
+                    sequelize.where(
+                        sequelize.fn('LOWER', sequelize.col('name')),
+                        normalizedName.toLowerCase()
+                    ),
+                    { id: { [Op.ne]: id } }
+                ]
+            }
+        });
+        if (duplicate) throw { status: 409, message: `Tiện ích "${normalizedName}" đã tồn tại` }
     }
 
     await facility.update(data)
