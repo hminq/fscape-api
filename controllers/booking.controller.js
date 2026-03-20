@@ -58,10 +58,21 @@ const getBookingById = async (req, res) => {
 };
 const getAllBookings = async (req, res) => {
     try {
-        const bookings = await bookingService.getAllBookings();
+        const filters = {
+            page: req.query.page || 1,
+            limit: req.query.limit || 10,
+            status: req.query.status,
+            bookingNumber: req.query.bookingNumber,
+            customerName: req.query.customerName,
+            roomNumber: req.query.roomNumber,
+            buildingName: req.query.buildingName
+        };
+        
+        const result = await bookingService.getAllBookings(filters);
 
         return res.status(200).json({
-            data: bookings
+            message: 'Danh sách đơn đặt phòng',
+            ...result
         });
     } catch (error) {
         return res.status(error.status || 500).json({
