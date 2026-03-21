@@ -148,6 +148,44 @@ const vnpayIpn = async (query) => {
                     status: 'PAID',
                     paid_at: new Date()
                 }, { transaction });
+
+                // Check if this is a first-rent payment that triggers contract state change
+                const { Contract, User, Room, Building } = sequelize.models;
+                const contract = await Contract.findByPk(invoice.contract_id, { transaction });
+
+                if (contract && contract.status === 'PENDING_FIRST_PAYMENT') {
+                    // Verify this is the first-period invoice
+                    if (invoice.billing_period_start === contract.start_date) {
+                        if (contract.renewed_from_contract_id) {
+                            // RENEWAL: skip PENDING_CHECK_IN, go straight to ACTIVE
+                            await contract.update({ status: 'ACTIVE' }, { transaction });
+
+                            // Finish old contract
+                            const oldContract = await Contract.findByPk(
+                                contract.renewed_from_contract_id, { transaction }
+                            );
+                            if (oldContract && ['ACTIVE', 'EXPIRING_SOON', 'FINISHED'].includes(oldContract.status)) {
+                                await oldContract.update({ status: 'FINISHED' }, { transaction });
+                            }
+                        } else {
+                            // NEW CONTRACT: transition to PENDING_CHECK_IN
+                            await contract.update({ status: 'PENDING_CHECK_IN' }, { transaction });
+
+                            // Promote CUSTOMER → RESIDENT
+                            const customer = await User.findByPk(contract.customer_id, { transaction });
+                            if (customer && customer.role === 'CUSTOMER') {
+                                const room = await Room.findByPk(contract.room_id, {
+                                    include: [{ model: Building, as: 'building' }],
+                                    transaction
+                                });
+                                await customer.update({
+                                    role: 'RESIDENT',
+                                    building_id: room?.building?.id || room?.building_id
+                                }, { transaction });
+                            }
+                        }
+                    }
+                }
             }
         }
 

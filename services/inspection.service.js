@@ -521,25 +521,32 @@ async function confirmCheckOut(room, assetsInput, notes, user) {
 
 // ─── RESIDENT SELF-SERVICE CHECK-IN ──────────────────────────
 
-async function resolveResidentContract(user) {
+async function resolveResidentContract(user, { forCheckIn = false } = {}) {
+    const statuses = forCheckIn
+        ? ['PENDING_CHECK_IN']
+        : ['ACTIVE', 'EXPIRING_SOON'];
+
     const contract = await Contract.findOne({
         where: {
             customer_id: user.id,
-            status: { [Op.in]: ['ACTIVE', 'EXPIRING_SOON'] }
+            status: { [Op.in]: statuses }
         },
         include: [{ model: Room, as: 'room' }],
         order: [['created_at', 'DESC']]
     });
 
     if (!contract || !contract.room) {
-        throw { status: 403, message: 'Không tìm thấy hợp đồng đang hoạt động' };
+        const message = forCheckIn
+            ? 'Không tìm thấy hợp đồng ở trạng thái chờ nhận phòng'
+            : 'Không tìm thấy hợp đồng đang hoạt động';
+        throw { status: 403, message };
     }
 
     return { contract, room: contract.room };
 }
 
 const residentPreviewCheckIn = async (assetsInput, user) => {
-    const { contract, room } = await resolveResidentContract(user);
+    const { contract, room } = await resolveResidentContract(user, { forCheckIn: true });
 
     const qrCodes = assetsInput.map(a => a.qr_code);
     const conditionMap = {};
@@ -587,7 +594,7 @@ const residentPreviewCheckIn = async (assetsInput, user) => {
 };
 
 const residentConfirmCheckIn = async (assetsInput, notes, user) => {
-    const { contract, room } = await resolveResidentContract(user);
+    const { contract, room } = await resolveResidentContract(user, { forCheckIn: true });
 
     const qrCodes = assetsInput.map(a => a.qr_code);
     const conditionMap = {};
@@ -672,6 +679,16 @@ const residentConfirmCheckIn = async (assetsInput, notes, user) => {
             }));
             await AssetHistory.bulkCreate(historyRows, { transaction });
         }
+
+        // Contract → ACTIVE, Room → OCCUPIED (onboarding complete)
+        await Contract.update(
+            { status: 'ACTIVE' },
+            { where: { id: contract.id }, transaction }
+        );
+        await Room.update(
+            { status: 'OCCUPIED' },
+            { where: { id: room.id }, transaction }
+        );
 
         await transaction.commit();
 

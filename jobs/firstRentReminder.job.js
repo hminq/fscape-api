@@ -18,7 +18,7 @@ const run = async () => {
     const invoiceIncludes = [{
         model: Contract,
         as: 'contract',
-        where: { status: 'ACTIVE' },
+        where: { status: 'PENDING_FIRST_PAYMENT' },
         required: true,
         include: [
             { model: User, as: 'customer', attributes: ['id', 'email', 'first_name', 'last_name'] },

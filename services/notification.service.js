@@ -188,7 +188,7 @@ const createBmNotification = async (caller, { title, content, target, room_id })
     // Tìm tất cả resident có hợp đồng ACTIVE/EXPIRING_SOON trong building của BM
     const contracts = await Contract.findAll({
       attributes: ["customer_id"],
-      where: { status: ["ACTIVE", "EXPIRING_SOON"] },
+      where: { status: ["PENDING_CHECK_IN", "ACTIVE", "EXPIRING_SOON"] },
       include: [{
         model: Room,
         as: "room",
@@ -213,7 +213,7 @@ const createBmNotification = async (caller, { title, content, target, room_id })
 
     const contracts = await Contract.findAll({
       attributes: ["customer_id"],
-      where: { room_id, status: ["ACTIVE", "EXPIRING_SOON"] },
+      where: { room_id, status: ["PENDING_CHECK_IN", "ACTIVE", "EXPIRING_SOON"] },
     });
 
     recipientIds = [...new Set(contracts.map((c) => c.customer_id))];

@@ -220,7 +220,7 @@ async function syncKnowledge() {
      JOIN rooms r ON r.id = c.room_id
      JOIN buildings b ON b.id = r.building_id
      JOIN users u ON u.id = c.customer_id
-     WHERE c.status IN ('PENDING_CUSTOMER_SIGNATURE','PENDING_MANAGER_SIGNATURE','ACTIVE','EXPIRING_SOON')`,
+     WHERE c.status IN ('PENDING_CUSTOMER_SIGNATURE','PENDING_MANAGER_SIGNATURE','PENDING_FIRST_PAYMENT','PENDING_CHECK_IN','ACTIVE','EXPIRING_SOON')`,
     { type: QueryTypes.SELECT }
   );
 

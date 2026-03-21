@@ -119,7 +119,7 @@ const Contract = sequelize.define('Contract', {
     }
   },
   status: {
-    type: DataTypes.ENUM("DRAFT", "PENDING_CUSTOMER_SIGNATURE", "PENDING_MANAGER_SIGNATURE", "ACTIVE", "EXPIRING_SOON", "FINISHED", "TERMINATED"),
+    type: DataTypes.ENUM("DRAFT", "PENDING_CUSTOMER_SIGNATURE", "PENDING_MANAGER_SIGNATURE", "PENDING_FIRST_PAYMENT", "PENDING_CHECK_IN", "ACTIVE", "EXPIRING_SOON", "FINISHED", "TERMINATED"),
     allowNull: true,
     defaultValue: "DRAFT"
   },

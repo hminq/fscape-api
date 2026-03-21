@@ -18,7 +18,7 @@ const { billingCycleToMonths } = require('../utils/billingCycle.util');
 const { SIGNATURE_EXPIRY_MS } = require('../constants/contract');
 const { generateSequentialId, generateNumberedId } = require('../utils/generateId');
 const { INVOICE_TYPE } = require('../constants/invoiceEnums');
-const { sendContractSigningEmail, sendManagerSigningEmail, sendContractActivatedEmail, sendInvoiceCreatedEmail, sendRenewalSigningEmail } = require('../utils/mail.util');
+const { sendContractSigningEmail, sendManagerSigningEmail, sendInvoiceCreatedEmail, sendRenewalSigningEmail } = require('../utils/mail.util');
 const { generateContractPdf } = require('../utils/pdf.util');
 const auditService = require('./audit.service');
 const { parseLocalDate } = require('../utils/date.util');
@@ -716,12 +716,12 @@ const managerSign = async (contractId, signatureUrl, user, req) => {
             startLocal.getTime() + 30 * 24 * 60 * 60 * 1000
         );
 
-        // 1. Update contract → ACTIVE
+        // 1. Update contract → PENDING_FIRST_PAYMENT (awaiting 1st rent payment)
         await contract.update({
             manager_signature_url: signatureUrl,
             manager_signed_at: new Date(),
             rendered_content: updatedContent,
-            status: 'ACTIVE',
+            status: 'PENDING_FIRST_PAYMENT',
             next_billing_date: nextBillingDate,
             next_rent_billing_at: nextRentBillingAt,
             next_service_billing_at: nextServiceBillingAt,
@@ -730,11 +730,7 @@ const managerSign = async (contractId, signatureUrl, user, req) => {
 
         // 2–4. Handle room, user role, and booking based on renewal vs new contract
         if (contract.renewed_from_contract_id) {
-            // RENEWAL: finish the old contract, room is already OCCUPIED
-            const oldContract = await Contract.findByPk(contract.renewed_from_contract_id, { transaction });
-            if (oldContract && ['ACTIVE', 'EXPIRING_SOON', 'FINISHED'].includes(oldContract.status)) {
-                await oldContract.update({ status: 'FINISHED' }, { transaction });
-            }
+            // RENEWAL: do NOT finish old contract yet — defer to payment callback
             // Room stays OCCUPIED — no change needed
             // No booking to CONVERT — renewals don't create bookings
 
@@ -748,23 +744,12 @@ const managerSign = async (contractId, signatureUrl, user, req) => {
                 }, { transaction });
             }
         } else {
-            // ORIGINAL FLOW: new contract from booking
-            // 2. Room → OCCUPIED
-            const room = await Room.findByPk(contract.room_id, { transaction });
-            if (room) {
-                await room.update({ status: 'OCCUPIED' }, { transaction });
-            }
+            // NEW CONTRACT: room stays LOCKED, user stays CUSTOMER
+            // Role promotion and room OCCUPIED happen later in the flow:
+            //   - CUSTOMER → RESIDENT on 1st rent payment (payment callback)
+            //   - Room → OCCUPIED on check-in (inspection service)
 
-            // 3. Customer → RESIDENT (if currently CUSTOMER)
-            const customer = await User.findByPk(contract.customer_id, { transaction });
-            if (customer && customer.role === ROLES.CUSTOMER) {
-                await customer.update({
-                    role: ROLES.RESIDENT,
-                    building_id: contractBuildingId
-                }, { transaction });
-            }
-
-            // 4. Booking → CONVERTED
+            // Booking → CONVERTED
             const booking = await Booking.findOne({
                 where: { contract_id: contract.id },
                 transaction
@@ -828,7 +813,7 @@ const managerSign = async (contractId, signatureUrl, user, req) => {
             entityType: 'contract',
             entityId: contract.id,
             oldValue: { status: oldStatus },
-            newValue: { status: 'ACTIVE', manager_signature_url: signatureUrl },
+            newValue: { status: 'PENDING_FIRST_PAYMENT', manager_signature_url: signatureUrl },
             req
         }, { transaction });
 
@@ -842,19 +827,12 @@ const managerSign = async (contractId, signatureUrl, user, req) => {
             })
             .catch(err => console.error('[ContractService] Failed to generate PDF:', err));
 
-        // Send activation confirmation email to resident
+        // Send signing confirmation + first invoice email to customer
         const customerForEmail = await User.findByPk(contract.customer_id);
         if (customerForEmail) {
             const customerName = `${customerForEmail.last_name || ''} ${customerForEmail.first_name || ''}`.trim();
-            await sendContractActivatedEmail(customerForEmail.email, {
-                customerName,
-                contractNumber: contract.contract_number,
-                roomNumber: contract.room?.room_number || '',
-                buildingName: contract.room?.building?.name || '',
-                startDate: formatDate(contract.start_date)
-            }).catch(err => console.error('[ContractService] Failed to send activation email:', err));
 
-            // Send first invoice notification email
+            // Send first invoice notification email (customer must pay before check-in)
             const formatAmount = (v) => new Intl.NumberFormat('vi-VN').format(Number(v)) + 'đ';
             await sendInvoiceCreatedEmail(customerForEmail.email, {
                 customerName,
@@ -888,6 +866,7 @@ const getContractStats = async () => {
 
     const byStatus = {
         pending_customer_signature: 0, pending_manager_signature: 0,
+        pending_first_payment: 0, pending_check_in: 0,
         active: 0, expiring_soon: 0, finished: 0, terminated: 0,
     };
     const byBuilding = {};
