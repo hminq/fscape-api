@@ -189,8 +189,8 @@ const getMyBookings = async (userId) => {
   });
 };
 
-const getBookingById = async (id, userId) => {
-  const { Booking, Room, Building, RoomType } = sequelize.models;
+const getBookingById = async (id, caller) => {
+  const { Booking, Room, Building, RoomType, User, CustomerProfile } = sequelize.models;
   const booking = await Booking.findByPk(id, {
     include: [
       {
@@ -201,12 +201,25 @@ const getBookingById = async (id, userId) => {
           { model: RoomType, as: "room_type" },
         ],
       },
+      {
+        model: User,
+        as: "customer",
+        attributes: ['id', 'first_name', 'last_name', 'email', 'phone', 'avatar_url'],
+        include: [
+          { model: CustomerProfile, as: 'profile', attributes: ['gender', 'date_of_birth', 'permanent_address'] },
+        ],
+      },
     ],
   });
 
   if (!booking) throw { status: 404, message: "Không tìm thấy đơn đặt phòng." };
-  if (booking.customer_id !== userId)
-    throw { status: 403, message: "Bạn không có quyền truy cập đơn này." };
+
+  // ADMIN and BUILDING_MANAGER can view any booking
+  const role = caller.role || caller;
+  if (role !== 'ADMIN' && role !== 'BUILDING_MANAGER') {
+    if (booking.customer_id !== caller.id)
+      throw { status: 403, message: "Bạn không có quyền truy cập đơn này." };
+  }
 
   return booking;
 };

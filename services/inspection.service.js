@@ -704,4 +704,35 @@ const residentConfirmCheckIn = async (assetsInput, notes, user) => {
     }
 };
 
-module.exports = { previewInspection, confirmInspection, residentPreviewCheckIn, residentConfirmCheckIn };
+// ─── GET /api/inspections?room_id= ────────────────────────────
+const getInspectionsByRoom = async (roomId, caller) => {
+    const room = await Room.findByPk(roomId);
+    if (!room) throw { status: 404, message: 'Không tìm thấy phòng' };
+
+    // Access control
+    if (caller.role === ROLES.BUILDING_MANAGER || caller.role === ROLES.STAFF) {
+        ensureBuildingAccess(caller, room);
+    } else if (caller.role === ROLES.RESIDENT) {
+        const hasContract = await Contract.count({
+            where: { room_id: roomId, customer_id: caller.id }
+        });
+        if (!hasContract) throw { status: 403, message: 'Bạn không có quyền xem kiểm tra phòng này' };
+    }
+    // ADMIN: no restriction
+
+    const inspections = await AssetInspection.findAll({
+        where: { room_id: roomId },
+        order: [['created_at', 'DESC']],
+        include: [
+            { model: User, as: 'performer', attributes: ['id', 'first_name', 'last_name', 'email'] },
+            {
+                model: AssetInspectionItem, as: 'items',
+                include: [{ model: Asset, as: 'asset', include: [{ model: AssetType, as: 'asset_type', attributes: ['id', 'name'] }] }]
+            }
+        ]
+    });
+
+    return inspections.map(i => i.toJSON());
+};
+
+module.exports = { previewInspection, confirmInspection, residentPreviewCheckIn, residentConfirmCheckIn, getInspectionsByRoom };

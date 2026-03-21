@@ -44,8 +44,7 @@ const getMyBookings = async (req, res) => {
 const getBookingById = async (req, res) => {
     try {
         const { id } = req.params;
-        const userId = req.user.id;
-        const booking = await bookingService.getBookingById(id, userId);
+        const booking = await bookingService.getBookingById(id, req.user);
 
         return res.status(200).json({
             data: booking

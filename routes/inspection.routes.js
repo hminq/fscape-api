@@ -9,6 +9,9 @@ const validator = require('../validators/inspection.validator');
 
 const staffOnly = requireRoles(ROLES.STAFF);
 
+// List inspections by room
+router.get('/', authJwt, requireRoles(ROLES.ADMIN, ROLES.BUILDING_MANAGER, ROLES.STAFF, ROLES.RESIDENT), inspectionController.getInspectionsByRoom);
+
 // Staff checkout inspection routes
 router.post('/preview', authJwt, staffOnly, validator.staffPreview, validate, inspectionController.previewInspection);
 router.post('/', authJwt, staffOnly, validator.staffConfirm, validate, inspectionController.confirmInspection);
