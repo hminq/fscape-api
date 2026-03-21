@@ -6,6 +6,7 @@ const invoiceGeneration = require('./invoiceGeneration.job');
 const firstRentExpiry = require('./firstRentExpiry.job');
 const signingReminder = require('./signingReminder.job');
 const firstRentReminder = require('./firstRentReminder.job');
+const checkInExpiry = require('./checkInExpiry.job');
 
 function initCronJobs() {
     // Contract signature expiry — every 15 minutes
@@ -68,6 +69,15 @@ function initCronJobs() {
             await firstRentReminder.run();
         } catch (err) {
             console.error('[CronScheduler] firstRentReminder error:', err.message);
+        }
+    });
+
+    // Check-in expiry — every 15 minutes
+    cron.schedule('*/15 * * * *', async () => {
+        try {
+            await checkInExpiry.run();
+        } catch (err) {
+            console.error('[CronScheduler] checkInExpiry error:', err.message);
         }
     });
 

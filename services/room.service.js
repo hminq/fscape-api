@@ -101,7 +101,7 @@ const getRoomById = async (id, user = {}) => {
   if (role === ROLES.ADMIN || role === ROLES.BUILDING_MANAGER || role === ROLES.STAFF) {
     // 1. Find the current resident (user with an ACTIVE contract on this room)
     const activeContract = await Contract.findOne({
-      where: { room_id: id, status: 'ACTIVE' },
+      where: { room_id: id, status: { [Op.in]: ['PENDING_FIRST_PAYMENT', 'PENDING_CHECK_IN', 'ACTIVE', 'EXPIRING_SOON'] } },
       include: [{ model: User, as: 'customer', attributes: ['id', 'first_name', 'last_name', 'email', 'phone', 'avatar_url'] }]
     });
 
@@ -413,7 +413,7 @@ const getMyRooms = async (userId) => {
   const contracts = await Contract.findAll({
     where: {
       customer_id: userId,
-      status: { [Op.in]: ['ACTIVE', 'EXPIRING_SOON'] }
+      status: { [Op.in]: ['PENDING_CHECK_IN', 'ACTIVE', 'EXPIRING_SOON'] }
     },
     attributes: ['id', 'contract_number', 'status', 'start_date', 'end_date', 'base_rent'],
     include: [{

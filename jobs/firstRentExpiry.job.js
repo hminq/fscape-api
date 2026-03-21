@@ -26,7 +26,7 @@ const run = async () => {
             include: [{
                 model: Contract,
                 as: 'contract',
-                where: { status: 'ACTIVE' },
+                where: { status: 'PENDING_FIRST_PAYMENT' },
                 required: true,
                 include: [
                     { model: User, as: 'customer', attributes: ['id', 'email', 'first_name', 'last_name'] },
@@ -84,7 +84,7 @@ const run = async () => {
                     action: 'UPDATE',
                     entityType: 'contract',
                     entityId: contract.id,
-                    oldValue: { status: 'ACTIVE' },
+                    oldValue: { status: 'PENDING_FIRST_PAYMENT' },
                     newValue: { status: 'TERMINATED', reason: 'Chưa thanh toán tiền phòng kỳ đầu (auto)' }
                 }, { transaction });
 
