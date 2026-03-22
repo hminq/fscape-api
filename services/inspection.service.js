@@ -27,6 +27,24 @@ function ensureBuildingAccess(user, room) {
     }
 }
 
+async function ensureCheckoutRequest(roomId, staffId) {
+    const checkoutRequest = await Request.findOne({
+        where: {
+            room_id: roomId,
+            request_type: 'CHECKOUT',
+            status: 'IN_PROGRESS',
+            assigned_staff_id: staffId
+        }
+    });
+    if (!checkoutRequest) {
+        throw {
+            status: 403,
+            message: 'Không thể thực hiện checkout — cần có yêu cầu checkout (CHECKOUT) ở trạng thái IN_PROGRESS được giao cho bạn'
+        };
+    }
+    return checkoutRequest;
+}
+
 function resolveScannedAssets(qrCodes) {
     if (!qrCodes || qrCodes.length === 0) return Promise.resolve([]);
     return Asset.findAll({
@@ -187,6 +205,7 @@ const previewInspection = async (roomId, assetsInput, user) => {
     const room = await Room.findByPk(roomId);
     if (!room) throw { status: 404, message: 'Không tìm thấy phòng' };
     ensureBuildingAccess(user, room);
+    await ensureCheckoutRequest(roomId, user.id);
 
     const qrCodes = assetsInput.map(a => a.qr_code);
     const conditionMap = buildConditionMap(assetsInput);
@@ -284,6 +303,7 @@ const confirmInspection = async (roomId, assetsInput, notes, user) => {
     const room = await Room.findByPk(roomId);
     if (!room) throw { status: 404, message: 'Không tìm thấy phòng' };
     ensureBuildingAccess(user, room);
+    await ensureCheckoutRequest(roomId, user.id);
 
     return confirmCheckOut(room, assetsInput, notes, user);
 };

@@ -745,6 +745,195 @@ exports.sendSigningCancelledEmail = async (
   await logEmailSent(email, subject, "CONTRACT_SIGNING_CANCELLED", contractId);
 };
 
+/**
+ * Email to customer when contract cancelled because MANAGER did not sign in time.
+ * Different tone: acknowledges it was not the customer's fault.
+ */
+exports.sendSigningCancelledByManagerEmail = async (
+  email,
+  { customerName, contractNumber, contractId, roomNumber, buildingName },
+) => {
+  if (await wasEmailSent("CONTRACT_CANCELLED_MANAGER_FAULT", contractId))
+    return;
+  const subject = `Hợp đồng ${contractNumber} — Đã bị hủy do quản lý chưa ký kịp thời`;
+  await sendMailWithAudit({
+    to: email,
+    subject,
+    templateKey: "CONTRACT_CANCELLED_MANAGER_FAULT",
+    context: { contractNumber, roomNumber, buildingName },
+    html: wrapEmailTemplate(`
+      <h2 style="margin:0 0 8px; color:#011936;">Xin chào ${customerName},</h2>
+      <p style="margin:0 0 16px; color:#52525b;">
+        Chúng tôi rất xin lỗi, hợp đồng thuê phòng của bạn đã bị <strong style="color:#dc2626;">hủy tự động</strong>
+        do phía quản lý tòa nhà <strong>chưa ký kịp thời hạn</strong>. Đây không phải lỗi của bạn.
+      </p>
+
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#fef2f2; border:1px solid #fca5a5; border-radius:8px; margin:0 0 24px;">
+        <tr>
+          <td style="padding:16px;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Số hợp đồng</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${contractNumber}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Phòng</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${roomNumber}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Tòa nhà</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${buildingName}</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <p style="margin:0 0 8px; color:#52525b;">
+        Bạn có thể thực hiện lại quy trình đặt phòng trên FScape. Tiền cọc của bạn sẽ được xử lý theo quy định.
+      </p>
+      <p style="margin:0; color:#71717a; font-size:13px;">
+        Chúng tôi đã thông báo đến ban quản trị để xử lý. Xin lỗi vì sự bất tiện này.
+      </p>
+    `),
+  });
+  await logEmailSent(
+    email,
+    subject,
+    "CONTRACT_CANCELLED_MANAGER_FAULT",
+    contractId,
+  );
+};
+
+/**
+ * Email to ADMIN(s) when a contract was cancelled because the manager did not sign in time.
+ */
+exports.sendManagerSigningExpiredAdminEmail = async (
+  email,
+  {
+    managerName,
+    contractNumber,
+    contractId,
+    customerName,
+    roomNumber,
+    buildingName,
+  },
+) => {
+  const uniqueKey = `${contractId}_admin_${email}`;
+  if (await wasEmailSent("MANAGER_SIGNING_EXPIRED_ADMIN", uniqueKey)) return;
+  const subject = `[Cảnh báo] Hợp đồng ${contractNumber} bị hủy — Quản lý không ký kịp thời`;
+  await sendMailWithAudit({
+    to: email,
+    subject,
+    templateKey: "MANAGER_SIGNING_EXPIRED_ADMIN",
+    context: { contractNumber, roomNumber, buildingName, managerName },
+    html: wrapEmailTemplate(`
+      <h2 style="margin:0 0 8px; color:#011936;">Thông báo hệ thống</h2>
+      <p style="margin:0 0 16px; color:#52525b;">
+        Hợp đồng sau đã bị <strong style="color:#dc2626;">hủy tự động</strong> do quản lý tòa nhà
+        <strong>không ký trong thời hạn 24 giờ</strong>.
+      </p>
+
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#fff7ed; border:1px solid #fdba74; border-radius:8px; margin:0 0 24px;">
+        <tr>
+          <td style="padding:16px;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Số hợp đồng</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${contractNumber}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Phòng</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${roomNumber}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Tòa nhà</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${buildingName}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Khách hàng</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${customerName}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Quản lý chịu trách nhiệm</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#dc2626;">${managerName}</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <p style="margin:0 0 8px; color:#52525b;">
+        Vui lòng kiểm tra và xử lý kịp thời. Khách hàng đã được thông báo về việc hủy hợp đồng.
+      </p>
+    `),
+  });
+  await logEmailSent(
+    email,
+    subject,
+    "MANAGER_SIGNING_EXPIRED_ADMIN",
+    uniqueKey,
+  );
+};
+
+// ── Contract Termination Email ──
+
+/**
+ * Email to customer when Admin/BM manually terminates their contract.
+ */
+exports.sendContractTerminatedEmail = async (
+  email,
+  { customerName, contractNumber, contractId, roomNumber, buildingName, terminationReason },
+) => {
+  if (await wasEmailSent("CONTRACT_TERMINATED", contractId)) return;
+  const subject = `Hợp đồng ${contractNumber} — Đã bị chấm dứt`;
+  await sendMailWithAudit({
+    to: email,
+    subject,
+    templateKey: "CONTRACT_TERMINATED",
+    context: { contractNumber, roomNumber, buildingName },
+    html: wrapEmailTemplate(`
+      <h2 style="margin:0 0 8px; color:#011936;">Xin chào ${customerName},</h2>
+      <p style="margin:0 0 16px; color:#52525b;">
+        Chúng tôi thông báo hợp đồng thuê phòng của bạn đã bị <strong style="color:#dc2626;">chấm dứt</strong> bởi ban quản lý.
+      </p>
+
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#fef2f2; border:1px solid #fca5a5; border-radius:8px; margin:0 0 24px;">
+        <tr>
+          <td style="padding:16px;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Số hợp đồng</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${contractNumber}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Phòng</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${roomNumber}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Tòa nhà</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${buildingName}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Lý do</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#dc2626;">${terminationReason}</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <p style="margin:0 0 8px; color:#52525b;">
+        Nhân viên quản lý sẽ liên hệ với bạn để hướng dẫn quy trình trả phòng và quyết toán (nếu có).
+      </p>
+      <p style="margin:0; color:#71717a; font-size:13px;">
+        Nếu có bất kỳ thắc mắc nào, vui lòng liên hệ ban quản lý tòa nhà qua hệ thống FScape.
+      </p>
+    `),
+  });
+  await logEmailSent(email, subject, "CONTRACT_TERMINATED", contractId);
+};
+
 // ── Payment Reminder & Cancellation Emails ──
 
 exports.sendPaymentReminderEmail = async (

@@ -53,6 +53,17 @@ exports.sendReminder = [
     .withMessage('Loại nhắc nhở không hợp lệ'),
 ];
 
+exports.terminate = [
+  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  body('termination_reason')
+    .notEmpty().withMessage('Lý do chấm dứt không được để trống')
+    .isString().withMessage('Lý do chấm dứt phải là chuỗi')
+    .isLength({ max: 1000 }).withMessage('Lý do chấm dứt tối đa 1000 ký tự'),
+  body('assigned_staff_id')
+    .optional()
+    .isUUID().withMessage('ID nhân viên phải là UUID hợp lệ'),
+];
+
 exports.paramId = [
   param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
 ];

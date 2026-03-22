@@ -18,11 +18,15 @@ const { billingCycleToMonths } = require('../utils/billingCycle.util');
 const { SIGNATURE_EXPIRY_MS } = require('../constants/contract');
 const { generateSequentialId, generateNumberedId } = require('../utils/generateId');
 const { INVOICE_TYPE } = require('../constants/invoiceEnums');
-const { sendContractSigningEmail, sendManagerSigningEmail, sendInvoiceCreatedEmail, sendRenewalSigningEmail, sendCheckInReminderEmail, sendManualExpiringReminderEmail } = require('../utils/mail.util');
+const { sendContractSigningEmail, sendManagerSigningEmail, sendInvoiceCreatedEmail, sendRenewalSigningEmail, sendCheckInReminderEmail, sendManualExpiringReminderEmail, sendContractTerminatedEmail } = require('../utils/mail.util');
 const Invoice = require('../models/invoice.model');
 const { generateContractPdf } = require('../utils/pdf.util');
 const auditService = require('./audit.service');
 const { parseLocalDate } = require('../utils/date.util');
+const Request = require('../models/request.model');
+const RequestStatusHistory = require('../models/requestStatusHistory.model');
+const { createNotification } = require('./notification.service');
+const { generateRequestNumber } = require('./request.service');
 
 /* ── helpers ─────────────────────────────────────────────────── */
 
@@ -985,6 +989,262 @@ const sendManualReminder = async (contractId, reminderType, user) => {
     return { message: `Đã gửi email nhắc nhở ${REMINDER_LABEL[reminderType]} đến ${customer.email}` };
 };
 
+/* ── Contract termination (Admin / BM) ─────────────────────── */
+
+const PENDING_STATUSES = [
+    'PENDING_CUSTOMER_SIGNATURE',
+    'PENDING_MANAGER_SIGNATURE',
+    'PENDING_FIRST_PAYMENT',
+    'PENDING_CHECK_IN'
+];
+
+const ACTIVE_STATUSES = ['ACTIVE', 'EXPIRING_SOON'];
+
+/**
+ * Admin/BM chấm dứt hợp đồng.
+ *
+ * Case 1 — Pending contracts: terminate immediately, cancel booking, release room.
+ * Case 2 — Active contracts: auto-create CHECKOUT request at IN_PROGRESS,
+ *           staff then performs checkout inspection via existing flow.
+ */
+const terminateContract = async (contractId, body, user, req) => {
+    const { termination_reason, assigned_staff_id } = body;
+
+    const contract = await Contract.findByPk(contractId, {
+        include: [
+            { model: User, as: 'customer', attributes: ['id', 'email', 'first_name', 'last_name', 'role'] },
+            {
+                model: Room, as: 'room', attributes: ['id', 'room_number', 'status'],
+                include: [{ model: Building, as: 'building', attributes: ['id', 'name'] }]
+            }
+        ]
+    });
+    if (!contract) throw { status: 404, message: 'Không tìm thấy hợp đồng' };
+
+    if (['TERMINATED', 'FINISHED'].includes(contract.status)) {
+        throw { status: 400, message: 'Hợp đồng đã kết thúc hoặc đã bị chấm dứt' };
+    }
+
+    // BM scope check
+    const contractBuildingId = contract.room?.building?.id;
+    if (user.role === ROLES.BUILDING_MANAGER) {
+        if (!contractBuildingId || contractBuildingId !== user.building_id) {
+            throw { status: 403, message: 'Bạn không có quyền thao tác trên hợp đồng này' };
+        }
+    }
+
+    const isPending = PENDING_STATUSES.includes(contract.status);
+    const isActive = ACTIVE_STATUSES.includes(contract.status);
+
+    if (!isPending && !isActive) {
+        throw { status: 400, message: `Không thể chấm dứt hợp đồng ở trạng thái ${contract.status}` };
+    }
+
+    // Active contracts require assigned_staff_id
+    if (isActive && !assigned_staff_id) {
+        throw { status: 400, message: 'Hợp đồng đang hoạt động — cần chỉ định nhân viên (assigned_staff_id) để thực hiện checkout' };
+    }
+
+    // Validate staff if provided
+    let staff = null;
+    if (assigned_staff_id) {
+        staff = await User.findByPk(assigned_staff_id);
+        if (!staff) throw { status: 400, message: 'Không tìm thấy nhân viên' };
+        if (staff.role !== ROLES.STAFF) throw { status: 400, message: 'Người dùng được chỉ định không phải nhân viên (STAFF)' };
+        if (staff.building_id !== contractBuildingId) {
+            throw { status: 400, message: 'Nhân viên không thuộc cùng tòa nhà với hợp đồng' };
+        }
+    }
+
+    const transaction = await sequelize.transaction();
+    const oldStatus = contract.status;
+
+    try {
+        if (isPending) {
+            // ── Case 1: Pending → terminate immediately ──
+            await contract.update({
+                status: 'TERMINATED',
+                notes: `[Chấm dứt bởi ${user.role}] ${termination_reason}`,
+                signature_expires_at: null
+            }, { transaction });
+
+            // Cancel associated booking
+            const booking = await Booking.findOne({
+                where: { contract_id: contract.id },
+                transaction
+            });
+            if (booking) {
+                await booking.update({
+                    status: 'CANCELLED',
+                    cancelled_at: new Date(),
+                    cancellation_reason: `Hợp đồng bị chấm dứt: ${termination_reason}`
+                }, { transaction });
+
+                await Room.update(
+                    { status: 'AVAILABLE' },
+                    { where: { id: booking.room_id }, transaction }
+                );
+            }
+
+            // Demote RESIDENT → CUSTOMER if no other active/expiring contracts
+            if (contract.customer && contract.customer.role === ROLES.RESIDENT) {
+                const otherActive = await Contract.count({
+                    where: {
+                        customer_id: contract.customer_id,
+                        id: { [Op.ne]: contract.id },
+                        status: { [Op.in]: ['ACTIVE', 'EXPIRING_SOON'] }
+                    },
+                    transaction
+                });
+                if (otherActive === 0) {
+                    await User.update(
+                        { role: ROLES.CUSTOMER },
+                        { where: { id: contract.customer_id }, transaction }
+                    );
+                }
+            }
+
+            // Audit log
+            await auditService.log({
+                user,
+                action: 'UPDATE',
+                entityType: 'contract',
+                entityId: contract.id,
+                oldValue: { status: oldStatus },
+                newValue: { status: 'TERMINATED', reason: termination_reason },
+                req
+            }, { transaction });
+
+            await transaction.commit();
+
+            // Notifications (after commit)
+            try {
+                await createNotification({
+                    type: 'CONTRACT_TERMINATED',
+                    title: 'Hợp đồng bị chấm dứt',
+                    content: `Hợp đồng ${contract.contract_number} đã bị chấm dứt. Lý do: ${termination_reason}`,
+                    target_type: 'CONTRACT',
+                    target_id: contract.id,
+                    created_by: user.id,
+                    specific_user_ids: [contract.customer_id]
+                });
+            } catch (err) {
+                console.error('[ContractService] Failed to create termination notification:', err.message);
+            }
+
+            // Email customer
+            if (contract.customer?.email) {
+                const customerName = `${contract.customer.last_name || ''} ${contract.customer.first_name || ''}`.trim();
+                sendContractTerminatedEmail(contract.customer.email, {
+                    customerName,
+                    contractNumber: contract.contract_number,
+                    contractId: contract.id,
+                    roomNumber: contract.room?.room_number || '',
+                    buildingName: contract.room?.building?.name || '',
+                    terminationReason: termination_reason
+                }).catch(err => console.error('[ContractService] Failed to send termination email:', err.message));
+            }
+
+            return { contract, case: 'TERMINATED' };
+
+        } else {
+            // ── Case 2: Active → create CHECKOUT request at IN_PROGRESS ──
+            await contract.update({
+                notes: `[Chấm dứt bởi ${user.role}] ${termination_reason}`
+            }, { transaction });
+
+            const requestNumber = await generateRequestNumber();
+            const checkoutRequest = await Request.create({
+                request_number: requestNumber,
+                room_id: contract.room_id,
+                resident_id: contract.customer_id,
+                assigned_staff_id: assigned_staff_id,
+                request_type: 'CHECKOUT',
+                title: `Checkout — Chấm dứt hợp đồng ${contract.contract_number}`,
+                description: `Yêu cầu checkout tự động do hợp đồng bị chấm dứt. Lý do: ${termination_reason}`,
+                status: 'IN_PROGRESS',
+                service_price: 0
+            }, { transaction });
+
+            // Create status history entries showing the skipped chain
+            const statusChain = [
+                { from: null, to: 'PENDING' },
+                { from: 'PENDING', to: 'ASSIGNED' },
+                { from: 'ASSIGNED', to: 'PRICE_PROPOSED' },
+                { from: 'PRICE_PROPOSED', to: 'APPROVED' },
+                { from: 'APPROVED', to: 'IN_PROGRESS' }
+            ];
+            for (const entry of statusChain) {
+                await RequestStatusHistory.create({
+                    request_id: checkoutRequest.id,
+                    from_status: entry.from,
+                    to_status: entry.to,
+                    changed_by: user.id,
+                    reason: 'Tự động tạo do chấm dứt hợp đồng'
+                }, { transaction });
+            }
+
+            // Audit log
+            await auditService.log({
+                user,
+                action: 'UPDATE',
+                entityType: 'contract',
+                entityId: contract.id,
+                oldValue: { status: oldStatus },
+                newValue: { notes: contract.notes, checkout_request_id: checkoutRequest.id, reason: termination_reason },
+                req
+            }, { transaction });
+
+            await transaction.commit();
+
+            // Notifications (after commit)
+            try {
+                // Notify resident
+                await createNotification({
+                    type: 'CONTRACT_TERMINATION_INITIATED',
+                    title: 'Hợp đồng sắp bị chấm dứt',
+                    content: `Hợp đồng ${contract.contract_number} sẽ bị chấm dứt. Nhân viên sẽ liên hệ bạn để thực hiện checkout. Lý do: ${termination_reason}`,
+                    target_type: 'CONTRACT',
+                    target_id: contract.id,
+                    created_by: user.id,
+                    specific_user_ids: [contract.customer_id]
+                });
+
+                // Notify assigned staff
+                await createNotification({
+                    type: 'CHECKOUT_REQUEST_ASSIGNED',
+                    title: 'Nhiệm vụ checkout mới',
+                    content: `Bạn được giao thực hiện checkout phòng ${contract.room?.room_number || ''} (hợp đồng ${contract.contract_number})`,
+                    target_type: 'REQUEST',
+                    target_id: checkoutRequest.id,
+                    created_by: user.id,
+                    specific_user_ids: [assigned_staff_id]
+                });
+            } catch (err) {
+                console.error('[ContractService] Failed to create termination notifications:', err.message);
+            }
+
+            // Email customer
+            if (contract.customer?.email) {
+                const customerName = `${contract.customer.last_name || ''} ${contract.customer.first_name || ''}`.trim();
+                sendContractTerminatedEmail(contract.customer.email, {
+                    customerName,
+                    contractNumber: contract.contract_number,
+                    contractId: contract.id,
+                    roomNumber: contract.room?.room_number || '',
+                    buildingName: contract.room?.building?.name || '',
+                    terminationReason: termination_reason
+                }).catch(err => console.error('[ContractService] Failed to send termination email:', err.message));
+            }
+
+            return { contract, checkoutRequest, case: 'CHECKOUT_CREATED' };
+        }
+    } catch (error) {
+        await transaction.rollback();
+        throw error;
+    }
+};
+
 module.exports = {
     getAllContracts,
     getContractById,
@@ -995,5 +1255,6 @@ module.exports = {
     managerSign,
     updateContract,
     getContractStats,
-    sendManualReminder
+    sendManualReminder,
+    terminateContract
 };

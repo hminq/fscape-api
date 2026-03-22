@@ -117,6 +117,27 @@ const sendReminder = async (req, res) => {
     } catch (err) { return handleError(res, err); }
 };
 
+// [PATCH] /api/contracts/:id/terminate — Admin/BM terminates contract
+const terminateContract = async (req, res) => {
+    try {
+        const result = await contractService.terminateContract(
+            req.params.id, req.body, req.user, req
+        );
+
+        const message = result.case === 'TERMINATED'
+            ? 'Đã chấm dứt hợp đồng thành công'
+            : 'Đã tạo yêu cầu checkout — nhân viên sẽ thực hiện checkout để hoàn tất';
+
+        return res.status(200).json({
+            message,
+            data: {
+                contract: result.contract,
+                checkout_request: result.checkoutRequest || null
+            }
+        });
+    } catch (err) { return handleError(res, err); }
+};
+
 module.exports = {
     getAllContracts,
     getContractById,
@@ -126,5 +147,6 @@ module.exports = {
     managerSign,
     renewContract,
     getContractStats,
-    sendReminder
+    sendReminder,
+    terminateContract
 };

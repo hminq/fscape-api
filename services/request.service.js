@@ -498,5 +498,6 @@ module.exports = {
     createRequest,
     assignRequest,
     updateRequestStatus,
-    getRequestStats
+    getRequestStats,
+    generateRequestNumber
 };

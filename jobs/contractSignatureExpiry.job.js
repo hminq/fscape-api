@@ -1,7 +1,12 @@
 const { Op } = require('sequelize');
 const { sequelize } = require('../config/db');
-const { sendSigningCancelledEmail } = require('../utils/mail.util');
+const {
+    sendSigningCancelledEmail,
+    sendSigningCancelledByManagerEmail,
+    sendManagerSigningExpiredAdminEmail
+} = require('../utils/mail.util');
 const auditService = require('../services/audit.service');
+const { ROLES } = require('../constants/roles');
 
 const run = async () => {
     const { Contract, Booking, Room, User, Building, ScheduledJob } = sequelize.models;
@@ -21,6 +26,7 @@ const run = async () => {
             },
             include: [
                 { model: User, as: 'customer', attributes: ['id', 'email', 'first_name', 'last_name'] },
+                { model: User, as: 'manager', attributes: ['id', 'email', 'first_name', 'last_name'] },
                 {
                     model: Room, as: 'room', attributes: ['id', 'room_number'],
                     include: [{ model: Building, as: 'building', attributes: ['id', 'name'] }]
@@ -33,6 +39,8 @@ const run = async () => {
         for (const contract of expiredContracts) {
             const transaction = await sequelize.transaction();
             try {
+                const previousStatus = contract.status;
+
                 await contract.update({
                     status: 'TERMINATED',
                     signature_expires_at: null
@@ -57,7 +65,6 @@ const run = async () => {
                 }
 
                 // Audit log for auto-cancellation
-                const previousStatus = contract.status;
                 await auditService.log({
                     user: null,
                     action: 'UPDATE',
@@ -82,17 +89,48 @@ const run = async () => {
                 processed++;
                 console.log(`[ContractExpiryJob] Cancelled contract ${contract.contract_number} (was ${previousStatus})`);
 
-                // Send cancellation notification email
+                // Send cancellation notification emails
                 try {
-                    if (contract.customer?.email) {
-                        const customerName = `${contract.customer.last_name} ${contract.customer.first_name}`.trim();
-                        await sendSigningCancelledEmail(contract.customer.email, {
-                            customerName,
-                            contractNumber: contract.contract_number,
-                            contractId: contract.id,
-                            roomNumber: contract.room?.room_number || '',
-                            buildingName: contract.room?.building?.name || ''
+                    const customerName = contract.customer
+                        ? `${contract.customer.last_name} ${contract.customer.first_name}`.trim()
+                        : '';
+                    const emailData = {
+                        customerName,
+                        contractNumber: contract.contract_number,
+                        contractId: contract.id,
+                        roomNumber: contract.room?.room_number || '',
+                        buildingName: contract.room?.building?.name || ''
+                    };
+
+                    if (previousStatus === 'PENDING_MANAGER_SIGNATURE') {
+                        // Manager's fault — send different email to customer
+                        if (contract.customer?.email) {
+                            await sendSigningCancelledByManagerEmail(contract.customer.email, emailData);
+                        }
+
+                        // Notify all admins
+                        const admins = await User.findAll({
+                            where: { role: ROLES.ADMIN, status: 'ACTIVE' },
+                            attributes: ['id', 'email', 'first_name', 'last_name']
                         });
+                        const managerName = contract.manager
+                            ? `${contract.manager.last_name} ${contract.manager.first_name}`.trim()
+                            : 'Không xác định';
+                        for (const admin of admins) {
+                            try {
+                                await sendManagerSigningExpiredAdminEmail(admin.email, {
+                                    ...emailData,
+                                    managerName
+                                });
+                            } catch (adminEmailErr) {
+                                console.error(`[ContractExpiryJob] Failed to send admin email to ${admin.email}:`, adminEmailErr.message);
+                            }
+                        }
+                    } else {
+                        // Customer's fault — send original email
+                        if (contract.customer?.email) {
+                            await sendSigningCancelledEmail(contract.customer.email, emailData);
+                        }
                     }
                 } catch (emailErr) {
                     console.error(`[ContractExpiryJob] Failed to send cancellation email for ${contract.contract_number}:`, emailErr.message);
