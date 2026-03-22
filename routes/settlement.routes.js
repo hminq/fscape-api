@@ -9,6 +9,8 @@ const validator = require('../validators/settlement.validator');
 
 const staffOrAbove = requireRoles(ROLES.ADMIN, ROLES.BUILDING_MANAGER, ROLES.STAFF);
 
+router.get('/', authJwt, staffOrAbove, settlementController.getAllSettlements);
+
 // GET by contract must come before GET by :id to avoid route conflict
 router.get('/contract/:contractId', authJwt, staffOrAbove, validator.paramContractId, validate, settlementController.getSettlementByContract);
 router.get('/:id', authJwt, staffOrAbove, validator.paramId, validate, settlementController.getSettlement);

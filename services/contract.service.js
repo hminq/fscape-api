@@ -18,7 +18,8 @@ const { billingCycleToMonths } = require('../utils/billingCycle.util');
 const { SIGNATURE_EXPIRY_MS } = require('../constants/contract');
 const { generateSequentialId, generateNumberedId } = require('../utils/generateId');
 const { INVOICE_TYPE } = require('../constants/invoiceEnums');
-const { sendContractSigningEmail, sendManagerSigningEmail, sendInvoiceCreatedEmail, sendRenewalSigningEmail } = require('../utils/mail.util');
+const { sendContractSigningEmail, sendManagerSigningEmail, sendInvoiceCreatedEmail, sendRenewalSigningEmail, sendCheckInReminderEmail, sendManualExpiringReminderEmail } = require('../utils/mail.util');
+const Invoice = require('../models/invoice.model');
 const { generateContractPdf } = require('../utils/pdf.util');
 const auditService = require('./audit.service');
 const { parseLocalDate } = require('../utils/date.util');
@@ -885,6 +886,105 @@ const getContractStats = async () => {
     return { total: contracts.length, by_status: byStatus, by_building: Object.values(byBuilding).sort((a, b) => b.count - a.count) };
 };
 
+/* ── Manual reminder ─────────────────────────────────────── */
+
+const REMINDER_STATUS_MAP = {
+    SIGN: 'PENDING_CUSTOMER_SIGNATURE',
+    PAY_FIRST_RENT: 'PENDING_FIRST_PAYMENT',
+    CHECK_IN: 'PENDING_CHECK_IN',
+    EXPIRING: 'EXPIRING_SOON',
+};
+
+const REMINDER_LABEL = {
+    SIGN: 'ký hợp đồng',
+    PAY_FIRST_RENT: 'thanh toán tiền phòng kỳ đầu',
+    CHECK_IN: 'nhận phòng',
+    EXPIRING: 'gia hạn hợp đồng',
+};
+
+const sendManualReminder = async (contractId, reminderType, user) => {
+    const contract = await Contract.findByPk(contractId, {
+        include: [
+            { model: User, as: 'customer', attributes: ['id', 'first_name', 'last_name', 'email'] },
+            {
+                model: Room, as: 'room', attributes: ['id', 'room_number'],
+                include: [{ model: Building, as: 'building' }]
+            }
+        ]
+    });
+    if (!contract) throw { status: 404, message: 'Không tìm thấy hợp đồng' };
+
+    // BM scope check
+    if (user.role === ROLES.BUILDING_MANAGER) {
+        const buildingId = contract.room?.building?.id;
+        if (!buildingId || buildingId !== user.building_id) {
+            throw { status: 403, message: 'Bạn không có quyền thao tác trên hợp đồng này' };
+        }
+    }
+
+    // Validate status matches reminder type
+    const expectedStatus = REMINDER_STATUS_MAP[reminderType];
+    if (contract.status !== expectedStatus) {
+        throw { status: 400, message: `Không thể gửi nhắc nhở ${REMINDER_LABEL[reminderType]} khi hợp đồng đang ở trạng thái hiện tại` };
+    }
+
+    const customer = contract.customer;
+    if (!customer?.email) {
+        throw { status: 400, message: 'Khách hàng không có email' };
+    }
+
+    const customerName = `${customer.last_name || ''} ${customer.first_name || ''}`.trim();
+    const roomNumber = contract.room?.room_number || '';
+    const buildingName = contract.room?.building?.name || '';
+    const contractNumber = contract.contract_number;
+    const signingUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/sign?contract=${contractId}`;
+
+    switch (reminderType) {
+        case 'SIGN': {
+            await sendContractSigningEmail(customer.email, {
+                customerName, contractNumber, roomNumber, buildingName, signingUrl,
+            });
+            break;
+        }
+        case 'PAY_FIRST_RENT': {
+            const invoice = await Invoice.findOne({
+                where: { contract_id: contractId, invoice_type: INVOICE_TYPE.RENT, status: 'UNPAID' },
+                order: [['createdAt', 'ASC']],
+            });
+            if (!invoice) throw { status: 400, message: 'Không tìm thấy hóa đơn chưa thanh toán' };
+            await sendInvoiceCreatedEmail(customer.email, {
+                customerName,
+                invoiceNumber: invoice.invoice_number,
+                invoiceId: invoice.id,
+                roomNumber,
+                buildingName,
+                billingPeriod: 'Kỳ đầu',
+                totalAmount: formatCurrency(invoice.total_amount) + ' đ',
+                dueDate: formatDate(invoice.due_date),
+            });
+            break;
+        }
+        case 'CHECK_IN': {
+            await sendCheckInReminderEmail(customer.email, {
+                customerName, contractNumber, contractId,
+                roomNumber, buildingName,
+                startDate: formatDate(contract.start_date),
+            });
+            break;
+        }
+        case 'EXPIRING': {
+            await sendManualExpiringReminderEmail(customer.email, {
+                customerName, contractNumber, contractId,
+                roomNumber, buildingName,
+                endDate: formatDate(contract.end_date),
+            });
+            break;
+        }
+    }
+
+    return { message: `Đã gửi email nhắc nhở ${REMINDER_LABEL[reminderType]} đến ${customer.email}` };
+};
+
 module.exports = {
     getAllContracts,
     getContractById,
@@ -894,5 +994,6 @@ module.exports = {
     customerSign,
     managerSign,
     updateContract,
-    getContractStats
+    getContractStats,
+    sendManualReminder
 };

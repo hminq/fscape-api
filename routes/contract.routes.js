@@ -36,4 +36,7 @@ router.patch('/:id/sign', requireRoles(ROLES.RESIDENT, ROLES.CUSTOMER), validato
 // Building Manager signs contract (PENDING_MANAGER_SIGNATURE → ACTIVE)
 router.patch('/:id/manager-sign', requireRoles(ROLES.BUILDING_MANAGER), validator.managerSign, validate, contractController.managerSign);
 
+// BM/Admin sends manual email reminder to customer
+router.post('/:id/send-reminder', requireRoles(ROLES.BUILDING_MANAGER, ROLES.ADMIN), validator.sendReminder, validate, contractController.sendReminder);
+
 module.exports = router;

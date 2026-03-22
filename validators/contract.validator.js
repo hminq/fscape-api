@@ -45,6 +45,14 @@ exports.renew = [
     .isIn(['CYCLE_1M', 'CYCLE_3M', 'CYCLE_6M', 'ALL_IN']).withMessage('Chu kỳ thanh toán phải là CYCLE_1M, CYCLE_3M, CYCLE_6M hoặc ALL_IN'),
 ];
 
+exports.sendReminder = [
+  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  body('reminder_type')
+    .notEmpty().withMessage('Loại nhắc nhở không được để trống')
+    .isIn(['SIGN', 'PAY_FIRST_RENT', 'CHECK_IN', 'EXPIRING'])
+    .withMessage('Loại nhắc nhở không hợp lệ'),
+];
+
 exports.paramId = [
   param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
 ];

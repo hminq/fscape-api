@@ -106,6 +106,17 @@ const getContractStats = async (req, res) => {
     } catch (err) { return handleError(res, err); }
 };
 
+// [POST] /api/contracts/:id/send-reminder — BM/Admin sends manual email reminder
+const sendReminder = async (req, res) => {
+    try {
+        const { reminder_type } = req.body;
+        const result = await contractService.sendManualReminder(
+            req.params.id, reminder_type, req.user
+        );
+        return res.status(200).json(result);
+    } catch (err) { return handleError(res, err); }
+};
+
 module.exports = {
     getAllContracts,
     getContractById,
@@ -114,5 +125,6 @@ module.exports = {
     customerSign,
     managerSign,
     renewContract,
-    getContractStats
+    getContractStats,
+    sendReminder
 };

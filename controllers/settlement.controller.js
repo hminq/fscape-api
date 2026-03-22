@@ -5,6 +5,13 @@ const handleError = (res, err) => {
     return res.status(err.status || 500).json({ message: err.message || 'Lỗi hệ thống' });
 };
 
+const getAllSettlements = async (req, res) => {
+    try {
+        const result = await settlementService.getAllSettlements(req.query, req.user);
+        return res.status(200).json(result);
+    } catch (err) { return handleError(res, err); }
+};
+
 const getSettlement = async (req, res) => {
     try {
         const result = await settlementService.getSettlement(req.params.id);
@@ -26,4 +33,4 @@ const closeSettlement = async (req, res) => {
     } catch (err) { return handleError(res, err); }
 };
 
-module.exports = { getSettlement, getSettlementByContract, closeSettlement };
+module.exports = { getAllSettlements, getSettlement, getSettlementByContract, closeSettlement };
