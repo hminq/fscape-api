@@ -257,7 +257,7 @@ const createBookingPaymentUrlPayOS = async (userId, bookingId) => {
         expiredAt,
     });
 
-    return { checkoutUrl: paymentLink.checkoutUrl, orderCode };
+    return { checkoutUrl: paymentLink.checkoutUrl, orderCode, amount: booking.deposit_amount };
 };
 
 const createInvoicePaymentUrlPayOS = async (userId, invoiceId) => {
@@ -300,7 +300,7 @@ const createInvoicePaymentUrlPayOS = async (userId, invoiceId) => {
         expiredAt,
     });
 
-    return { checkoutUrl: paymentLink.checkoutUrl, orderCode };
+    return { checkoutUrl: paymentLink.checkoutUrl, orderCode, amount: invoice.total_amount };
 };
 
 /**
