@@ -147,10 +147,40 @@ const createBooking = async (userId, bookingData) => {
   return booking;
 };
 
-const getMyBookings = async (userId) => {
-  const { Booking, Room, Building, RoomType } = sequelize.models;
-  return await Booking.findAll({
-    where: { customer_id: userId },
+const getMyBookings = async (userId, query = {}) => {
+  const { Booking, Room, Building, RoomType, Contract } = sequelize.models;
+
+  const {
+    page = 1,
+    limit = 10,
+    sort_by = 'createdAt',
+    sort_order = 'DESC',
+    status,
+    search,
+  } = query;
+
+  const offset = (page - 1) * limit;
+  const where = { customer_id: userId };
+
+  // Status filter
+  if (status === 'active') {
+    where.status = { [Op.in]: ['PENDING', 'DEPOSIT_PAID'] };
+  } else if (status && status !== 'all') {
+    where.status = status;
+  }
+
+  // Search by booking_number
+  if (search) {
+    where.booking_number = { [Op.iLike]: `%${search}%` };
+  }
+
+  // Allowed sort columns
+  const allowedSorts = ['createdAt', 'check_in_date', 'room_price_snapshot', 'status'];
+  const sortCol = allowedSorts.includes(sort_by) ? sort_by : 'createdAt';
+  const sortDir = sort_order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+  const { count, rows } = await Booking.findAndCountAll({
+    where,
     attributes: [
       "id",
       "booking_number",
@@ -184,9 +214,26 @@ const getMyBookings = async (userId) => {
           },
         ],
       },
+      {
+        model: Contract,
+        as: "contract",
+        attributes: ["id", "status"],
+        required: false,
+      },
     ],
-    order: [["createdAt", "DESC"]],
+    distinct: true,
+    limit: Number(limit),
+    offset: Number(offset),
+    order: [[sortCol, sortDir]],
   });
+
+  return {
+    total: count,
+    page: Number(page),
+    limit: Number(limit),
+    totalPages: Math.ceil(count / limit),
+    data: rows,
+  };
 };
 
 const getBookingById = async (id, caller) => {

@@ -15,4 +15,13 @@ router.get("/vnpay-ipn", paymentController.vnpayIpn);
 
 router.get("/vnpay-return", paymentController.vnpayReturn);
 
+// ─── PayOS ──────────────────────────────────────────────────────────
+router.post("/create-booking-payos", authJwt, validator.createBookingPayment, validate, paymentController.createBookingPaymentUrlPayOS);
+
+router.post("/create-invoice-payos", authJwt, validator.createInvoicePayment, validate, paymentController.createInvoicePaymentUrlPayOS);
+
+router.post("/payos-webhook", paymentController.payosWebhook);
+
+router.get("/payos-return", paymentController.payosReturn);
+
 module.exports = router;

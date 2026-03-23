@@ -205,9 +205,38 @@ const updateContract = async (id, data, user) => {
 /**
  * Lấy danh sách hợp đồng của tôi (RESIDENT / CUSTOMER)
  */
-const getMyContracts = async (userId) => {
-    return await Contract.findAll({
-        where: { customer_id: userId },
+const getMyContracts = async (userId, query = {}) => {
+    const {
+        page = 1,
+        limit = 10,
+        sort_by = 'createdAt',
+        sort_order = 'DESC',
+        status,
+        search,
+    } = query;
+
+    const offset = (page - 1) * limit;
+    const where = { customer_id: userId };
+
+    // Status filter
+    if (status === 'action_needed') {
+        where.status = { [Op.in]: ['DRAFT', 'PENDING_CUSTOMER_SIGNATURE', 'PENDING_MANAGER_SIGNATURE', 'PENDING_FIRST_PAYMENT'] };
+    } else if (status && status !== 'all') {
+        where.status = status;
+    }
+
+    // Search by contract_number
+    if (search) {
+        where.contract_number = { [Op.iLike]: `%${search}%` };
+    }
+
+    // Allowed sort columns
+    const allowedSorts = ['createdAt', 'start_date', 'end_date', 'base_rent', 'status'];
+    const sortCol = allowedSorts.includes(sort_by) ? sort_by : 'createdAt';
+    const sortDir = sort_order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    const { count, rows } = await Contract.findAndCountAll({
+        where,
         attributes: [
             'id', 'contract_number', 'status', 'start_date', 'end_date',
             'base_rent', 'deposit_amount', 'pdf_url', 'rendered_content',
@@ -223,8 +252,19 @@ const getMyContracts = async (userId) => {
                 { model: RoomType, as: 'room_type', attributes: ['id', 'name'] }
             ]
         }],
-        order: [['createdAt', 'DESC']]
+        distinct: true,
+        limit: Number(limit),
+        offset: Number(offset),
+        order: [[sortCol, sortDir]],
     });
+
+    return {
+        total: count,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(count / limit),
+        data: rows,
+    };
 };
 
 /* ── contract creation ────────────────────────────── */

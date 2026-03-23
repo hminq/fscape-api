@@ -40,8 +40,8 @@ const updateContract = async (req, res) => {
 // [GET] /api/contracts/my
 const getMyContracts = async (req, res) => {
     try {
-        const contracts = await contractService.getMyContracts(req.user.id);
-        return res.status(200).json({ data: contracts });
+        const result = await contractService.getMyContracts(req.user.id, req.query);
+        return res.status(200).json(result);
     } catch (err) { return handleError(res, err); }
 };
 
