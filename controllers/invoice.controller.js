@@ -36,8 +36,8 @@ const getInvoiceStats = async (req, res) => {
 
 const getMyInvoices = async (req, res) => {
     try {
-        const invoices = await invoiceService.getMyInvoices(req.user.id);
-        return res.status(200).json({ data: invoices });
+        const result = await invoiceService.getMyInvoices(req.user.id, req.query);
+        return res.status(200).json(result);
     } catch (err) {
         return handleError(res, err);
     }

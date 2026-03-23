@@ -300,10 +300,46 @@ const getInvoiceStats = async (caller) => {
     return { total: rows.length, by_status: byStatus, by_type: byType };
 };
 
-const getMyInvoices = async (userId) => {
+const getMyInvoices = async (userId, query = {}) => {
     const { Invoice, Contract, Room, Building } = sequelize.models;
 
-    return await Invoice.findAll({
+    const {
+        page = 1,
+        limit = 10,
+        sort_by = 'created_at',
+        sort_order = 'DESC',
+        status,
+        invoice_type,
+        search,
+    } = query;
+
+    const offset = (page - 1) * limit;
+    const where = {};
+
+    // Status filter
+    if (status === 'unpaid') {
+        where.status = { [Op.in]: ['UNPAID', 'OVERDUE'] };
+    } else if (status && status !== 'all') {
+        where.status = status;
+    }
+
+    // Type filter
+    if (invoice_type && invoice_type !== 'all') {
+        where.invoice_type = invoice_type;
+    }
+
+    // Search by invoice_number
+    if (search) {
+        where.invoice_number = { [Op.iLike]: `%${search}%` };
+    }
+
+    // Allowed sort columns
+    const allowedSorts = ['created_at', 'due_date', 'total_amount', 'status'];
+    const sortCol = allowedSorts.includes(sort_by) ? sort_by : 'created_at';
+    const sortDir = sort_order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    const { count, rows } = await Invoice.findAndCountAll({
+        where,
         include: [
             {
                 model: Contract,
@@ -318,8 +354,19 @@ const getMyInvoices = async (userId) => {
                 ]
             }
         ],
-        order: [['created_at', 'DESC']]
+        distinct: true,
+        limit: Number(limit),
+        offset: Number(offset),
+        order: [[sortCol, sortDir]],
     });
+
+    return {
+        total: count,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(count / limit),
+        data: rows,
+    };
 };
 
 const getInvoiceById = async (caller, invoiceId) => {
