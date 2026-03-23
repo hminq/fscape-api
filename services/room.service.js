@@ -4,6 +4,8 @@ const Room = require('../models/room.model');
 const RoomImage = require('../models/roomImage.model');
 const Building = require('../models/building.model');
 const RoomType = require('../models/roomType.model');
+const RoomTypeAsset = require('../models/roomTypeAsset.model');
+const AssetType = require('../models/assetType.model');
 const Booking = require('../models/booking.model');
 const Contract = require('../models/contract.model');
 const Request = require('../models/request.model');
@@ -80,7 +82,22 @@ const getRoomById = async (id, user = {}) => {
   const room = await Room.findByPk(id, {
     include: [
       { model: Building, as: 'building' },
-      { model: RoomType, as: 'room_type' },
+      {
+        model: RoomType,
+        as: 'room_type',
+        include: [{
+          model: RoomTypeAsset,
+          as: 'template_assets',
+          attributes: ['id', 'quantity'],
+          include: [{
+            model: AssetType,
+            as: 'asset_type',
+            attributes: ['id', 'name'],
+            where: { is_active: true },
+            required: false
+          }]
+        }]
+      },
       { model: RoomImage, as: 'images', attributes: ['id', 'image_url'] }
     ]
   });
@@ -145,10 +162,15 @@ const getRoomById = async (id, user = {}) => {
     // Public/Resident: basic info only, no timestamps, no internal data
     for (const field of TIMESTAMP_FIELDS) delete data[field];
     if (data.building) {
-      data.building = { id: data.building.id, name: data.building.name };
+      data.building = { id: data.building.id, name: data.building.name, address: data.building.address };
     }
     if (data.room_type) {
-      data.room_type = { id: data.room_type.id, name: data.room_type.name, base_price: data.room_type.base_price };
+      data.room_type = {
+        id: data.room_type.id,
+        name: data.room_type.name,
+        base_price: data.room_type.base_price,
+        template_assets: data.room_type.template_assets || []
+      };
     }
   } else if (role === ROLES.STAFF || role === ROLES.BUILDING_MANAGER) {
     // No timestamps

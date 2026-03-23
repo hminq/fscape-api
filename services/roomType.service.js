@@ -61,7 +61,21 @@ const getRoomTypeById = async (id, user) => {
         attributes = { exclude: ['createdAt', 'updatedAt'] }
     }
 
-    const roomType = await RoomType.findByPk(id, { attributes })
+    const roomType = await RoomType.findByPk(id, {
+        attributes,
+        include: [{
+            model: RoomTypeAsset,
+            as: 'template_assets',
+            attributes: ['id', 'quantity'],
+            include: [{
+                model: AssetType,
+                as: 'asset_type',
+                attributes: ['id', 'name'],
+                where: { is_active: true },
+                required: false
+            }]
+        }]
+    })
     if (!roomType) throw { status: 404, message: 'Không tìm thấy loại phòng' }
     return roomType
 }
