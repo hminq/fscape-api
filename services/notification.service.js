@@ -238,9 +238,55 @@ const createBmNotification = async (caller, { title, content, target, room_id })
   return { notification, recipient_count: recipientIds.length };
 };
 
+/**
+ * Admin: lấy tất cả thông báo trong hệ thống (không theo user)
+ */
+const getAllNotifications = async ({ page = 1, limit = 10, type, search } = {}) => {
+  const offset = (page - 1) * limit;
+  const where = {};
+
+  if (type) where.type = type;
+  if (search) {
+    const { Op } = require("sequelize");
+    where[Op.or] = [
+      { title: { [Op.iLike]: `%${search}%` } },
+      { content: { [Op.iLike]: `%${search}%` } },
+    ];
+  }
+
+  const { count, rows } = await Notification.findAndCountAll({
+    where,
+    include: [
+      {
+        model: User,
+        as: "creator",
+        attributes: ["id", "first_name", "last_name", "role"],
+      },
+      {
+        model: NotificationRecipient,
+        as: "recipients",
+        attributes: ["id", "user_id", "is_read"],
+      },
+    ],
+    limit: Number(limit),
+    offset: Number(offset),
+    order: [["createdAt", "DESC"]],
+    distinct: true,
+  });
+
+  return {
+    total: count,
+    page: Number(page),
+    limit: Number(limit),
+    totalPages: Math.ceil(count / limit),
+    data: rows,
+  };
+};
+
 module.exports = {
   createNotification,
   getUserNotifications,
+  getAllNotifications,
   markAsRead,
   markAllAsRead,
   getUnreadCount,

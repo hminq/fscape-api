@@ -66,10 +66,20 @@ const createBmNotification = async (req, res) => {
     }
 };
 
+const getAllNotifications = async (req, res) => {
+    try {
+        const result = await notificationService.getAllNotifications(req.query);
+        return res.status(200).json({ ...result });
+    } catch (err) {
+        return handleError(res, err);
+    }
+};
+
 module.exports = {
     getMyNotifications,
     getUnreadCount,
     markAsRead,
     markAllAsRead,
-    createBmNotification
+    createBmNotification,
+    getAllNotifications
 };

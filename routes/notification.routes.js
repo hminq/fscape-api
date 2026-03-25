@@ -10,6 +10,7 @@ const validator = require('../validators/notification.validator');
 router.use(authJwt);
 
 router.get('/', notificationController.getMyNotifications);
+router.get('/all', requireRoles(ROLES.ADMIN), notificationController.getAllNotifications);
 router.get('/unread-count', notificationController.getUnreadCount);
 router.post('/send', requireRoles(ROLES.BUILDING_MANAGER), validator.send, validate, notificationController.createBmNotification);
 router.patch('/:id/read', validator.paramId, validate, notificationController.markAsRead);
