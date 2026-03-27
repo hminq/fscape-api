@@ -8,8 +8,15 @@ const { verifyGoogleIdToken } = require("../utils/google.util");
 class AuthService {
   // STEP 1: signup -> send OTP
   static async signup(email, password) {
-    const existed = await User.findOne({ where: { email } });
-    if (existed) throw new Error("Email đã được đăng ký");
+    const user = await User.findOne({ where: { email } });
+    if (user) {
+      const emailAuth = await AuthProvider.findOne({
+        where: { user_id: user.id, provider: "EMAIL" },
+      });
+      if (emailAuth) {
+        throw new Error("Email đã được đăng ký");
+      }
+    }
 
     const otp = await generateOtp(email, "EMAIL_VERIFICATION");
     await sendOtpMail(email, otp.code);
@@ -21,18 +28,27 @@ class AuthService {
   static async verifySignup(email, password, otp) {
     await verifyOtp(email, otp, "EMAIL_VERIFICATION");
 
-    const user = await User.create({
-      email,
-      role: "CUSTOMER",
+    let user = await User.findOne({ where: { email } });
+    if (!user) {
+      user = await User.create({
+        email,
+        role: "CUSTOMER",
+      });
+    }
+
+    const emailAuth = await AuthProvider.findOne({
+      where: { user_id: user.id, provider: "EMAIL" },
     });
 
-    await AuthProvider.create({
-      user_id: user.id,
-      provider: "EMAIL",
-      provider_id: email,
-      password_hash: await hashPassword(password),
-      is_verified: true,
-    });
+    if (!emailAuth) {
+      await AuthProvider.create({
+        user_id: user.id,
+        provider: "EMAIL",
+        provider_id: email,
+        password_hash: await hashPassword(password),
+        is_verified: true,
+      });
+    }
 
     return user;
   }
@@ -57,9 +73,15 @@ class AuthService {
       ],
     });
 
-    if (!auth || !auth.is_verified) throw new Error("Thông tin đăng nhập không hợp lệ");
+    if (!auth || !auth.is_verified) {
+      const existingUser = await User.findOne({ where: { email } });
+      if (existingUser) {
+        throw new Error("Tài khoản của bạn được đăng ký bằng Google. Vui lòng đăng nhập bằng Google hoặc Đăng ký để tạo mật khẩu.");
+      }
+      throw new Error("Thông tin đăng nhập không hợp lệ");
+    }
     if (!auth.User || auth.User.is_active === false) {
-      if (auth.User.is_active === false) {
+      if (auth.User && auth.User.is_active === false) {
         console.log("Account is inactive", auth.User.id, auth.User.email, auth.User.is_active);
         throw new Error("Tài khoản đã bị vô hiệu hóa");
       }
@@ -92,7 +114,13 @@ class AuthService {
       ],
     });
 
-    if (!auth || !auth.is_verified) throw new Error("Thông tin đăng nhập không hợp lệ");
+    if (!auth || !auth.is_verified) {
+      const existingUser = await User.findOne({ where: { email } });
+      if (existingUser) {
+        throw new Error("Tài khoản của bạn được đăng ký bằng Google. Vui lòng đăng nhập bằng Google hoặc Đăng ký để tạo mật khẩu.");
+      }
+      throw new Error("Thông tin đăng nhập không hợp lệ");
+    }
     if (!auth.User) throw new Error("Thông tin đăng nhập không hợp lệ");
     const CLIENT_ROLES = ['CUSTOMER', 'RESIDENT'];
     if (!CLIENT_ROLES.includes(auth.User.role)) throw new Error("Tài khoản nội bộ không được phép đăng nhập tại đây");
@@ -140,22 +168,17 @@ class AuthService {
   static async googleSignInStep1(idToken) {
     const payload = await verifyGoogleIdToken(idToken);
     const email = payload.email;
-    if (!payload.email_verified) throw new Error("Email Google chưa được xác minh");
-    const otp = await generateOtp(email, OTP_TYPES.EMAIL_VERIFICATION);
-    await sendOtpMail(email, otp.code);
-    return { message: "Đã gửi mã OTP đến email" };
-  }
-
-  static async googleSignInStep2(idToken, otpCode) {
-    const payload = await verifyGoogleIdToken(idToken);
-    const email = payload.email;
     const googleId = payload.sub;
 
-    await verifyOtp(email, otpCode, OTP_TYPES.EMAIL_VERIFICATION);
+    if (!payload.email_verified) throw new Error("Email Google chưa được xác minh");
 
     let user = await User.findOne({ where: { email } });
 
-    if (user) {
+    if (!user) {
+      const otp = await generateOtp(email, OTP_TYPES.EMAIL_VERIFICATION);
+      await sendOtpMail(email, otp.code);
+      return { message: "Đã gửi mã OTP đến email" };
+    } else {
       const existingGoogleAuth = await AuthProvider.findOne({
         where: { provider: "GOOGLE", provider_id: googleId },
       });
@@ -172,7 +195,31 @@ class AuthService {
           is_verified: true,
         });
       }
-    } else {
+    }
+
+    return {
+      access_token: generateAccessToken(user),
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        avatar_url: user.avatar_url,
+      },
+    };
+  }
+
+  static async googleSignInStep2(idToken, otpCode) {
+    const payload = await verifyGoogleIdToken(idToken);
+    const email = payload.email;
+    const googleId = payload.sub;
+
+    await verifyOtp(email, otpCode, OTP_TYPES.EMAIL_VERIFICATION);
+
+    let user = await User.findOne({ where: { email } });
+
+    if (!user) {
       user = await User.create({
         email,
         role: "CUSTOMER",
@@ -183,6 +230,19 @@ class AuthService {
         provider_id: googleId,
         is_verified: true,
       });
+    } else {
+      const existingGoogleAuth = await AuthProvider.findOne({
+        where: { provider: "GOOGLE", provider_id: googleId },
+      });
+
+      if (!existingGoogleAuth) {
+        await AuthProvider.create({
+          user_id: user.id,
+          provider: "GOOGLE",
+          provider_id: googleId,
+          is_verified: true,
+        });
+      }
     }
 
     return {
