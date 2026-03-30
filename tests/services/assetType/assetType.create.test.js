@@ -26,66 +26,55 @@ describe('AssetTypeService - createAssetType', () => {
 
     it('Tên Asset Type bị trống', async () => {
         const newData = { name: '' };
-        const expectedError = 'Asset type name is required';
-
         console.log(`[TEST]: Tên Asset Type trống`);
-        console.log(`- Input   : Name=""`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
         try {
             await AssetTypeService.createAssetType(newData);
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
+            expect(error.message).toBe('Tên loại tài sản là bắt buộc');
+            expect(error.status).toBe(400);
         }
     });
 
     it('Tên Asset Type bị null', async () => {
         const newData = { name: null };
-        const expectedError = 'Asset type name is required';
-
         console.log(`[TEST]: Tên Asset Type null`);
-        console.log(`- Input   : Name=null`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
         try {
             await AssetTypeService.createAssetType(newData);
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
+            expect(error.message).toBe('Tên loại tài sản là bắt buộc');
+            expect(error.status).toBe(400);
         }
     });
 
     it('Giá mặc định âm', async () => {
         const newData = { name: 'Loa', default_price: -1000 };
-        const expectedError = 'default_price must be >= 0';
-
+        AssetType.findOne.mockResolvedValue(null);
         console.log(`[TEST]: Giá mặc định âm`);
-        console.log(`- Input   : default_price=-1000`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
         try {
             await AssetTypeService.createAssetType(newData);
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
+            expect(error.message).toBe('Giá mặc định phải từ 0 trở lên');
+            expect(error.status).toBe(400);
         }
     });
 
     it('Trùng tên Asset Type', async () => {
         const newData = { name: 'Bàn' };
         AssetType.findOne.mockResolvedValue({ id: 10, name: 'Bàn' });
-        const expectedError = 'Asset type "Bàn" already exists';
-
         console.log(`[TEST]: Trùng tên Asset Type`);
-        console.log(`- Input   : Name="Bàn"`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
         try {
             await AssetTypeService.createAssetType(newData);
+            throw new Error('Should have thrown error');
         } catch (error) {
-            console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
+            console.log(`- Actual Error: "${error.message}"`);
+            expect(error.status).toBe(409);
+            expect(error.message).toContain('đã tồn tại');
         }
     });
 });

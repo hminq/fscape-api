@@ -1,7 +1,34 @@
 const UniversityService = require('../../../services/university.service');
-const University = require('../../../models/university.model');
+const { sequelize } = require('../../../config/db');
 
-jest.mock('../../../models/university.model');
+// 1. Mock Database & Models (Standard manual pattern)
+jest.mock('../../../config/db', () => {
+    const mockModels = {
+        University: { findByPk: jest.fn(), findOne: jest.fn(), create: jest.fn() },
+        Location: { findByPk: jest.fn() },
+        Building: { findByPk: jest.fn() }
+    };
+    return {
+        sequelize: {
+            models: mockModels,
+            transaction: jest.fn().mockResolvedValue({ 
+                commit: jest.fn(), 
+                rollback: jest.fn()
+            }),
+            authenticate: jest.fn().mockResolvedValue(),
+            close: jest.fn().mockResolvedValue(),
+            fn: jest.fn(),
+            col: jest.fn(),
+            where: jest.fn()
+        },
+        connectDB: jest.fn().mockResolvedValue()
+    };
+});
+
+// Mock individual models
+jest.mock('../../../models/university.model', () => (require('../../../config/db').sequelize.models.University));
+
+const { University } = sequelize.models;
 
 describe('UniversityService - updateUniversity', () => {
     beforeEach(() => {
@@ -9,11 +36,13 @@ describe('UniversityService - updateUniversity', () => {
         console.log('\n=========================================================================');
     });
 
-    it('Cập nhật University thành công', async () => {
+    it('TC_UNIVERSITY_06: Cập nhật University thành công (Happy Path)', async () => {
         const mockUni = { 
             id: 1, 
             name: 'Đại học A', 
-            update: jest.fn().mockResolvedValue({ id: 1, name: 'Đại học A Updated' }) 
+            update: jest.fn().mockImplementation(function(data) {
+                return Promise.resolve({ ...this, ...data });
+            }) 
         };
         University.findByPk.mockResolvedValue(mockUni);
         University.findOne.mockResolvedValue(null);
@@ -27,75 +56,80 @@ describe('UniversityService - updateUniversity', () => {
         console.log(`- Actual  : Name="${result.name}"`);
 
         expect(result.name).toBe('Đại học A Updated');
+        expect(mockUni.update).toHaveBeenCalled();
     });
 
-    it('Cập nhật tên University thành null', async () => {
+    it('TC_UNIVERSITY_07: Lỗi cập nhật tên University trống (Abnormal)', async () => {
         const mockUni = { id: 1, name: 'Đại học A' };
         University.findByPk.mockResolvedValue(mockUni);
-        const expectedError = 'University name cannot be empty';
 
-        console.log(`[TEST]: Cập nhật tên University thành null`);
-        console.log(`- Input   : ID=1, Name=null`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
+        console.log(`[TEST]: Cập nhật tên University thành null/empty`);
         try {
-            await UniversityService.updateUniversity(1, { name: null });
+            await UniversityService.updateUniversity(1, { name: '' });
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
+            expect(error.status).toBe(400);
+            expect(error.message).toBe('Tên trường đại học không được để trống');
         }
     });
 
-    it('Cập nhật khu vực (location_id) thành null', async () => {
+    it('TC_UNIVERSITY_08: Lỗi cập nhật mã khu vực trống (Abnormal)', async () => {
         const mockUni = { id: 1, name: 'Đại học A' };
         University.findByPk.mockResolvedValue(mockUni);
-        const expectedError = 'Location ID cannot be empty';
 
         console.log(`[TEST]: Cập nhật University với khu vực bị null`);
-        console.log(`- Input   : ID=1, location_id=null`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
         try {
             await UniversityService.updateUniversity(1, { location_id: null });
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
+            expect(error.status).toBe(400);
+            expect(error.message).toBe('Mã khu vực không được để trống');
         }
     });
 
-    it('Cập nhật địa chỉ thành null', async () => {
+    it('TC_UNIVERSITY_09: Lỗi cập nhật địa chỉ trống (Abnormal)', async () => {
         const mockUni = { id: 1, name: 'Đại học A' };
         University.findByPk.mockResolvedValue(mockUni);
-        const expectedError = 'Address cannot be empty';
 
         console.log(`[TEST]: Cập nhật University với địa chỉ bị null`);
-        console.log(`- Input   : ID=1, address=null`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
         try {
-            await UniversityService.updateUniversity(1, { address: null });
+            await UniversityService.updateUniversity(1, { address: '' });
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
+            expect(error.status).toBe(400);
+            expect(error.message).toBe('Địa chỉ không được để trống');
         }
     });
 
-    it('Cập nhật trùng tên với University khác', async () => {
+    it('TC_UNIVERSITY_10: Lỗi cập nhật trùng tên với University khác (Abnormal)', async () => {
         const mockUni = { id: 1, name: 'Đại học A' };
         University.findByPk.mockResolvedValue(mockUni);
         University.findOne.mockResolvedValue({ id: 2, name: 'Đại học B' });
-        const expectedError = 'University name already exists';
 
         console.log(`[TEST]: Cập nhật trùng tên University khác`);
-        console.log(`- Input   : ID=1, Name="Đại học B" (Đã tồn tại ở ID 2)`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
         try {
             await UniversityService.updateUniversity(1, { name: 'Đại học B' });
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
             expect(error.status).toBe(409);
-            expect(error.message).toBe(expectedError);
+            expect(error.message).toBe('Tên trường đại học đã tồn tại');
+        }
+    });
+
+    it('TC_UNIVERSITY_11: Lỗi cập nhật trường không tồn tại (Abnormal)', async () => {
+        University.findByPk.mockResolvedValue(null);
+        console.log(`[TEST]: Cập nhật ID không tồn tại`);
+        try {
+            await UniversityService.updateUniversity(999, { name: 'New Name' });
+            throw new Error('Should have thrown error');
+        } catch (error) {
+            console.log(`- Actual Error  : "${error.message}"`);
+            expect(error.status).toBe(404);
+            expect(error.message).toBe('Không tìm thấy trường đại học');
         }
     });
 });

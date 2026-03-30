@@ -49,8 +49,7 @@ Object.keys(models).forEach((modelName) => {
 });
 
 beforeAll(async () => {
-    // Sử dụng force: true để tạo lại schema sạch cho mỗi lần chạy test trong SQLite in-memory
-    await sequelize.sync({ force: true });
+    // await sequelize.sync({ force: true });
 });
 
 afterAll(async () => {

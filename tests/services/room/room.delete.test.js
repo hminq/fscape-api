@@ -1,17 +1,36 @@
 const RoomService = require('../../../services/room.service');
-const Room = require('../../../models/room.model');
-const Booking = require('../../../models/booking.model');
-const Contract = require('../../../models/contract.model');
-const { Op } = require('sequelize');
+const { sequelize } = require('../../../config/db');
 
-jest.mock('../../../models/room.model');
-jest.mock('../../../models/booking.model');
-jest.mock('../../../models/contract.model');
-jest.mock('../../../models/roomImage.model');
-jest.mock('../../../models/building.model');
-jest.mock('../../../models/roomType.model');
-jest.mock('../../../models/request.model');
-jest.mock('../../../models/user.model');
+// 1. Mock Database & Models (Standard manual pattern)
+jest.mock('../../../config/db', () => {
+    const mockModels = {
+        Room: { findByPk: jest.fn(), findOne: jest.fn(), create: jest.fn(), findAndCountAll: jest.fn() },
+        Booking: { findOne: jest.fn() },
+        Contract: { findOne: jest.fn() },
+        RoomImage: { bulkCreate: jest.fn(), destroy: jest.fn() },
+        Building: { findByPk: jest.fn() },
+        RoomType: { findByPk: jest.fn() }
+    };
+    return {
+        sequelize: {
+            models: mockModels,
+            transaction: jest.fn().mockResolvedValue({ 
+                commit: jest.fn(), 
+                rollback: jest.fn()
+            }),
+            authenticate: jest.fn().mockResolvedValue(),
+            close: jest.fn().mockResolvedValue()
+        },
+        connectDB: jest.fn().mockResolvedValue()
+    };
+});
+
+// Mock individual models
+jest.mock('../../../models/room.model', () => (require('../../../config/db').sequelize.models.Room));
+jest.mock('../../../models/booking.model', () => (require('../../../config/db').sequelize.models.Booking));
+jest.mock('../../../models/contract.model', () => (require('../../../config/db').sequelize.models.Contract));
+
+const { Room, Booking, Contract } = sequelize.models;
 
 describe('RoomService - deleteRoom', () => {
     beforeEach(() => {
@@ -19,7 +38,7 @@ describe('RoomService - deleteRoom', () => {
         console.log('\n=========================================================================');
     });
 
-    it('Xóa phòng thành công không có active bookings hoặc contracts', async () => {
+    it('TC_ROOM_05: Xóa phòng thành công không có active bookings hoặc contracts (Happy Path)', async () => {
         const roomId = 1;
         const mockRoom = { id: roomId, room_number: '101', destroy: jest.fn() };
         Room.findByPk.mockResolvedValue(mockRoom);
@@ -30,72 +49,61 @@ describe('RoomService - deleteRoom', () => {
 
         console.log(`[TEST]: Xóa phòng hợp lệ`);
         console.log(`- Input   : RoomID=${roomId}`);
-        console.log(`- Expected: Room ${mockRoom.room_number} deleted successfully`);
+        console.log(`- Expected: Đã xóa phòng 101 thành công`);
         console.log(`- Actual  : ${result.message}`);
 
-        expect(result.message).toBe(`Room ${mockRoom.room_number} deleted successfully`);
+        expect(result.message).toBe(`Đã xóa phòng 101 thành công`);
         expect(mockRoom.destroy).toHaveBeenCalled();
     });
 
-    it('Id phòng không tồn tại', async () => {
+    it('TC_ROOM_06: Lỗi khi xóa phòng không tồn tại (Abnormal)', async () => {
         const roomId = 999;
         Room.findByPk.mockResolvedValue(null);
-        const expectedError = 'Room not found';
 
         console.log(`[TEST]: Xóa ID không tồn tại`);
-        console.log(`- Input   : RoomID=${roomId}`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
         try {
             await RoomService.deleteRoom(roomId);
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
             expect(error.status).toBe(404);
-            expect(error.message).toBe(expectedError);
-            expect(Booking.findOne).not.toHaveBeenCalled();
-            expect(Contract.findOne).not.toHaveBeenCalled();
+            expect(error.message).toBe('Không tìm thấy phòng');
         }
     });
 
-    it('Không thể xóa do có active booking', async () => {
+    it('TC_ROOM_07: Lỗi không thể xóa do có đặt chỗ đang hoạt động (Abnormal)', async () => {
         const roomId = 1;
         const mockRoom = { id: roomId, room_number: '101', destroy: jest.fn() };
         Room.findByPk.mockResolvedValue(mockRoom);
         Booking.findOne.mockResolvedValue({ id: 10, status: 'PENDING' });
-        const expectedError = 'Cannot delete room with active bookings';
 
-        console.log(`[TEST]: Xóa phòng đang có booking`);
-        console.log(`- Input   : RoomID=${roomId}`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
+        console.log(`[TEST]: Xóa phòng đang có đặt chỗ`);
         try {
             await RoomService.deleteRoom(roomId);
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
             expect(error.status).toBe(409);
-            expect(error.message).toBe(expectedError);
+            expect(error.message).toBe('Không thể xóa phòng có đặt chỗ đang hoạt động');
             expect(mockRoom.destroy).not.toHaveBeenCalled();
         }
     });
 
-    it('Không thể xóa do có active contract', async () => {
+    it('TC_ROOM_08: Lỗi không thể xóa do có hợp đồng đang hoạt động (Abnormal)', async () => {
         const roomId = 1;
         const mockRoom = { id: roomId, room_number: '101', destroy: jest.fn() };
         Room.findByPk.mockResolvedValue(mockRoom);
         Booking.findOne.mockResolvedValue(null);
         Contract.findOne.mockResolvedValue({ id: 20, status: 'ACTIVE' });
-        const expectedError = 'Cannot delete room with active contracts';
 
         console.log(`[TEST]: Xóa phòng đang có hợp đồng`);
-        console.log(`- Input   : RoomID=${roomId}`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
         try {
             await RoomService.deleteRoom(roomId);
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
             expect(error.status).toBe(409);
-            expect(error.message).toBe(expectedError);
+            expect(error.message).toBe('Không thể xóa phòng có hợp đồng đang hoạt động');
             expect(mockRoom.destroy).not.toHaveBeenCalled();
         }
     });

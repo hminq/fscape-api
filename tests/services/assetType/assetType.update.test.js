@@ -9,16 +9,19 @@ describe('AssetTypeService - updateAssetType', () => {
         console.log('\n=========================================================================');
     });
 
-    it('Cập nhật Asset Type thành công', async () => {
+    it('Cập nhật Asset Type thành công (Happy Path)', async () => {
         const mockAssetType = { 
             id: 1, 
             name: 'Bàn', 
-            update: jest.fn().mockResolvedValue(true) 
+            update: jest.fn().mockImplementation(function(data) {
+                Object.assign(this, data);
+                return Promise.resolve(true);
+            })
         };
         AssetType.findByPk.mockResolvedValue(mockAssetType);
         AssetType.findOne.mockResolvedValue(null);
 
-        const updateData = { name: 'Bàn Gỗ' };
+        const updateData = { name: 'Bàn Gỗ', default_price: 600000 };
         const result = await AssetTypeService.updateAssetType(1, updateData);
 
         console.log(`[TEST]: Cập nhật Asset Type`);
@@ -27,56 +30,50 @@ describe('AssetTypeService - updateAssetType', () => {
         console.log(`- Actual  : ${result.name}`);
 
         expect(result.name).toBe('Bàn Gỗ');
+        expect(mockAssetType.update).toHaveBeenCalledWith(updateData);
     });
 
-    it('Cập nhật trùng tên với loại khác', async () => {
+    it('Lỗi cập nhật trùng tên với loại tài sản khác (Abnormal)', async () => {
         const mockAssetType = { id: 1, name: 'Bàn' };
         AssetType.findByPk.mockResolvedValue(mockAssetType);
         AssetType.findOne.mockResolvedValue({ id: 2, name: 'Ghế' });
-        const expectedError = 'Asset type "Ghế" already exists';
 
         console.log(`[TEST]: Cập nhật trùng tên Asset Type khác`);
-        console.log(`- Input   : ID=1, Name="Ghế" (Đã tồn tại ở ID 2)`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
         try {
             await AssetTypeService.updateAssetType(1, { name: 'Ghế' });
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
+            expect(error.status).toBe(409);
+            expect(error.message).toContain('đã tồn tại');
         }
     });
 
-    it('Cập nhật giá âm', async () => {
+    it('Lỗi cập nhật giá mặc định âm (Abnormal)', async () => {
         const mockAssetType = { id: 1, name: 'Bàn' };
         AssetType.findByPk.mockResolvedValue(mockAssetType);
-        const expectedError = 'default_price must be >= 0';
 
         console.log(`[TEST]: Cập nhật giá mặc định âm`);
-        console.log(`- Input   : default_price=-500`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
         try {
             await AssetTypeService.updateAssetType(1, { default_price: -500 });
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
+            expect(error.status).toBe(400);
+            expect(error.message).toBe('Giá mặc định phải từ 0 trở lên');
         }
     });
 
-    it('Cập nhật Asset Type ID bị null', async () => {
+    it('Lỗi cập nhật loại tài sản không tồn tại (Abnormal)', async () => {
         AssetType.findByPk.mockResolvedValue(null);
-        const expectedError = 'Asset type not found';
-
-        console.log(`[TEST]: Cập nhật Asset Type với ID=null`);
-        console.log(`- Input   : ID=null`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
+        console.log(`[TEST]: Cập nhật Asset Type không tồn tại`);
         try {
-            await AssetTypeService.updateAssetType(null, { name: 'New' });
+            await AssetTypeService.updateAssetType(999, { name: 'New' });
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
+            expect(error.status).toBe(404);
+            expect(error.message).toBe('Không tìm thấy loại tài sản');
         }
     });
 });

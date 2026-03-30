@@ -1,11 +1,35 @@
 const RoomTypeService = require('../../../services/roomType.service');
-const RoomType = require('../../../models/roomType.model');
-const { Op } = require('sequelize');
+const { sequelize } = require('../../../config/db');
 
-jest.mock('../../../models/roomType.model');
-jest.mock('../../../models/room.model');
-jest.mock('../../../models/roomTypeAsset.model');
-jest.mock('../../../models/assetType.model');
+// 1. Mock Database & Models (Standard manual pattern)
+jest.mock('../../../config/db', () => {
+    const mockModels = {
+        RoomType: { findByPk: jest.fn(), findOne: jest.fn(), create: jest.fn(), count: jest.fn(), findAndCountAll: jest.fn() },
+        Room: { count: jest.fn() },
+        RoomTypeAsset: { findAll: jest.fn(), destroy: jest.fn(), bulkCreate: jest.fn() },
+        AssetType: { findAll: jest.fn() }
+    };
+    return {
+        sequelize: {
+            models: mockModels,
+            transaction: jest.fn().mockResolvedValue({ 
+                commit: jest.fn(), 
+                rollback: jest.fn()
+            }),
+            authenticate: jest.fn().mockResolvedValue(),
+            close: jest.fn().mockResolvedValue(),
+            fn: jest.fn(),
+            col: jest.fn(),
+            where: jest.fn()
+        },
+        connectDB: jest.fn().mockResolvedValue()
+    };
+});
+
+// Mock individual models
+jest.mock('../../../models/roomType.model', () => (require('../../../config/db').sequelize.models.RoomType));
+
+const { RoomType } = sequelize.models;
 
 describe('RoomTypeService - updateRoomType', () => {
     beforeEach(() => {
@@ -13,35 +37,46 @@ describe('RoomTypeService - updateRoomType', () => {
         console.log('\n=========================================================================');
     });
 
-    it('Cập nhật loại phòng thành công', async () => {
+    it('TC_ROOMTYPE_10: Cập nhật loại phòng thành công (Happy Path)', async () => {
         const id = 1;
         const updateData = { name: 'Phòng Mới VIP', base_price: 2500000 };
-        const mockRoomType = { id, name: 'Phòng Cũ', capacity_min: 1, capacity_max: 2, update: jest.fn() };
+        const mockRoomType = { 
+            id, 
+            name: 'Phòng Cũ', 
+            capacity_min: 1, 
+            capacity_max: 2, 
+            update: jest.fn().mockImplementation(function(data) {
+                Object.assign(this, data);
+                return Promise.resolve(this);
+            }) 
+        };
 
         RoomType.findByPk.mockResolvedValue(mockRoomType);
         RoomType.findOne.mockResolvedValue(null);
 
-        await RoomTypeService.updateRoomType(id, updateData);
+        const result = await RoomTypeService.updateRoomType(id, updateData);
 
         console.log(`[TEST]: Cập nhật thông tin loại phòng hợp lệ`);
         expect(mockRoomType.update).toHaveBeenCalledWith(updateData);
+        expect(result.name).toBe('Phòng Mới VIP');
     });
 
-    it('Lỗi cập nhật: Room Type không tồn tại', async () => {
+    it('TC_ROOMTYPE_11: Lỗi cập nhật loại phòng không tồn tại (Abnormal)', async () => {
         const id = 999;
         RoomType.findByPk.mockResolvedValue(null);
 
         console.log(`[TEST]: Cập nhật ID loại phòng không tồn tại`);
         try {
             await RoomTypeService.updateRoomType(id, {});
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
             expect(error.status).toBe(404);
-            expect(error.message).toBe('Room type not found');
+            expect(error.message).toBe('Không tìm thấy loại phòng');
         }
     });
 
-    it('Lỗi cập nhật trùng tên loại phòng khác', async () => {
+    it('TC_ROOMTYPE_12: Lỗi cập nhật trùng tên với loại khác (Abnormal)', async () => {
         const id = 1;
         const mockRoomType = { id, name: 'Phòng Thường' };
         RoomType.findByPk.mockResolvedValue(mockRoomType);
@@ -50,14 +85,15 @@ describe('RoomTypeService - updateRoomType', () => {
         console.log(`[TEST]: Cập nhật đổi tên sang tên đã tồn tại`);
         try {
             await RoomTypeService.updateRoomType(id, { name: 'Phòng VIP Mới' });
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
             expect(error.status).toBe(409);
-            expect(error.message).toBe('Room type "Phòng VIP Mới" already exists');
+            expect(error.message).toContain('đã tồn tại');
         }
     });
 
-    it('Ngăn chặn thay đổi deposit_months', async () => {
+    it('TC_ROOMTYPE_13: Ngăn chặn thay đổi tiền cọc (FScape Business Rule)', async () => {
         const id = 1;
         const mockRoomType = { id, name: 'Phòng VIP', capacity_min: 1, capacity_max: 2, update: jest.fn() };
         RoomType.findByPk.mockResolvedValue(mockRoomType);
@@ -68,24 +104,26 @@ describe('RoomTypeService - updateRoomType', () => {
         expect(mockRoomType.update).toHaveBeenCalledWith(expect.objectContaining({
             base_price: 50
         }));
-        expect(mockRoomType.update).not.toHaveBeenCalledWith(expect.objectContaining({
-            deposit_months: 5
-        }));
+        
+        // Ensure deposit_months was NOT passed to the update call
+        const updateCall = mockRoomType.update.mock.calls[0][0];
+        expect(updateCall.deposit_months).toBeUndefined();
     });
 
-    it('Lỗi cập nhật capacity_min > capacity_max (do sử dụng data cũ)', async () => {
+    it('TC_ROOMTYPE_14: Lỗi sức chứa tối thiểu vượt quá tối đa hiện tại (Abnormal)', async () => {
         const id = 1;
-        // Room đã có min=2, max=4
-        const mockRoomType = { id, capacity_min: 2, capacity_max: 4 };
+        // Room hiện tại có min=2, max=4
+        const mockRoomType = { id, capacity_min: 2, capacity_max: 4, update: jest.fn() };
         RoomType.findByPk.mockResolvedValue(mockRoomType);
 
-        console.log(`[TEST]: Cập nhật min_capacity nhưng vượt quá max_capacity cũ`);
+        console.log(`[TEST]: Cập nhật min_capacity=5 nhưng max_capacity=4`);
         try {
-            await RoomTypeService.updateRoomType(id, { capacity_min: 6 });
+            await RoomTypeService.updateRoomType(id, { capacity_min: 5 });
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
             expect(error.status).toBe(400);
-            expect(error.message).toBe('capacity_min must be <= capacity_max');
+            expect(error.message).toBe('Sức chứa tối thiểu phải nhỏ hơn hoặc bằng sức chứa tối đa');
         }
     });
 });

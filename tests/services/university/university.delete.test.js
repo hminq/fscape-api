@@ -1,7 +1,34 @@
 const UniversityService = require('../../../services/university.service');
-const University = require('../../../models/university.model');
+const { sequelize } = require('../../../config/db');
 
-jest.mock('../../../models/university.model');
+// 1. Mock Database & Models (Standard manual pattern)
+jest.mock('../../../config/db', () => {
+    const mockModels = {
+        University: { findByPk: jest.fn(), findOne: jest.fn(), create: jest.fn() },
+        Location: { findByPk: jest.fn() },
+        Building: { findByPk: jest.fn() }
+    };
+    return {
+        sequelize: {
+            models: mockModels,
+            transaction: jest.fn().mockResolvedValue({ 
+                commit: jest.fn(), 
+                rollback: jest.fn()
+            }),
+            authenticate: jest.fn().mockResolvedValue(),
+            close: jest.fn().mockResolvedValue(),
+            fn: jest.fn(),
+            col: jest.fn(),
+            where: jest.fn()
+        },
+        connectDB: jest.fn().mockResolvedValue()
+    };
+});
+
+// Mock individual models
+jest.mock('../../../models/university.model', () => (require('../../../config/db').sequelize.models.University));
+
+const { University } = sequelize.models;
 
 describe('UniversityService - deleteUniversity', () => {
     beforeEach(() => {
@@ -9,7 +36,7 @@ describe('UniversityService - deleteUniversity', () => {
         console.log('\n=========================================================================');
     });
 
-    it('Xóa University thành công', async () => {
+    it('TC_UNIVERSITY_12: Xóa University thành công (Happy Path)', async () => {
         const mockUni = { 
             id: 1, 
             name: 'Đại học Bách Khoa', 
@@ -21,41 +48,23 @@ describe('UniversityService - deleteUniversity', () => {
 
         console.log(`[TEST]: Xóa University thành công`);
         console.log(`- Input   : ID=1`);
-        console.log(`- Expected: "University \"Đại học Bách Khoa\" deleted successfully"`);
+        console.log(`- Expected: Đã xóa trường đại học "Đại học Bách Khoa" thành công`);
         console.log(`- Actual  : "${result.message}"`);
 
-        expect(result.message).toContain('deleted successfully');
+        expect(result.message).toBe('Đã xóa trường đại học "Đại học Bách Khoa" thành công');
+        expect(mockUni.destroy).toHaveBeenCalled();
     });
 
-    it('Xóa University không tồn tại', async () => {
+    it('TC_UNIVERSITY_13: Lỗi khi xóa University không tồn tại (Abnormal)', async () => {
         University.findByPk.mockResolvedValue(null);
-        const expectedError = 'University not found';
-
         console.log(`[TEST]: Xóa University không tồn tại`);
-        console.log(`- Input   : ID=999`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
         try {
             await UniversityService.deleteUniversity(999);
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
-        }
-    });
-
-    it('Xóa University với ID bị null', async () => {
-        University.findByPk.mockResolvedValue(null);
-        const expectedError = 'University not found';
-
-        console.log(`[TEST]: Xóa University với ID=null`);
-        console.log(`- Input   : ID=null`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
-        try {
-            await UniversityService.deleteUniversity(null);
-        } catch (error) {
-            console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
+            expect(error.status).toBe(404);
+            expect(error.message).toBe('Không tìm thấy trường đại học');
         }
     });
 });

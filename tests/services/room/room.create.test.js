@@ -1,21 +1,39 @@
 const RoomService = require('../../../services/room.service');
-const Room = require('../../../models/room.model');
-const RoomImage = require('../../../models/roomImage.model');
-const Booking = require('../../../models/booking.model');
-const Contract = require('../../../models/contract.model');
-const Building = require('../../../models/building.model');
-const RoomType = require('../../../models/roomType.model');
 const { sequelize } = require('../../../config/db');
 
-jest.mock('../../../models/room.model');
-jest.mock('../../../models/roomImage.model');
-jest.mock('../../../models/booking.model');
-jest.mock('../../../models/contract.model');
-jest.mock('../../../models/building.model');
-jest.mock('../../../models/roomType.model');
-jest.mock('../../../models/request.model');
-jest.mock('../../../models/user.model');
-// Remove manual db mock that overwrites sequelize.define
+// 1. Mock Database & Models (Standard manual pattern)
+jest.mock('../../../config/db', () => {
+    const mockModels = {
+        Room: { findOne: jest.fn(), create: jest.fn(), findByPk: jest.fn(), findAndCountAll: jest.fn() },
+        RoomImage: { bulkCreate: jest.fn(), destroy: jest.fn() },
+        Booking: { findOne: jest.fn() },
+        Contract: { findOne: jest.fn() },
+        Building: { findByPk: jest.fn() },
+        RoomType: { findByPk: jest.fn() }
+    };
+    return {
+        sequelize: {
+            models: mockModels,
+            transaction: jest.fn().mockResolvedValue({ 
+                commit: jest.fn(), 
+                rollback: jest.fn()
+            }),
+            authenticate: jest.fn().mockResolvedValue(),
+            close: jest.fn().mockResolvedValue()
+        },
+        connectDB: jest.fn().mockResolvedValue()
+    };
+});
+
+// Mock individual models to ensure they point to the same mocked model objects
+jest.mock('../../../models/room.model', () => (require('../../../config/db').sequelize.models.Room));
+jest.mock('../../../models/roomImage.model', () => (require('../../../config/db').sequelize.models.RoomImage));
+jest.mock('../../../models/building.model', () => (require('../../../config/db').sequelize.models.Building));
+jest.mock('../../../models/roomType.model', () => (require('../../../config/db').sequelize.models.RoomType));
+jest.mock('../../../models/booking.model', () => (require('../../../config/db').sequelize.models.Booking));
+jest.mock('../../../models/contract.model', () => (require('../../../config/db').sequelize.models.Contract));
+
+const { Room, RoomImage } = sequelize.models;
 
 describe('RoomService - createRoom', () => {
     let mockTransaction;
@@ -27,7 +45,7 @@ describe('RoomService - createRoom', () => {
         console.log('\n=========================================================================');
     });
 
-    it('Tạo phòng thành công không có ảnh', async () => {
+    it('TC_ROOM_01: Tạo phòng thành công không có ảnh (Happy Path)', async () => {
         const newData = { building_id: 1, room_number: '101', floor: 1, room_type_id: 1 };
         Room.findOne.mockResolvedValue(null);
         Room.create.mockResolvedValue({ id: 1, ...newData });
@@ -49,7 +67,7 @@ describe('RoomService - createRoom', () => {
         expect(mockTransaction.commit).toHaveBeenCalled();
     });
 
-    it('Tạo phòng thành công có ảnh', async () => {
+    it('TC_ROOM_02: Tạo phòng thành công có ảnh (Happy Path)', async () => {
         const newData = { 
             building_id: 1, 
             room_number: '102', 
@@ -73,47 +91,37 @@ describe('RoomService - createRoom', () => {
 
         const result = await RoomService.createRoom(newData);
 
-        console.log(`[TEST]: Tạo phòng mới kèm ảnh gallery`);
-        console.log(`- Input   : RoomNumber="${newData.room_number}", Images=${newData.gallery_images.length}`);
-        console.log(`- Expected: RoomNumber="102", Images=[img1.png, img2.png]`);
-        console.log(`- Actual  : RoomNumber="${result.room_number}", Images=[${result.images.join(', ')}]`);
-
         expect(result.room_number).toBe('102');
         expect(result.images).toEqual(gallery_images);
         expect(RoomImage.bulkCreate).toHaveBeenCalledTimes(1);
         expect(mockTransaction.commit).toHaveBeenCalled();
     });
 
-    it('Trùng số phòng trong cùng tòa nhà', async () => {
+    it('TC_ROOM_03: Lỗi trùng số phòng trong cùng tòa nhà (Abnormal)', async () => {
         const newData = { building_id: 1, room_number: '101', floor: 1, room_type_id: 1 };
         Room.findOne.mockResolvedValue({ id: 5, room_number: '101', building_id: 1 });
-        const expectedError = 'Room number 101 already exists in this building';
 
         console.log(`[TEST]: Trùng số phòng trong tòa nhà`);
-        console.log(`- Input   : RoomNumber="101", BuildingID=1`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
         try {
             await RoomService.createRoom(newData);
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
             expect(error.status).toBe(409);
-            expect(error.message).toBe(expectedError);
+            expect(error.message).toBe('Số phòng 101 đã tồn tại trong tòa nhà này');
             expect(Room.create).not.toHaveBeenCalled();
         }
     });
 
-    it('Lỗi database rollback transaction', async () => {
+    it('TC_ROOM_04: Lỗi database rollback transaction (Abnormal)', async () => {
         const newData = { building_id: 1, room_number: '105', floor: 1, room_type_id: 1 };
         Room.findOne.mockResolvedValue(null);
         Room.create.mockRejectedValue(new Error('DB Error'));
 
         console.log(`[TEST]: Database error - Transaction rollback`);
-        console.log(`- Input   : RoomNumber="105", BuildingID=1`);
-        console.log(`- Expected Error: "DB Error"`);
-
         try {
             await RoomService.createRoom(newData);
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
             expect(error.message).toBe('DB Error');

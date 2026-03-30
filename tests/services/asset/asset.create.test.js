@@ -1,21 +1,38 @@
 const AssetService = require('../../../services/asset.service');
-const Asset = require('../../../models/asset.model');
-const Building = require('../../../models/building.model');
-const Room = require('../../../models/room.model');
 const { sequelize } = require('../../../config/db');
 
-jest.mock('../../../models/asset.model');
-jest.mock('../../../models/assetHistory.model');
-jest.mock('../../../models/building.model');
-jest.mock('../../../models/room.model');
-jest.mock('../../../config/db', () => ({
-    sequelize: {
-        transaction: jest.fn(() => ({
-            commit: jest.fn(),
-            rollback: jest.fn()
-        }))
-    }
-}));
+// 1. Mock Database & Models (Standard manual pattern)
+jest.mock('../../../config/db', () => {
+    const mockModels = {
+        Asset: { findByPk: jest.fn(), findOne: jest.fn(), create: jest.fn(), findAndCountAll: jest.fn(), findAll: jest.fn() },
+        AssetHistory: { create: jest.fn() },
+        Building: { findByPk: jest.fn() },
+        Room: { findByPk: jest.fn() },
+        AssetType: { findByPk: jest.fn() }
+    };
+    return {
+        sequelize: {
+            models: mockModels,
+            transaction: jest.fn().mockResolvedValue({ 
+                commit: jest.fn(), 
+                rollback: jest.fn(),
+                LOCK: { UPDATE: 'UPDATE' }
+            }),
+            authenticate: jest.fn().mockResolvedValue(),
+            close: jest.fn().mockResolvedValue()
+        },
+        connectDB: jest.fn().mockResolvedValue()
+    };
+});
+
+// Mock individual models
+jest.mock('../../../models/asset.model', () => (require('../../../config/db').sequelize.models.Asset));
+jest.mock('../../../models/assetHistory.model', () => (require('../../../config/db').sequelize.models.AssetHistory));
+jest.mock('../../../models/building.model', () => (require('../../../config/db').sequelize.models.Building));
+jest.mock('../../../models/room.model', () => (require('../../../config/db').sequelize.models.Room));
+jest.mock('../../../models/assetType.model', () => (require('../../../config/db').sequelize.models.AssetType));
+
+const { Asset, Building, Room } = sequelize.models;
 
 describe('AssetService - createAsset', () => {
     beforeEach(() => {
@@ -23,13 +40,19 @@ describe('AssetService - createAsset', () => {
         console.log('\n=========================================================================');
     });
 
-    it('Tạo Asset mới thành công', async () => {
+    it('TC_ASSET_01: Tạo Asset mới thành công (Happy Path)', async () => {
         const newData = { name: 'Monitor', building_id: 'b1' };
         Building.findByPk.mockResolvedValue({ id: 'b1' });
-        Asset.create.mockResolvedValue({ id: 'a1', ...newData });
         
-        // Mock getAssetById
-        jest.spyOn(AssetService, 'getAssetById').mockResolvedValue({ id: 'a1', ...newData });
+        const mockCreatedAsset = { 
+            id: 'a1', 
+            ...newData,
+            toJSON: () => ({ id: 'a1', ...newData })
+        };
+        Asset.create.mockResolvedValue(mockCreatedAsset);
+        
+        // Mock findByPk for getAssetById inside createAsset
+        Asset.findByPk.mockResolvedValue(mockCreatedAsset);
 
         const result = await AssetService.createAsset(newData);
 
@@ -39,55 +62,49 @@ describe('AssetService - createAsset', () => {
         console.log(`- Actual  : Asset ID="${result.id}"`);
 
         expect(result.id).toBe('a1');
+        expect(Asset.create).toHaveBeenCalled();
     });
 
-    it('Lỗi khi tòa nhà không tồn tại', async () => {
+    it('TC_ASSET_02: Lỗi khi tòa nhà không tồn tại (Abnormal)', async () => {
         Building.findByPk.mockResolvedValue(null);
-        const expectedError = 'Building not found';
-
         console.log(`[TEST]: Tạo Asset với tòa nhà không tồn tại`);
-        console.log(`- Input   : BuildingID="999"`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
         try {
             await AssetService.createAsset({ name: 'Test', building_id: '999' });
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
+            expect(error.status).toBe(404);
+            expect(error.message).toBe('Không tìm thấy tòa nhà');
         }
     });
 
-    it('Lỗi khi phòng không thuộc tòa nhà đã chọn', async () => {
+    it('TC_ASSET_03: Lỗi khi phòng không thuộc tòa nhà đã chọn (Abnormal)', async () => {
         Building.findByPk.mockResolvedValue({ id: 'b1' });
-        Room.findByPk.mockResolvedValue({ id: 'r1', building_id: 'b2' }); // Khác b1
-        const expectedError = 'Room does not belong to the specified building';
+        Room.findByPk.mockResolvedValue({ id: 'r1', building_id: 'b2' }); 
 
         console.log(`[TEST]: Tạo Asset với phòng không khớp tòa nhà`);
-        console.log(`- Input   : Building="b1", Room="r1" (thuộc b2)`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
         try {
             await AssetService.createAsset({ name: 'Test', building_id: 'b1', current_room_id: 'r1' });
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
+            expect(error.status).toBe(400);
+            expect(error.message).toBe('Phòng không thuộc tòa nhà được chỉ định');
         }
     });
 
-    it('Tên Asset bị null', async () => {
+    it('TC_ASSET_04: Lỗi khi không tìm thấy phòng đích (Abnormal)', async () => {
         Building.findByPk.mockResolvedValue({ id: 'b1' });
-        Asset.create.mockRejectedValue(new Error('name cannot be null'));
-        const expectedError = 'name cannot be null';
+        Room.findByPk.mockResolvedValue(null);
 
-        console.log(`[TEST]: Tạo Asset với tên bị null`);
-        console.log(`- Input   : Name=null`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
+        console.log(`[TEST]: Tạo Asset gắn vào phòng không tồn tại`);
         try {
-            await AssetService.createAsset({ name: null, building_id: 'b1' });
+            await AssetService.createAsset({ name: 'Test', building_id: 'b1', current_room_id: 'r999' });
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
+            expect(error.status).toBe(404);
+            expect(error.message).toBe('Không tìm thấy phòng');
         }
     });
 });
