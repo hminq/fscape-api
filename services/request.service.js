@@ -268,8 +268,8 @@ const createRequest = async (data) => {
 
         await createNotification({
             type: "REQUEST_CREATED",
-            title: "New Service Request",
-            content: `Request ${request.request_number} has been created. Please review and assign to staff.`,
+            title: "Yêu cầu dịch vụ mới",
+            content: `Có yêu cầu ${request.request_number} vừa được tạo. Vui lòng kiểm tra và phân công cho nhân viên.`,
             target_type: "REQUEST",
             target_id: request.id,
             created_by: requestData.resident_id,
@@ -280,8 +280,8 @@ const createRequest = async (data) => {
         // 4️ Notify Resident (tạo thành công)
         await createNotification({
             type: "REQUEST_CREATED_SUCCESS",
-            title: "Request Created",
-            content: `Your request ${request.request_number} has been created successfully`,
+            title: "Tạo yêu cầu thành công",
+            content: `Yêu cầu ${request.request_number} của bạn đã được tạo thành công.`,
             target_type: "REQUEST",
             target_id: request.id,
             created_by: requestData.resident_id,

@@ -1243,7 +1243,7 @@ const terminateContract = async (contractId, body, user, req) => {
                 await createNotification({
                     type: 'CONTRACT_TERMINATION_INITIATED',
                     title: 'Hợp đồng sắp bị chấm dứt',
-                    content: `Hợp đồng ${contract.contract_number} sẽ bị chấm dứt. Nhân viên sẽ liên hệ bạn để thực hiện checkout. Lý do: ${termination_reason}`,
+                    content: `Hợp đồng ${contract.contract_number} sẽ bị chấm dứt. Nhân viên sẽ liên hệ bạn để thực hiện trả phòng. Lý do: ${termination_reason}`,
                     target_type: 'CONTRACT',
                     target_id: contract.id,
                     created_by: user.id,
@@ -1253,8 +1253,8 @@ const terminateContract = async (contractId, body, user, req) => {
                 // Notify assigned staff
                 await createNotification({
                     type: 'CHECKOUT_REQUEST_ASSIGNED',
-                    title: 'Nhiệm vụ checkout mới',
-                    content: `Bạn được giao thực hiện checkout phòng ${contract.room?.room_number || ''} (hợp đồng ${contract.contract_number})`,
+                    title: 'Nhiệm vụ trả phòng mới',
+                    content: `Bạn được giao thực hiện trả phòng ${contract.room?.room_number || ''} (hợp đồng ${contract.contract_number}).`,
                     target_type: 'REQUEST',
                     target_id: checkoutRequest.id,
                     created_by: user.id,

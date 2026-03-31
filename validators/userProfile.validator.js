@@ -2,15 +2,17 @@ const { body } = require('express-validator');
 
 exports.updateProfile = [
   body('first_name')
-    .notEmpty().withMessage('Tên không được để trống')
+    .optional({ checkFalsy: true })
     .isString().withMessage('Tên phải là chuỗi')
-    .isLength({ min: 1, max: 100 }).withMessage('Tên phải từ 1–100 ký tự'),
+    .isLength({ min: 1, max: 100 }).withMessage('Tên phải từ 1–100 ký tự')
+    .matches(/^[\p{L}\s]+$/u).withMessage('Tên chỉ được chứa chữ cái và khoảng trắng'),
   body('last_name')
-    .notEmpty().withMessage('Họ không được để trống')
+    .optional({ checkFalsy: true })
     .isString().withMessage('Họ phải là chuỗi')
-    .isLength({ min: 1, max: 100 }).withMessage('Họ phải từ 1–100 ký tự'),
+    .isLength({ min: 1, max: 100 }).withMessage('Họ phải từ 1–100 ký tự')
+    .matches(/^[\p{L}\s]+$/u).withMessage('Họ chỉ được chứa chữ cái và khoảng trắng'),
   body('phone')
-    .notEmpty().withMessage('Số điện thoại không được để trống')
+    .optional({ checkFalsy: true })
     .isString().withMessage('SĐT phải là chuỗi')
     .matches(/^[0-9+ ]{8,20}$/).withMessage('Số điện thoại không hợp lệ'),
   body('avatar_url')
@@ -35,7 +37,8 @@ exports.updateProfile = [
   body('emergency_contact_name')
     .optional({ checkFalsy: true })
     .isString().withMessage('Tên người liên hệ phải là chuỗi')
-    .isLength({ max: 255 }).withMessage('Tên liên hệ khẩn cấp tối đa 255 ký tự'),
+    .isLength({ max: 255 }).withMessage('Tên liên hệ khẩn cấp tối đa 255 ký tự')
+    .matches(/^[\p{L}\s]+$/u).withMessage('Tên liên hệ chỉ được chứa chữ cái và khoảng trắng'),
   body('emergency_contact_phone')
     .optional({ checkFalsy: true })
     .isString().withMessage('SĐT phải là chuỗi')
