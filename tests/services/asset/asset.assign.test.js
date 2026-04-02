@@ -73,7 +73,7 @@ describe('AssetService - assignAsset', () => {
     it('Chặn gán Asset đang bảo trì', async () => {
         const mockAsset = { id: 'a1', status: 'MAINTENANCE', building_id: 'b1' };
         Asset.findByPk.mockResolvedValue(mockAsset);
-        const expectedError = 'Cannot assign asset under maintenance';
+        const expectedError = 'Không thể gán tài sản đang bảo trì';
 
         console.log(`[TEST]: Chặn gán Asset MAINTENANCE`);
         console.log(`- Input   : status="MAINTENANCE"`);
@@ -92,7 +92,7 @@ describe('AssetService - assignAsset', () => {
         const mockAsset = { id: 'a1', building_id: 'b1', status: 'AVAILABLE' };
         Asset.findByPk.mockResolvedValue(mockAsset);
         Room.findByPk.mockResolvedValue({ id: 'r2', building_id: 'b2' }); // Khác b1
-        const expectedError = 'Target room is not in the same building as the asset';
+        const expectedError = 'Phòng đích không cùng tòa nhà với tài sản';
 
         console.log(`[TEST]: Gán phòng sai tòa nhà`);
         console.log(`- Input   : AssetBuilding="b1", TargetRoom="r2" (thuộc b2)`);

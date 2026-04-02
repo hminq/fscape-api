@@ -38,9 +38,8 @@ describe('LocationService - createLocation', () => {
     it('Tên địa điểm bị null', async () => {
         const newData = { name: null };
         Location.findOne.mockResolvedValue(null);
-        Location.create.mockRejectedValue(new Error('name cannot be null'));
-
-        const expectedError = 'name cannot be null';
+        
+        const expectedError = 'Tên khu vực không được để trống';
 
         console.log(`[TEST]: Tạo địa điểm với tên bị null`);
         console.log(`- Input   : Name=null`);
@@ -57,7 +56,7 @@ describe('LocationService - createLocation', () => {
     it('Địa điểm đã tồn tại (Trùng tên)', async () => {
         const newData = { name: 'Hà Nội' };
         Location.findOne.mockResolvedValue({ id: 1, name: 'Hà Nội' });
-        const expectedError = 'Location "Hà Nội" already exists';
+        const expectedError = 'Khu vực "Hà Nội" đã tồn tại';
 
         console.log(`[TEST]: Trùng tên địa điểm`);
         console.log(`- Input   : Name="Hà Nội"`);

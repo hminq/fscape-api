@@ -44,7 +44,7 @@ describe('AssetService - createBatchAssets', () => {
 
     it('Lỗi khi số lượng vượt quá 100', async () => {
         const batchData = { name: 'Chair', building_id: 'b1', quantity: 150 };
-        const expectedError = 'quantity must be between 1 and 100';
+        const expectedError = 'Số lượng phải từ 1 đến 100';
 
         console.log(`[TEST]: Lỗi vượt quá số lượng batch tối đa`);
         console.log(`- Input   : quantity=150`);
@@ -61,7 +61,7 @@ describe('AssetService - createBatchAssets', () => {
 
     it('Lỗi khi thiếu thông tin bắt buộc', async () => {
         const batchData = { quantity: 10 }; // Thiếu name và building_id
-        const expectedError = 'name and building_id are required';
+        const expectedError = 'Tên và mã tòa nhà là bắt buộc';
 
         console.log(`[TEST]: Thiếu thông tin bắt buộc khi tạo batch`);
         console.log(`- Input   : name=undefined, building_id=undefined`);

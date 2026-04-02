@@ -26,7 +26,7 @@ describe('AssetTypeService - getAssetTypeById', () => {
 
     it('Asset Type không tồn tại', async () => {
         AssetType.findByPk.mockResolvedValue(null);
-        const expectedError = 'Asset type not found';
+        const expectedError = 'Không tìm thấy loại tài sản';
 
         console.log(`[TEST]: Asset Type không tồn tại`);
         console.log(`- Input   : ID=999`);
@@ -41,7 +41,7 @@ describe('AssetTypeService - getAssetTypeById', () => {
     });
 
     it('ID bị null', async () => {
-        const expectedError = 'Asset type not found';
+        const expectedError = 'Không tìm thấy loại tài sản';
 
         console.log(`[TEST]: Truy vấn Asset Type với ID=null`);
         console.log(`- Input   : ID=null`);
@@ -53,5 +53,24 @@ describe('AssetTypeService - getAssetTypeById', () => {
             console.log(`- Actual Error  : "${error.message}"`);
             expect(error.message).toBe(expectedError);
         }
+    });
+
+    it('Lấy chi tiết Asset Type với Role không phải Admin (Bị xóa timestamps)', async () => {
+        const mockAssetType = { 
+            id: 2, 
+            name: 'Ghế', 
+            toJSON: () => ({ id: 2, name: 'Ghế', created_at: 'date', updated_at: 'date' }) 
+        };
+        AssetType.findByPk.mockResolvedValue(mockAssetType);
+
+        const result = await AssetTypeService.getAssetTypeById(2, { role: 'STAFF' });
+
+        console.log(`[TEST]: Lấy chi tiết Asset Type (STAFF)`);
+        console.log(`- Expected: Bị xóa created_at/updated_at`);
+        console.log(`- Actual Keys: ${Object.keys(result).join(', ')}`);
+
+        expect(result.id).toBe(2);
+        expect(result.created_at).toBeUndefined();
+        expect(result.updated_at).toBeUndefined();
     });
 });

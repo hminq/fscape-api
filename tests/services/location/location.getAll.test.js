@@ -20,7 +20,7 @@ describe('LocationService - getAllLocations', () => {
     });
 
     it('Lấy danh sách địa điểm thành công', async () => {
-        const mockRows = [{ id: 1, name: 'Hà Nội' }];
+        const mockRows = [{ id: 1, name: 'Quận 1' }];
         Location.findAndCountAll.mockResolvedValue({ count: 1, rows: mockRows });
 
         const query = { page: 1, limit: 10 };
@@ -35,18 +35,35 @@ describe('LocationService - getAllLocations', () => {
         expect(result.data).toEqual(mockRows);
     });
 
+    it('Gặp lỗi DB do truyền tham số phân trang âm (page < 1)', async () => {
+        const query = { page: -1, limit: 10 };
+        const expectedError = 'SQL Error: OFFSET must not be negative';
+        Location.findAndCountAll.mockRejectedValue(new Error(expectedError));
+
+        console.log(`[TEST]: Truyền tham số phân trang âm (Gây lỗi cơ sở dữ liệu)`);
+        console.log(`- Input   : ${JSON.stringify(query)}`);
+        console.log(`- Expected Error: "${expectedError}"`);
+
+        try {
+            await LocationService.getAllLocations(query);
+        } catch (error) {
+            console.log(`- Actual Error  : "${error.message}"`);
+            expect(error.message).toBe(expectedError);
+        }
+    });
+
     it('Tìm kiếm địa điểm theo tên', async () => {
-        const mockRows = [{ id: 1, name: 'Đà Nẵng' }];
+        const mockRows = [{ id: 1, name: 'Quận 7' }];
         Location.findAndCountAll.mockResolvedValue({ count: 1, rows: mockRows });
 
-        const query = { search: 'Đà Nẵng' };
+        const query = { search: 'Quận 7' };
         const result = await LocationService.getAllLocations(query);
 
         console.log(`[TEST]: Tìm kiếm địa điểm`);
-        console.log(`- Input   : Search="Đà Nẵng"`);
-        console.log(`- Expected: Name="Đà Nẵng"`);
+        console.log(`- Input   : Search="Quận 7"`);
+        console.log(`- Expected: Name="Quận 7"`);
         console.log(`- Actual  : Name="${result.data[0].name}"`);
 
-        expect(result.data[0].name).toBe('Đà Nẵng');
+        expect(result.data[0].name).toBe('Quận 7');
     });
 });

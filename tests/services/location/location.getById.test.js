@@ -37,7 +37,7 @@ describe('LocationService - getLocationById', () => {
 
     it('ID bị null', async () => {
         Location.findByPk.mockResolvedValue(null);
-        const expectedError = 'Location not found';
+        const expectedError = 'Không tìm thấy khu vực';
 
         console.log(`[TEST]: Truy vấn với ID bị null`);
         console.log(`- Input   : ID=null`);
@@ -53,7 +53,7 @@ describe('LocationService - getLocationById', () => {
 
     it('Địa điểm không tồn tại', async () => {
         Location.findByPk.mockResolvedValue(null);
-        const expectedError = 'Location not found';
+        const expectedError = 'Không tìm thấy khu vực';
 
         console.log(`[TEST]: Địa điểm không tồn tại`);
         console.log(`- Input   : ID=999`);
@@ -61,6 +61,22 @@ describe('LocationService - getLocationById', () => {
 
         try {
             await LocationService.getLocationById(999);
+        } catch (error) {
+            console.log(`- Actual Error  : "${error.message}"`);
+            expect(error.message).toBe(expectedError);
+        }
+    });
+
+    it('Gặp lỗi Database Exception khi truy vấn ID sai định dạng', async () => {
+        const expectedError = 'SequelizeDatabaseError: invalid input syntax for type integer: "abc"';
+        Location.findByPk.mockRejectedValue(new Error(expectedError));
+        
+        console.log(`[TEST]: Truy vấn với ID sai định dạng`);
+        console.log(`- Input   : ID="abc"`);
+        console.log(`- Expected Error: "${expectedError}"`);
+
+        try {
+            await LocationService.getLocationById('abc');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
             expect(error.message).toBe(expectedError);

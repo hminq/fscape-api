@@ -42,4 +42,41 @@ describe('AssetTypeService - getAllAssetTypes', () => {
 
         expect(result.data[0].name).toBe('Ghế');
     });
+
+    it('Lấy danh sách Asset Type với Role không phải Admin (Bị xóa timestamps)', async () => {
+        const mockRows = [{
+            toJSON: () => ({ id: 3, name: 'Bảng', created_at: 'yesterday', updated_at: 'today' })
+        }];
+        AssetType.findAndCountAll.mockResolvedValue({ count: 1, rows: mockRows });
+        AssetType.count.mockResolvedValue(1);
+
+        const query = { page: 1, limit: 10 };
+        const result = await AssetTypeService.getAllAssetTypes(query, { role: 'STAFF' });
+
+        console.log(`[TEST]: Lấy ds Asset Type (STAFF)`);
+        console.log(`- Expected: Không chứa created_at/updated_at`);
+        console.log(`- Actual Keys: ${Object.keys(result.data[0]).join(', ')}`);
+
+        expect(result.data[0].id).toBe(3);
+        expect(result.data[0].created_at).toBeUndefined();
+        expect(result.data[0].updated_at).toBeUndefined();
+    });
+
+    it('Gặp lỗi Database Exception khi truyền query ngẫu nhiên sập DB (Abnormal)', async () => {
+        const query = { page: -1, limit: 10 };
+        const expectedError = 'SQL Error: OFFSET must not be negative';
+        AssetType.findAndCountAll.mockRejectedValue(new Error(expectedError));
+
+        console.log(`[TEST]: Truyền trang bị âm`);
+        console.log(`- Input   : ${JSON.stringify(query)}`);
+        console.log(`- Expected Error: "${expectedError}"`);
+
+        try {
+            await AssetTypeService.getAllAssetTypes(query, { role: ROLES.ADMIN });
+            throw new Error('Should have thrown error');
+        } catch (error) {
+            console.log(`- Actual Error  : "${error.message}"`);
+            expect(error.message).toBe(expectedError);
+        }
+    });
 });

@@ -17,7 +17,7 @@ jest.mock('../../utils/mail.util');
 jest.mock('../../utils/password.util');
 
 describe('AuthService - Signup (Đăng ký tài khoản)', () => {
-    const validEmail = 'user@gmail.com';
+    const validEmail = 'guest_123@fscape.vn';
     const validPassword = 'Password123!';
 
     beforeEach(() => {
@@ -49,15 +49,16 @@ describe('AuthService - Signup (Đăng ký tài khoản)', () => {
 
         // --- Edge Case: Email đã tồn tại ---
         it('Email đã tồn tại', async () => {
-            User.findOne.mockResolvedValue({ id: '1', email: validEmail });
+            const existingEmail = 'admin@fscape.vn';
+            User.findOne.mockResolvedValue({ id: '1', email: existingEmail });
             const expectedError = 'Email already exists';
 
             console.log(`[TEST]: Email đã tồn tại`);
-            console.log(`- Input   : Email="${validEmail}" (Đã có trong hệ thống)`);
+            console.log(`- Input   : Email="${existingEmail}" (Đã có trong hệ thống)`);
             console.log(`- Expected Error: "${expectedError}"`);
 
             try {
-                await AuthService.signup(validEmail, validPassword);
+                await AuthService.signup(existingEmail, validPassword);
             } catch (error) {
                 console.log(`- Actual Error  : "${error.message}"`);
                 expect(error.message).toBe(expectedError);
@@ -66,16 +67,17 @@ describe('AuthService - Signup (Đăng ký tài khoản)', () => {
 
         // --- Edge Case: Vượt quá giới hạn OTP (5 lần/ngày) ---
         it('Vượt quá giới hạn OTP (5 lần/ngày)', async () => {
+            const spamEmail = 'spammer@fscape.vn';
             User.findOne.mockResolvedValue(null);
             const expectedError = 'OTP request limit exceeded (5/day)';
             otpUtil.generateOtp.mockRejectedValue(new Error(expectedError));
 
             console.log(`[TEST]: Vượt quá giới hạn OTP`);
-            console.log(`- Input   : Email="${validEmail}" (Lần thứ 6 trong ngày)`);
+            console.log(`- Input   : Email="${spamEmail}" (Lần thứ 6 trong ngày)`);
             console.log(`- Expected Error: "${expectedError}"`);
 
             try {
-                await AuthService.signup(validEmail, validPassword);
+                await AuthService.signup(spamEmail, validPassword);
             } catch (error) {
                 console.log(`- Actual Error  : "${error.message}"`);
                 expect(error.message).toBe(expectedError);

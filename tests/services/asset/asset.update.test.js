@@ -48,7 +48,7 @@ describe('AssetService - updateAsset', () => {
         Asset.findByPk.mockResolvedValue(mockAsset);
         Room.findByPk.mockResolvedValue({ id: 'r_new', building_id: 'b2' }); // Khác b1
 
-        const expectedError = 'Room does not belong to the asset\'s building';
+        const expectedError = 'Phòng không thuộc tòa nhà của tài sản';
 
         console.log(`[TEST]: Cập nhật phòng không khớp tòa nhà`);
         console.log(`- Input   : AssetBuilding="b1", NewRoom="r_new" (thuộc b2)`);
@@ -58,6 +58,7 @@ describe('AssetService - updateAsset', () => {
             await AssetService.updateAsset('a1', { current_room_id: 'r_new' });
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
+            expect(error.status).toBe(400);
             expect(error.message).toBe(expectedError);
         }
     });

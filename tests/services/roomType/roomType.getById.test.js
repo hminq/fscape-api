@@ -48,7 +48,7 @@ describe('RoomTypeService - getRoomTypeById', () => {
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
             expect(error.status).toBe(404);
-            expect(error.message).toBe('Room type not found');
+            expect(error.message).toBe('Không tìm thấy loại phòng');
         }
     });
 });

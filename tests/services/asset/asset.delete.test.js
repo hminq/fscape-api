@@ -25,16 +25,16 @@ describe('AssetService - deleteAsset', () => {
 
         console.log(`[TEST]: Xóa Asset thành công`);
         console.log(`- Input   : ID="a1"`);
-        console.log(`- Expected: "Asset \"Asset X\" deleted successfully"`);
+        console.log(`- Expected: "Đã xóa tài sản \"Asset X\" thành công"`);
         console.log(`- Actual  : "${result.message}"`);
 
-        expect(result.message).toContain('deleted successfully');
+        expect(result.message).toContain('thành công');
     });
 
     it('Chặn xóa Asset đang được sử dụng (IN_USE)', async () => {
         const mockAsset = { id: 'a1', status: 'IN_USE' };
         Asset.findByPk.mockResolvedValue(mockAsset);
-        const expectedError = 'Cannot delete asset currently in use. Check out first.';
+        const expectedError = 'Không thể xóa tài sản đang sử dụng. Vui lòng thu hồi trước.';
 
         console.log(`[TEST]: Chặn xóa Asset IN_USE`);
         console.log(`- Input   : status="IN_USE"`);
@@ -44,6 +44,7 @@ describe('AssetService - deleteAsset', () => {
             await AssetService.deleteAsset('a1');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
+            expect(error.status).toBe(409);
             expect(error.message).toBe(expectedError);
         }
     });
@@ -52,7 +53,7 @@ describe('AssetService - deleteAsset', () => {
         const mockAsset = { id: 'a1', status: 'BROKEN' };
         Asset.findByPk.mockResolvedValue(mockAsset);
         Request.findOne.mockResolvedValue({ id: 'req1', status: 'PENDING' });
-        const expectedError = 'Cannot delete asset with active maintenance requests';
+        const expectedError = 'Không thể xóa tài sản có yêu cầu bảo trì đang hoạt động';
 
         console.log(`[TEST]: Chặn xóa Asset có Request active`);
         console.log(`- Input   : Has active Request status="PENDING"`);
@@ -62,13 +63,14 @@ describe('AssetService - deleteAsset', () => {
             await AssetService.deleteAsset('a1');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
+            expect(error.status).toBe(409);
             expect(error.message).toBe(expectedError);
         }
     });
 
     it('ID Asset bị null khi xóa', async () => {
         Asset.findByPk.mockResolvedValue(null);
-        const expectedError = 'Asset not found';
+        const expectedError = 'Không tìm thấy tài sản';
 
         console.log(`[TEST]: Xóa Asset với ID=null`);
         console.log(`- Input   : ID=null`);
@@ -78,6 +80,7 @@ describe('AssetService - deleteAsset', () => {
             await AssetService.deleteAsset(null);
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
+            expect(error.status).toBe(404);
             expect(error.message).toBe(expectedError);
         }
     });

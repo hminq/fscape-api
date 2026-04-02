@@ -35,15 +35,15 @@ describe('LocationService - deleteLocation', () => {
 
         console.log(`[TEST]: Xóa địa điểm thành công`);
         console.log(`- Input   : ID=1`);
-        console.log(`- Expected: "Location \"Hà Nội\" deleted successfully"`);
+        console.log(`- Expected: "Đã xóa khu vực \"Hà Nội\" thành công"`);
         console.log(`- Actual  : "${result.message}"`);
 
-        expect(result.message).toContain('deleted successfully');
+        expect(result.message).toContain('thành công');
     });
 
     it('ID bị null', async () => {
         Location.findByPk.mockResolvedValue(null);
-        const expectedError = 'Location not found';
+        const expectedError = 'Không tìm thấy khu vực';
 
         console.log(`[TEST]: Xóa địa điểm với ID bị null`);
         console.log(`- Input   : ID=null`);
@@ -62,7 +62,7 @@ describe('LocationService - deleteLocation', () => {
         Location.findByPk.mockResolvedValue(mockLocation);
         Building.count.mockResolvedValue(1); 
         University.count.mockResolvedValue(0);
-        const expectedError = 'Cannot delete location: Associated data exists.';
+        const expectedError = 'Không thể xóa khu vực: Vẫn còn dữ liệu liên kết.';
 
         console.log(`[TEST]: Lỗi xóa do có dữ liệu liên kết`);
         console.log(`- Input   : ID=1 (Có 1 tòa nhà liên kết)`);

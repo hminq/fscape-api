@@ -60,7 +60,7 @@ describe('LocationService - toggleLocationStatus', () => {
     it('Lỗi khi trạng thái mới trùng với trạng thái hiện tại', async () => {
         const mockLocation = { id: 1, is_active: true };
         Location.findByPk.mockResolvedValue(mockLocation);
-        const expectedError = 'Location is already active';
+        const expectedError = 'Khu vực đã ở trạng thái hoạt động';
 
         console.log(`[TEST]: Trùng trạng thái hiện tại`);
         console.log(`- Input   : ID=1, isActive=true (Địa điểm đang active)`);
@@ -76,7 +76,7 @@ describe('LocationService - toggleLocationStatus', () => {
 
     it('Địa điểm không tồn tại', async () => {
         Location.findByPk.mockResolvedValue(null);
-        const expectedError = 'Location not found';
+        const expectedError = 'Không tìm thấy khu vực';
 
         console.log(`[TEST]: Địa điểm không tồn tại`);
         console.log(`- Input   : ID=999`);
@@ -92,7 +92,7 @@ describe('LocationService - toggleLocationStatus', () => {
 
     it('ID bị null', async () => {
         Location.findByPk.mockResolvedValue(null);
-        const expectedError = 'Location not found';
+        const expectedError = 'Không tìm thấy khu vực';
 
         console.log(`[TEST]: Toggle trạng thái với ID bị null`);
         console.log(`- Input   : ID=null`);

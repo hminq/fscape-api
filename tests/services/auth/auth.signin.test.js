@@ -59,8 +59,8 @@ jest.mock('../../../utils/mail.util');
 const { AuthProvider } = require('../../../models/authProvider.model');
 
 describe('AuthService - Signin', () => {
-    const email = 'test@example.com';
-    const password = 'Password123!';
+    const email = 'admin@fscape.vn';
+    const password = 'Admin@123';
     const mockUser = {
         id: 'user-123',
         email: email,
@@ -117,7 +117,7 @@ describe('AuthService - Signin', () => {
         });
 
         it('TC_AUTH_03: Login failed with non-existent email', async () => {
-            const unknownEmail = 'unknown@example.com';
+            const unknownEmail = 'unknown_user@gmail.com';
             AuthProvider.findOne.mockResolvedValue(null);
             const expectedError = 'Thông tin đăng nhập không hợp lệ';
 
