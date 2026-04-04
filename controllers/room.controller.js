@@ -130,10 +130,10 @@ const toggleRoomStatus = async (req, res) => {
 const getRoomsByBuilding = async (req, res, next) => {
   try {
 
-    const { buildingId } = req.params;
+    const { building_id } = req.params;
 
     const rooms = await roomService.getRoomsByBuilding(
-      buildingId,
+      building_id,
       req.query,
       req.user
     );

@@ -1,7 +1,7 @@
 const { body, param } = require('express-validator');
 
 exports.update = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
   body('base_rent')
     .optional()
     .isFloat({ gt: 0, max: 500000000 }).withMessage('Tiền thuê phải từ >0 đến 500,000,000'),
@@ -21,32 +21,32 @@ exports.update = [
 ];
 
 exports.customerSign = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
   body('signature_url')
     .notEmpty().withMessage('URL chữ ký không được để trống')
     .isURL().withMessage('URL chữ ký không hợp lệ'),
 ];
 
 exports.managerSign = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
   body('signature_url')
     .notEmpty().withMessage('URL chữ ký không được để trống')
     .isURL().withMessage('URL chữ ký không hợp lệ'),
 ];
 
 exports.renew = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
-  body('durationMonths')
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
+  body('duration_months')
     .optional()
     .isInt().withMessage('Thời hạn phải là số nguyên')
     .isIn([6, 12]).withMessage('Thời hạn chỉ hỗ trợ 6 hoặc 12 tháng'),
-  body('billingCycle')
+  body('billing_cycle')
     .optional()
     .isIn(['CYCLE_1M', 'CYCLE_3M', 'CYCLE_6M', 'ALL_IN']).withMessage('Chu kỳ thanh toán phải là CYCLE_1M, CYCLE_3M, CYCLE_6M hoặc ALL_IN'),
 ];
 
 exports.sendReminder = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
   body('reminder_type')
     .notEmpty().withMessage('Loại nhắc nhở không được để trống')
     .isIn(['SIGN', 'PAY_FIRST_RENT', 'CHECK_IN', 'EXPIRING'])
@@ -54,16 +54,16 @@ exports.sendReminder = [
 ];
 
 exports.terminate = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
   body('termination_reason')
     .notEmpty().withMessage('Lý do chấm dứt không được để trống')
     .isString().withMessage('Lý do chấm dứt phải là chuỗi')
     .isLength({ max: 1000 }).withMessage('Lý do chấm dứt tối đa 1000 ký tự'),
   body('assigned_staff_id')
     .optional()
-    .isUUID().withMessage('ID nhân viên phải là UUID hợp lệ'),
+    .isUUID().withMessage('Mã nhân viên không hợp lệ'),
 ];
 
 exports.paramId = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
 ];

@@ -37,8 +37,8 @@ const getMyPayments = async (req, res) => {
 const createBookingPaymentUrlPayOS = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { bookingId } = req.body;
-        const result = await paymentService.createBookingPaymentUrlPayOS(userId, bookingId);
+        const { booking_id } = req.body;
+        const result = await paymentService.createBookingPaymentUrlPayOS(userId, booking_id);
         return res.status(200).json(result);
     } catch (error) {
         return res.status(error.status || 500).json({ message: error.message || "Lỗi tạo thanh toán" });
@@ -48,8 +48,8 @@ const createBookingPaymentUrlPayOS = async (req, res) => {
 const createInvoicePaymentUrlPayOS = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { invoiceId } = req.body;
-        const result = await paymentService.createInvoicePaymentUrlPayOS(userId, invoiceId);
+        const { invoice_id } = req.body;
+        const result = await paymentService.createInvoicePaymentUrlPayOS(userId, invoice_id);
         return res.status(200).json(result);
     } catch (error) {
         return res.status(error.status || 500).json({ message: error.message || "Lỗi tạo thanh toán" });

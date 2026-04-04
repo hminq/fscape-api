@@ -6,8 +6,8 @@ exports.create = [
     .isString()
     .isLength({ min: 1, max: 255 }).withMessage('Tên phải từ 1–255 ký tự'),
   body('location_id')
-    .notEmpty().withMessage('location_id không được để trống')
-    .isUUID().withMessage('location_id phải là UUID hợp lệ'),
+    .notEmpty().withMessage('Vui lòng chọn khu vực')
+    .isUUID().withMessage('Mã khu vực không hợp lệ'),
   body('address')
     .optional()
     .isString()
@@ -21,14 +21,14 @@ exports.create = [
 ];
 
 exports.update = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
   body('name')
     .optional()
     .isString()
     .isLength({ min: 1, max: 255 }).withMessage('Tên phải từ 1–255 ký tự'),
   body('location_id')
     .optional()
-    .isUUID().withMessage('location_id phải là UUID hợp lệ'),
+    .isUUID().withMessage('Mã khu vực không hợp lệ'),
   body('address')
     .optional()
     .isString()
@@ -42,11 +42,11 @@ exports.update = [
 ];
 
 exports.toggleStatus = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
   body('is_active')
-    .isBoolean().withMessage('is_active phải là boolean'),
+    .isBoolean().withMessage('Trạng thái hoạt động không hợp lệ'),
 ];
 
 exports.paramId = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
 ];

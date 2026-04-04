@@ -21,7 +21,7 @@ const getSettlement = async (req, res) => {
 
 const getSettlementByContract = async (req, res) => {
     try {
-        const result = await settlementService.getSettlementByContract(req.params.contractId);
+        const result = await settlementService.getSettlementByContract(req.params.contract_id);
         return res.status(200).json({ data: result });
     } catch (err) { return handleError(res, err); }
 };

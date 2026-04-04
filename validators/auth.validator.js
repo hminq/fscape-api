@@ -40,10 +40,10 @@ exports.resetPassword = [
 
 // Google login uses id_token issued by Google
 exports.googleLogin = [
-  body('id_token').notEmpty().withMessage('id_token không được để trống'),
+  body('id_token').notEmpty().withMessage('Thông tin đăng nhập Google không được để trống'),
 ];
 
 exports.googleVerify = [
-  body('id_token').notEmpty().withMessage('id_token không được để trống'),
+  body('id_token').notEmpty().withMessage('Thông tin đăng nhập Google không được để trống'),
   otpRules,
 ];

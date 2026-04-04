@@ -13,11 +13,11 @@ const getPayosAmount = (realAmount) => {
     return Math.round(Number(realAmount));
 };
 
-const createBookingPaymentUrlPayOS = async (userId, bookingId) => {
+const createBookingPaymentUrlPayOS = async (userId, booking_id) => {
     const { Booking, Payment } = sequelize.models;
 
     const booking = await Booking.findOne({
-        where: { id: bookingId, customer_id: userId, status: 'PENDING' }
+        where: { id: booking_id, customer_id: userId, status: 'PENDING' }
     });
 
     if (!booking) {
@@ -54,11 +54,11 @@ const createBookingPaymentUrlPayOS = async (userId, bookingId) => {
     return { checkoutUrl: paymentLink.checkoutUrl, orderCode, amount: booking.deposit_amount };
 };
 
-const createInvoicePaymentUrlPayOS = async (userId, invoiceId) => {
+const createInvoicePaymentUrlPayOS = async (userId, invoice_id) => {
     const { Invoice, Payment, Contract } = sequelize.models;
 
     const invoice = await Invoice.findOne({
-        where: { id: invoiceId, status: 'UNPAID' },
+        where: { id: invoice_id, status: 'UNPAID' },
         include: [{ model: Contract, as: 'contract', where: { customer_id: userId } }]
     });
 

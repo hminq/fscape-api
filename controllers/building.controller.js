@@ -145,9 +145,9 @@ const toggleBuildingStatus = async (req, res) => {
 
 const getStaffsInBuilding = async (req, res) => {
   try {
-    const { buildingId } = req.params;
+    const { building_id } = req.params;
 
-    const staffs = await buildingService.getStaffsByBuilding(buildingId);
+    const staffs = await buildingService.getStaffsByBuilding(building_id);
 
     return res.json(staffs);
   } catch (error) {

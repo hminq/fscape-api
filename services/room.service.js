@@ -361,12 +361,12 @@ const toggleRoomStatus = async (id, targetStatus, user) => {
   return room;
 };
 
-const getRoomsByBuilding = async (buildingId, query = {}, user = {}) => {
+const getRoomsByBuilding = async (building_id, query = {}, user = {}) => {
 
   const { status, floor, search } = query;
 
   const where = {
-    building_id: buildingId
+    building_id
   };
 
   if (status) where.status = status;
@@ -376,7 +376,7 @@ const getRoomsByBuilding = async (buildingId, query = {}, user = {}) => {
   // Building-scoped access
   if (
     (user.role === ROLES.BUILDING_MANAGER || user.role === ROLES.STAFF) &&
-    user.building_id !== buildingId
+    user.building_id !== building_id
   ) {
     throw { status: 403, message: 'Bạn chỉ có thể xem phòng trong tòa nhà được phân công' };
   }

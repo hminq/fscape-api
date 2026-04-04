@@ -248,9 +248,9 @@ const getSettlement = async (settlementId) => {
 /**
  * Get settlement by contract ID.
  */
-const getSettlementByContract = async (contractId) => {
+const getSettlementByContract = async (contract_id) => {
     const settlement = await Settlement.findOne({
-        where: { contract_id: contractId },
+        where: { contract_id },
         include: [
             { model: SettlementItem, as: 'items' },
             { model: Contract, as: 'contract', attributes: ['id', 'contract_number', 'room_id'] },

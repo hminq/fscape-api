@@ -6,11 +6,11 @@ exports.create = [
     .isString()
     .isLength({ min: 1, max: 20 }).withMessage('Số phòng phải từ 1–20 ký tự'),
   body('building_id')
-    .notEmpty().withMessage('building_id không được để trống')
-    .isUUID().withMessage('building_id phải là UUID hợp lệ'),
+    .notEmpty().withMessage('Vui lòng chọn tòa nhà')
+    .isUUID().withMessage('Mã tòa nhà không hợp lệ'),
   body('room_type_id')
-    .notEmpty().withMessage('room_type_id không được để trống')
-    .isUUID().withMessage('room_type_id phải là UUID hợp lệ'),
+    .notEmpty().withMessage('Vui lòng chọn loại phòng')
+    .isUUID().withMessage('Mã loại phòng không hợp lệ'),
   body('floor')
     .notEmpty().withMessage('Tầng không được để trống')
     .isInt({ min: 1, max: 100 }).withMessage('Tầng phải từ 1–100'),
@@ -27,11 +27,11 @@ exports.create = [
 
 exports.createBatch = [
   body('building_id')
-    .notEmpty().withMessage('building_id không được để trống')
-    .isUUID().withMessage('building_id phải là UUID hợp lệ'),
+    .notEmpty().withMessage('Vui lòng chọn tòa nhà')
+    .isUUID().withMessage('Mã tòa nhà không hợp lệ'),
   body('room_type_id')
-    .notEmpty().withMessage('room_type_id không được để trống')
-    .isUUID().withMessage('room_type_id phải là UUID hợp lệ'),
+    .notEmpty().withMessage('Vui lòng chọn loại phòng')
+    .isUUID().withMessage('Mã loại phòng không hợp lệ'),
   body('floor')
     .notEmpty().withMessage('Tầng không được để trống')
     .isInt({ min: 1, max: 100 }).withMessage('Tầng phải từ 1–100'),
@@ -56,14 +56,14 @@ exports.createBatch = [
 ];
 
 exports.update = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
   body('room_number')
     .optional()
     .isString()
     .isLength({ min: 1, max: 20 }).withMessage('Số phòng phải từ 1–20 ký tự'),
   body('room_type_id')
     .optional()
-    .isUUID().withMessage('room_type_id phải là UUID hợp lệ'),
+    .isUUID().withMessage('Mã loại phòng không hợp lệ'),
   body('floor')
     .optional()
     .isInt({ min: 1, max: 100 }).withMessage('Tầng phải từ 1–100'),
@@ -79,12 +79,16 @@ exports.update = [
 ];
 
 exports.toggleStatus = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
   body('status')
     .notEmpty().withMessage('Trạng thái không được để trống')
-    .isIn(['AVAILABLE', 'MAINTENANCE', 'LOCKED']).withMessage('Trạng thái phải là AVAILABLE, MAINTENANCE hoặc LOCKED'),
+    .isIn(['AVAILABLE', 'LOCKED']).withMessage('Trạng thái phải là AVAILABLE hoặc LOCKED'),
 ];
 
 exports.paramId = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
+];
+
+exports.paramBuildingId = [
+  param('building_id').isUUID().withMessage('Mã tòa nhà không hợp lệ'),
 ];

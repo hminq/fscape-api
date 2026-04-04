@@ -8,7 +8,7 @@ exports.create = [
 ];
 
 exports.update = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
   body('name')
     .optional()
     .isString()
@@ -16,11 +16,11 @@ exports.update = [
 ];
 
 exports.toggleStatus = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
   body('is_active')
-    .isBoolean().withMessage('is_active phải là boolean'),
+    .isBoolean().withMessage('Trạng thái hoạt động không hợp lệ'),
 ];
 
 exports.paramId = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
 ];

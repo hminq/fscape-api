@@ -14,11 +14,11 @@ exports.create = [
     .isFloat({ min: 0, max: 500000000 }).withMessage('Giá mặc định phải từ 0–500,000,000'),
   body('is_active')
     .optional()
-    .isBoolean().withMessage('is_active phải là boolean'),
+    .isBoolean().withMessage('Trạng thái hoạt động không hợp lệ'),
 ];
 
 exports.update = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
   body('name')
     .optional()
     .isString()
@@ -32,9 +32,9 @@ exports.update = [
     .isFloat({ min: 0, max: 500000000 }).withMessage('Giá mặc định phải từ 0–500,000,000'),
   body('is_active')
     .optional()
-    .isBoolean().withMessage('is_active phải là boolean'),
+    .isBoolean().withMessage('Trạng thái hoạt động không hợp lệ'),
 ];
 
 exports.paramId = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
 ];

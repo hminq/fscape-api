@@ -1,13 +1,13 @@
 const { body } = require('express-validator');
 
 exports.createBookingPayment = [
-  body('bookingId')
-    .notEmpty().withMessage('bookingId không được để trống')
-    .isUUID().withMessage('bookingId phải là UUID hợp lệ'),
+  body('booking_id')
+    .notEmpty().withMessage('Vui lòng chọn đơn đặt phòng')
+    .isUUID().withMessage('Mã đặt phòng không hợp lệ'),
 ];
 
 exports.createInvoicePayment = [
-  body('invoiceId')
-    .notEmpty().withMessage('invoiceId không được để trống')
-    .isUUID().withMessage('invoiceId phải là UUID hợp lệ'),
+  body('invoice_id')
+    .notEmpty().withMessage('Vui lòng chọn hóa đơn')
+    .isUUID().withMessage('Mã hóa đơn không hợp lệ'),
 ];

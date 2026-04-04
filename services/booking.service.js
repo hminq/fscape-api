@@ -17,16 +17,13 @@ const { parseLocalDate } = require("../utils/date.util");
 const createBooking = async (userId, bookingData) => {
   const { Booking, Room, RoomType, User, CustomerProfile } = sequelize.models;
   const {
-    roomId,
-    checkInDate,
-    rentalTerm,
-    durationMonths,
-    billingCycle,
-    customerInfo,
+    room_id,
+    check_in_date,
+    duration_months,
+    billing_cycle,
+    customer_info,
   } = bookingData;
-  const resolvedDurationMonths = Number(
-    durationMonths ?? bookingData.duration_months ?? rentalTerm,
-  );
+  const resolvedDurationMonths = Number(duration_months);
 
   if (!isValidContractLength(resolvedDurationMonths)) {
     throw {
@@ -42,7 +39,7 @@ const createBooking = async (userId, bookingData) => {
   minCheckIn.setDate(minCheckIn.getDate() + MIN_CHECKIN_DAYS);
   const maxCheckIn = new Date(today);
   maxCheckIn.setDate(maxCheckIn.getDate() + MAX_CHECKIN_DAYS);
-  const checkIn = parseLocalDate(checkInDate);
+  const checkIn = parseLocalDate(check_in_date);
   if (checkIn < minCheckIn || checkIn > maxCheckIn) {
     throw {
       status: 400,
@@ -51,9 +48,7 @@ const createBooking = async (userId, bookingData) => {
   }
 
   // Validate billing cycle from user input
-  const resolvedBillingCycle = normalizeBillingCycle(
-    billingCycle ?? bookingData.billing_cycle,
-  );
+  const resolvedBillingCycle = normalizeBillingCycle(billing_cycle);
   if (!isValidBookingBillingCycle(resolvedBillingCycle)) {
     throw {
       status: 400,
@@ -67,7 +62,7 @@ const createBooking = async (userId, bookingData) => {
 
   try {
     // 1. Lock phòng trước
-    const room = await Room.findByPk(roomId, {
+    const room = await Room.findByPk(room_id, {
       include: [{ model: RoomType, as: "room_type", required: true }],
       transaction,
       lock: transaction.LOCK.UPDATE,
@@ -92,26 +87,26 @@ const createBooking = async (userId, bookingData) => {
     const [profile, created] = await CustomerProfile.findOrCreate({
       where: { user_id: userId },
       defaults: {
-        gender: customerInfo.gender?.toUpperCase(),
-        date_of_birth: customerInfo.dateOfBirth,
-        permanent_address: customerInfo.permanentAddress,
-        emergency_contact_name: customerInfo.emergencyContactName,
-        emergency_contact_phone: customerInfo.emergencyContactPhone,
+        gender: customer_info?.gender?.toUpperCase(),
+        date_of_birth: customer_info?.date_of_birth,
+        permanent_address: customer_info?.permanent_address,
+        emergency_contact_name: customer_info?.emergency_contact_name,
+        emergency_contact_phone: customer_info?.emergency_contact_phone,
       },
       transaction,
     });
 
-    if (!created && customerInfo) {
+    if (!created && customer_info) {
       await profile.update(
         {
-          gender: customerInfo.gender?.toUpperCase() || profile.gender,
-          date_of_birth: customerInfo.dateOfBirth || profile.date_of_birth,
+          gender: customer_info.gender?.toUpperCase() || profile.gender,
+          date_of_birth: customer_info.date_of_birth || profile.date_of_birth,
           permanent_address:
-            customerInfo.permanentAddress || profile.permanent_address,
+            customer_info.permanent_address || profile.permanent_address,
           emergency_contact_name:
-            customerInfo.emergencyContactName || profile.emergency_contact_name,
+            customer_info.emergency_contact_name || profile.emergency_contact_name,
           emergency_contact_phone:
-            customerInfo.emergencyContactPhone ||
+            customer_info.emergency_contact_phone ||
             profile.emergency_contact_phone,
         },
         { transaction },
@@ -122,9 +117,9 @@ const createBooking = async (userId, bookingData) => {
     booking = await Booking.create(
       {
         booking_number: generateNumberedId("BK"),
-        room_id: roomId,
+        room_id,
         customer_id: userId,
-        check_in_date: checkInDate,
+        check_in_date,
         duration_months: resolvedDurationMonths,
         billing_cycle: resolvedBillingCycle,
         status: "PENDING",
@@ -153,7 +148,7 @@ const getMyBookings = async (userId, query = {}) => {
   const {
     page = 1,
     limit = 10,
-    sort_by = 'createdAt',
+    sort_by = 'created_at',
     sort_order = 'DESC',
     status,
     search,
@@ -175,8 +170,13 @@ const getMyBookings = async (userId, query = {}) => {
   }
 
   // Allowed sort columns
-  const allowedSorts = ['createdAt', 'check_in_date', 'room_price_snapshot', 'status'];
-  const sortCol = allowedSorts.includes(sort_by) ? sort_by : 'createdAt';
+  const sortColumnMap = {
+    created_at: 'createdAt',
+    check_in_date: 'check_in_date',
+    room_price_snapshot: 'room_price_snapshot',
+    status: 'status',
+  };
+  const sortCol = sortColumnMap[sort_by] || 'createdAt';
   const sortDir = sort_order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
   const { count, rows } = await Booking.findAndCountAll({
@@ -283,8 +283,8 @@ const getAllBookings = async (filters = {}) => {
     if (filters.status) {
         where.status = filters.status;
     }
-    if (filters.bookingNumber) {
-        where.booking_number = { [Op.like]: `%${filters.bookingNumber}%` };
+    if (filters.booking_number) {
+        where.booking_number = { [Op.like]: `%${filters.booking_number}%` };
     }
     
     // Build includes with nested where for related models
@@ -293,13 +293,13 @@ const getAllBookings = async (filters = {}) => {
             model: Room,
             as: 'room',
             attributes: ['id', 'room_number', 'floor', 'thumbnail_url'],
-            where: filters.roomNumber ? { room_number: { [Op.like]: `%${filters.roomNumber}%` } } : undefined,
+            where: filters.room_number ? { room_number: { [Op.like]: `%${filters.room_number}%` } } : undefined,
             include: [
                 {
                     model: Building,
                     as: 'building',
                     attributes: ['id', 'name', 'address'],
-                    where: filters.buildingName ? { name: { [Op.like]: `%${filters.buildingName}%` } } : undefined,
+                    where: filters.building_name ? { name: { [Op.like]: `%${filters.building_name}%` } } : undefined,
                 },
                 {
                     model: RoomType,
@@ -312,11 +312,11 @@ const getAllBookings = async (filters = {}) => {
             model: User,
             as: 'customer',
             attributes: ['id', 'first_name', 'last_name', 'email', 'phone'],
-            where: filters.customerName ? {
+            where: filters.customer_name ? {
                 [Op.or]: [
-                    { first_name: { [Op.like]: `%${filters.customerName}%` } },
-                    { last_name: { [Op.like]: `%${filters.customerName}%` } },
-                    { email: { [Op.like]: `%${filters.customerName}%` } }
+                    { first_name: { [Op.like]: `%${filters.customer_name}%` } },
+                    { last_name: { [Op.like]: `%${filters.customer_name}%` } },
+                    { email: { [Op.like]: `%${filters.customer_name}%` } }
                 ]
             } : undefined,
             include: [

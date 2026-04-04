@@ -14,7 +14,7 @@ exports.create = [
     .isFloat({ gt: 0, max: 500000000 }).withMessage('Giá cơ bản phải từ >0 đến 500,000,000'),
   body('deposit_months')
     .optional()
-    .isInt({ min: 1, max: 1 }).withMessage('deposit_months cố định là 1'),
+    .isInt({ min: 1, max: 1 }).withMessage('Số tháng đặt cọc cố định là 1'),
   body('capacity_min')
     .optional()
     .isInt({ min: 1, max: 10 }).withMessage('Sức chứa tối thiểu phải từ 1–10'),
@@ -32,11 +32,11 @@ exports.create = [
     .isFloat({ min: 5, max: 10000 }).withMessage('Diện tích phải từ 5–10,000 m²'),
   body('is_active')
     .optional()
-    .isBoolean().withMessage('is_active phải là boolean'),
+    .isBoolean().withMessage('Trạng thái hoạt động không hợp lệ'),
 ];
 
 exports.update = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
   body('name')
     .optional()
     .isString()
@@ -50,7 +50,7 @@ exports.update = [
     .isFloat({ gt: 0, max: 500000000 }).withMessage('Giá cơ bản phải từ >0 đến 500,000,000'),
   body('deposit_months')
     .optional()
-    .isInt({ min: 1, max: 1 }).withMessage('deposit_months cố định là 1'),
+    .isInt({ min: 1, max: 1 }).withMessage('Số tháng đặt cọc cố định là 1'),
   body('capacity_min')
     .optional()
     .isInt({ min: 1, max: 10 }).withMessage('Sức chứa tối thiểu phải từ 1–10'),
@@ -68,19 +68,19 @@ exports.update = [
     .isFloat({ min: 5, max: 10000 }).withMessage('Diện tích phải từ 5–10,000 m²'),
   body('is_active')
     .optional()
-    .isBoolean().withMessage('is_active phải là boolean'),
+    .isBoolean().withMessage('Trạng thái hoạt động không hợp lệ'),
 ];
 
 exports.replaceTemplateAssets = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
   body()
     .isArray({ min: 0, max: 50 }).withMessage('Danh sách tài sản phải từ 0–50 mục'),
   body('*.asset_type_id')
-    .isUUID().withMessage('asset_type_id phải là UUID hợp lệ'),
+    .isUUID().withMessage('Mã loại tài sản không hợp lệ'),
   body('*.quantity')
     .isInt({ min: 1 }).withMessage('Số lượng phải >= 1'),
 ];
 
 exports.paramId = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
 ];

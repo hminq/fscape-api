@@ -7,6 +7,6 @@ const requireRoles = require('../middlewares/requireRoles');
 router.post('/chat', chatbotController.chat);
 
 // POST /api/chatbot/sync — chỉ admin mới được gọi
-router.post('/sync', authJwt, chatbotController.syncKnowledge);
+router.post('/sync', authJwt, requireRoles('ADMIN'), chatbotController.syncKnowledge);
 
 module.exports = router;

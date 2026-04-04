@@ -4,9 +4,9 @@ const assetsRules = [
   body('assets')
     .isArray({ min: 1 }).withMessage('Danh sách tài sản không được rỗng'),
   body('assets.*.qr_code')
-    .notEmpty().withMessage('qr_code không được để trống')
+    .notEmpty().withMessage('Mã QR không được để trống')
     .isString()
-    .isLength({ max: 100 }).withMessage('qr_code tối đa 100 ký tự'),
+    .isLength({ max: 100 }).withMessage('Mã QR tối đa 100 ký tự'),
   body('assets.*.condition')
     .notEmpty().withMessage('Tình trạng không được để trống')
     .isIn(['GOOD', 'BROKEN']).withMessage('Tình trạng phải là GOOD hoặc BROKEN'),
@@ -18,15 +18,15 @@ const assetsRules = [
 
 exports.staffPreview = [
   body('room_id')
-    .notEmpty().withMessage('room_id không được để trống')
-    .isUUID().withMessage('room_id phải là UUID hợp lệ'),
+    .notEmpty().withMessage('Vui lòng chọn phòng')
+    .isUUID().withMessage('Mã phòng không hợp lệ'),
   ...assetsRules,
 ];
 
 exports.staffConfirm = [
   body('room_id')
-    .notEmpty().withMessage('room_id không được để trống')
-    .isUUID().withMessage('room_id phải là UUID hợp lệ'),
+    .notEmpty().withMessage('Vui lòng chọn phòng')
+    .isUUID().withMessage('Mã phòng không hợp lệ'),
   ...assetsRules,
   body('notes')
     .optional()

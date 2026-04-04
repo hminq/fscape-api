@@ -209,7 +209,7 @@ const getMyContracts = async (userId, query = {}) => {
     const {
         page = 1,
         limit = 10,
-        sort_by = 'createdAt',
+        sort_by = 'created_at',
         sort_order = 'DESC',
         status,
         search,
@@ -231,8 +231,14 @@ const getMyContracts = async (userId, query = {}) => {
     }
 
     // Allowed sort columns
-    const allowedSorts = ['createdAt', 'start_date', 'end_date', 'base_rent', 'status'];
-    const sortCol = allowedSorts.includes(sort_by) ? sort_by : 'createdAt';
+    const sortColumnMap = {
+        created_at: 'createdAt',
+        start_date: 'start_date',
+        end_date: 'end_date',
+        base_rent: 'base_rent',
+        status: 'status',
+    };
+    const sortCol = sortColumnMap[sort_by] || 'createdAt';
     const sortDir = sort_order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
     const { count, rows } = await Contract.findAndCountAll({
@@ -404,7 +410,7 @@ const createContractFromBooking = async (bookingId) => {
 
         // Send signing email with direct link
         const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-        const signingUrl = `${clientUrl}/sign?contractId=${contract.id}`;
+        const signingUrl = `${clientUrl}/sign?contract_id=${contract.id}`;
 
         await sendContractSigningEmail(customer.email, {
             customerName: dynamicFields.customer_name,
@@ -594,7 +600,7 @@ const renewContract = async (contractId, body, user) => {
 
         // 16. Send renewal signing email
         const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-        const signingUrl = `${clientUrl}/sign?contractId=${newContract.id}`;
+        const signingUrl = `${clientUrl}/sign?contract_id=${newContract.id}`;
 
         await sendRenewalSigningEmail(customer.email, {
             customerName: dynamicFields.customer_name,
@@ -981,7 +987,7 @@ const sendManualReminder = async (contractId, reminderType, user) => {
     const roomNumber = contract.room?.room_number || '';
     const buildingName = contract.room?.building?.name || '';
     const contractNumber = contract.contract_number;
-    const signingUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/sign?contract=${contractId}`;
+    const signingUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/sign?contract_id=${contractId}`;
 
     switch (reminderType) {
         case 'SIGN': {

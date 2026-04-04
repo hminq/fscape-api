@@ -13,7 +13,7 @@ router.get('/', authJwtOptional, buildingController.getAllBuildings);
 router.get('/stats', authJwt, requireRoles(ROLES.ADMIN, ROLES.BUILDING_MANAGER), buildingController.getBuildingStats);
 
 router.get(
-  "/:buildingId/staffs",
+  "/:building_id/staffs",
   buildingController.getStaffsInBuilding
 );
 

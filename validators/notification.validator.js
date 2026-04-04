@@ -14,9 +14,9 @@ exports.send = [
     .isIn(['building', 'room']).withMessage('Đối tượng gửi phải là building hoặc room'),
   body('room_id')
     .optional()
-    .isUUID().withMessage('room_id phải là UUID hợp lệ'),
+    .isUUID().withMessage('Mã phòng không hợp lệ'),
 ];
 
 exports.paramId = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
 ];

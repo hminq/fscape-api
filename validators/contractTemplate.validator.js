@@ -18,14 +18,14 @@ exports.create = [
     .isArray().withMessage('variables phải là mảng'),
   body('is_active')
     .optional()
-    .isBoolean().withMessage('is_active phải là boolean'),
+    .isBoolean().withMessage('Trạng thái hoạt động không hợp lệ'),
   body('is_default')
     .optional()
-    .isBoolean().withMessage('is_default phải là boolean'),
+    .isBoolean().withMessage('Trạng thái mẫu mặc định không hợp lệ'),
 ];
 
 exports.update = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
   body('name')
     .optional()
     .isString()
@@ -43,12 +43,12 @@ exports.update = [
     .isArray().withMessage('variables phải là mảng'),
   body('is_active')
     .optional()
-    .isBoolean().withMessage('is_active phải là boolean'),
+    .isBoolean().withMessage('Trạng thái hoạt động không hợp lệ'),
   body('is_default')
     .optional()
-    .isBoolean().withMessage('is_default phải là boolean'),
+    .isBoolean().withMessage('Trạng thái mẫu mặc định không hợp lệ'),
 ];
 
 exports.paramId = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
 ];

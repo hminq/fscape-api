@@ -19,9 +19,11 @@ router.get('/my', authJwt, requireRoles(ROLES.CUSTOMER, ROLES.RESIDENT), roomCon
 
 router.get('/:id', authJwtOptional, validator.paramId, validate, roomController.getRoomById);
 
-router.get("/building/:buildingId",
+router.get("/building/:building_id",
   authJwt,
   requireRoles(ROLES.BUILDING_MANAGER),
+  validator.paramBuildingId,
+  validate,
   roomController.getRoomsByBuilding
 );
 

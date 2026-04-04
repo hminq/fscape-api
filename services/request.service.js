@@ -129,7 +129,7 @@ const getAllRequests = async (caller, { page = 1, limit = 10, status, request_ty
     }
 
     if (caller.role === ROLES.BUILDING_MANAGER) {
-        if (!caller.building_id) throw new Error('Quản lý tòa nhà chưa được phân công tòa nhà nào');
+        if (!caller.building_id) throw { status: 403, message: 'Quản lý tòa nhà chưa được phân công tòa nhà nào' };
         roomInclude.where = { building_id: caller.building_id };
         roomInclude.required = true;
     } else if (caller.role === ROLES.STAFF) {
