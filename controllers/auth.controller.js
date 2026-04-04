@@ -34,7 +34,7 @@ exports.appLogin = async (req, res) => {
     const result = await AuthService.appLogin(req.body.email, req.body.password);
     res.json(result);
   } catch (e) {
-    res.status(401).json({ message: e.message });
+    res.status(e.status || 401).json({ message: e.message });
   }
 };
 

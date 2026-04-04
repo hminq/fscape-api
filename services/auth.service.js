@@ -122,8 +122,11 @@ class AuthService {
       throw new Error("Thông tin đăng nhập không hợp lệ");
     }
     if (!auth.User) throw new Error("Thông tin đăng nhập không hợp lệ");
-    const CLIENT_ROLES = ['CUSTOMER', 'RESIDENT'];
-    if (!CLIENT_ROLES.includes(auth.User.role)) throw new Error("Tài khoản nội bộ không được phép đăng nhập tại đây");
+    if (auth.User.role !== 'RESIDENT') {
+      const err = new Error("Chỉ cư dân được phép đăng nhập tại đây");
+      err.status = 403;
+      throw err;
+    }
     if (auth.User.is_active === false) throw new Error("Tài khoản đã bị vô hiệu hóa");
 
     const match = await comparePassword(password, auth.password_hash);
