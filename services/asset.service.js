@@ -266,7 +266,7 @@ const assignAsset = async (id, { room_id, notes }, user) => {
     const transaction = await sequelize.transaction();
     try {
         if (room_id) {
-            // CHECK_IN or MOVE
+            // CHECK_IN only: storage -> room
             const room = await Room.findByPk(room_id);
             if (!room) throw { status: 404, message: 'Không tìm thấy phòng đích' };
             if (room.building_id !== asset.building_id) {
@@ -278,7 +278,7 @@ const assignAsset = async (id, { room_id, notes }, user) => {
             } else if (oldRoom === room_id) {
                 throw { status: 400, message: 'Tài sản đã ở trong phòng này' };
             } else {
-                action = 'MOVE';
+                throw { status: 400, message: 'Không thể chuyển trực tiếp tài sản giữa hai phòng. Vui lòng thu hồi về kho trước.' };
             }
 
             await asset.update({ current_room_id: room_id, status: 'IN_USE' }, { transaction });
