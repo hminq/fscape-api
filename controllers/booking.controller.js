@@ -1,22 +1,13 @@
 const bookingService = require('../services/booking.service');
 const paymentService = require('../services/payment.service');
 
-const usePayOS = !!process.env.PAYOS_CLIENT_ID;
-
 const createBooking = async (req, res) => {
     try {
         const userId = req.user.id;
         const booking = await bookingService.createBooking(userId, req.body);
 
-        let paymentData;
-        if (usePayOS) {
-            const payosResult = await paymentService.createBookingPaymentUrlPayOS(userId, booking.id);
-            paymentData = { checkoutUrl: payosResult.checkoutUrl, orderCode: payosResult.orderCode };
-        } else {
-            const ipAddr = "127.0.0.1";
-            const vnpayResult = await paymentService.createBookingPaymentUrl(userId, booking.id, ipAddr);
-            paymentData = { paymentUrl: vnpayResult.paymentUrl };
-        }
+        const payosResult = await paymentService.createBookingPaymentUrlPayOS(userId, booking.id);
+        const paymentData = { checkoutUrl: payosResult.checkoutUrl, orderCode: payosResult.orderCode };
 
         return res.status(201).json({
             message: 'Đã tạo đơn đặt phòng thành công.',

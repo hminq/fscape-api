@@ -24,10 +24,6 @@ const snakeCaseResponse = (req, res, next) => {
     const originalJson = res.json;
 
     res.json = function (body) {
-        // Skip snake_case for VNPay IPN — VNPay expects exact PascalCase keys (RspCode, Message)
-        if (req.originalUrl.includes('/vnpay-ipn')) {
-            return originalJson.call(this, body);
-        }
         if (body) {
             body = camelToSnakeCase(body);
         }
