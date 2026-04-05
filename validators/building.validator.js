@@ -27,7 +27,8 @@ exports.create = [
     .isInt({ min: 1, max: 99 }).withMessage('Số tầng phải từ 1 đến 99'),
   body('thumbnail_url')
     .optional()
-    .isURL().withMessage('URL thumbnail không hợp lệ'),
+    .isString()
+    .notEmpty().withMessage('Thumbnail không hợp lệ'),
   body('manager_id')
     .optional()
     .isUUID().withMessage('Mã quản lý không hợp lệ'),
@@ -39,7 +40,8 @@ exports.create = [
     .isArray({ max: 10 }).withMessage('Tối đa 10 ảnh'),
   body('images.*')
     .optional()
-    .isURL().withMessage('URL ảnh không hợp lệ'),
+    .isString()
+    .notEmpty().withMessage('Ảnh không hợp lệ'),
   body('facilities')
     .optional()
     .isArray({ max: 20 }).withMessage('Tối đa 20 tiện ích'),
@@ -76,7 +78,8 @@ exports.update = [
     .isInt({ min: 1, max: 99 }).withMessage('Số tầng phải từ 1 đến 99'),
   body('thumbnail_url')
     .optional()
-    .isURL().withMessage('URL thumbnail không hợp lệ'),
+    .isString()
+    .notEmpty().withMessage('Thumbnail không hợp lệ'),
   body('manager_id')
     .optional()
     .isUUID().withMessage('Mã quản lý không hợp lệ'),
@@ -88,7 +91,8 @@ exports.update = [
     .isArray({ max: 10 }).withMessage('Tối đa 10 ảnh'),
   body('images.*')
     .optional()
-    .isURL().withMessage('URL ảnh không hợp lệ'),
+    .isString()
+    .notEmpty().withMessage('Ảnh không hợp lệ'),
   body('facilities')
     .optional()
     .isArray({ max: 20 }).withMessage('Tối đa 20 tiện ích'),
