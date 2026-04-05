@@ -284,7 +284,15 @@ const getAllBookings = async (filters = {}) => {
         where.status = filters.status;
     }
     if (filters.booking_number) {
-        where.booking_number = { [Op.like]: `%${filters.booking_number}%` };
+        where.booking_number = { [Op.iLike]: `%${filters.booking_number}%` };
+    }
+    if (filters.search) {
+        where[Op.or] = [
+            { booking_number: { [Op.iLike]: `%${filters.search}%` } },
+            { '$customer.first_name$': { [Op.iLike]: `%${filters.search}%` } },
+            { '$customer.last_name$': { [Op.iLike]: `%${filters.search}%` } },
+            { '$room.room_number$': { [Op.iLike]: `%${filters.search}%` } }
+        ];
     }
     
     // Build includes with nested where for related models
@@ -293,13 +301,15 @@ const getAllBookings = async (filters = {}) => {
             model: Room,
             as: 'room',
             attributes: ['id', 'room_number', 'floor', 'thumbnail_url'],
-            where: filters.room_number ? { room_number: { [Op.like]: `%${filters.room_number}%` } } : undefined,
+            where: filters.room_number ? { room_number: { [Op.iLike]: `%${filters.room_number}%` } } : undefined,
             include: [
                 {
                     model: Building,
                     as: 'building',
                     attributes: ['id', 'name', 'address'],
-                    where: filters.building_name ? { name: { [Op.like]: `%${filters.building_name}%` } } : undefined,
+                    where: filters.building_id 
+                        ? { id: filters.building_id } 
+                        : (filters.building_name ? { name: { [Op.iLike]: `%${filters.building_name}%` } } : undefined),
                 },
                 {
                     model: RoomType,
@@ -314,9 +324,9 @@ const getAllBookings = async (filters = {}) => {
             attributes: ['id', 'first_name', 'last_name', 'email', 'phone'],
             where: filters.customer_name ? {
                 [Op.or]: [
-                    { first_name: { [Op.like]: `%${filters.customer_name}%` } },
-                    { last_name: { [Op.like]: `%${filters.customer_name}%` } },
-                    { email: { [Op.like]: `%${filters.customer_name}%` } }
+                    { first_name: { [Op.iLike]: `%${filters.customer_name}%` } },
+                    { last_name: { [Op.iLike]: `%${filters.customer_name}%` } },
+                    { email: { [Op.iLike]: `%${filters.customer_name}%` } }
                 ]
             } : undefined,
             include: [
@@ -351,6 +361,7 @@ const getAllBookings = async (filters = {}) => {
         limit,
         offset,
         distinct: true,
+        subQuery: false, // Required when filtering by associated models with limit
     });
     
     return {

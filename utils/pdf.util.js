@@ -35,11 +35,11 @@ const buildFullHtml = (renderedContent) => `
  * 1. Launch headless Chromium
  * 2. Set HTML content and wait for images (signatures, logos) to load
  * 3. Export PDF buffer
- * 4. Upload buffer to Cloudinary via uploadBuffer
+ * 4. Upload buffer to S3 via uploadBuffer
  *
  * @param {string} renderedContent - The contract's rendered HTML
  * @param {string} contractNumber  - Used for the PDF filename
- * @returns {string}  secure_url of the uploaded PDF
+ * @returns {string}  S3 object key of the uploaded PDF
  */
 async function generateContractPdf(renderedContent, contractNumber) {
   let browser;
