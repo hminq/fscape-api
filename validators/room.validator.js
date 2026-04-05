@@ -16,13 +16,16 @@ exports.create = [
     .isInt({ min: 1, max: 100 }).withMessage('Tầng phải từ 1–100'),
   body('thumbnail_url')
     .optional()
-    .isURL().withMessage('URL thumbnail không hợp lệ'),
+    .isString()
+    .notEmpty().withMessage('Thumbnail không hợp lệ'),
   body('image_3d_url')
     .optional()
-    .isURL().withMessage('URL 3D không hợp lệ'),
+    .isString()
+    .notEmpty().withMessage('File 3D không hợp lệ'),
   body('blueprint_url')
     .optional()
-    .isURL().withMessage('URL blueprint không hợp lệ'),
+    .isString()
+    .notEmpty().withMessage('Blueprint không hợp lệ'),
 ];
 
 exports.createBatch = [
@@ -40,19 +43,23 @@ exports.createBatch = [
     .isInt({ min: 1, max: 50 }).withMessage('Số lượng phải từ 1–50'),
   body('thumbnail_url')
     .optional()
-    .isURL().withMessage('URL thumbnail không hợp lệ'),
+    .isString()
+    .notEmpty().withMessage('Thumbnail không hợp lệ'),
   body('image_3d_url')
     .optional()
-    .isURL().withMessage('URL 3D không hợp lệ'),
+    .isString()
+    .notEmpty().withMessage('File 3D không hợp lệ'),
   body('blueprint_url')
     .optional()
-    .isURL().withMessage('URL blueprint không hợp lệ'),
+    .isString()
+    .notEmpty().withMessage('Blueprint không hợp lệ'),
   body('gallery_images')
     .optional()
     .isArray({ max: 5 }).withMessage('Tối đa 5 ảnh gallery'),
   body('gallery_images.*')
     .optional()
-    .isURL().withMessage('URL ảnh gallery không hợp lệ'),
+    .isString()
+    .notEmpty().withMessage('Ảnh gallery không hợp lệ'),
 ];
 
 exports.update = [
@@ -69,13 +76,16 @@ exports.update = [
     .isInt({ min: 1, max: 100 }).withMessage('Tầng phải từ 1–100'),
   body('thumbnail_url')
     .optional()
-    .isURL().withMessage('URL thumbnail không hợp lệ'),
+    .isString()
+    .notEmpty().withMessage('Thumbnail không hợp lệ'),
   body('image_3d_url')
     .optional()
-    .isURL().withMessage('URL 3D không hợp lệ'),
+    .isString()
+    .notEmpty().withMessage('File 3D không hợp lệ'),
   body('blueprint_url')
     .optional()
-    .isURL().withMessage('URL blueprint không hợp lệ'),
+    .isString()
+    .notEmpty().withMessage('Blueprint không hợp lệ'),
 ];
 
 exports.toggleStatus = [

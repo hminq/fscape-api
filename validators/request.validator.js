@@ -20,7 +20,8 @@ exports.create = [
     .optional()
     .isArray({ max: 3 }).withMessage('Tối đa 3 ảnh đính kèm'),
   body('image_urls.*')
-    .isURL().withMessage('URL ảnh không hợp lệ'),
+    .isString()
+    .notEmpty().withMessage('Ảnh không hợp lệ'),
   body('related_asset_id')
     .optional()
     .isUUID().withMessage('Mã tài sản liên quan không hợp lệ'),
