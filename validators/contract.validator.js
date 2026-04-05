@@ -23,15 +23,17 @@ exports.update = [
 exports.customerSign = [
   param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
   body('signature_url')
-    .notEmpty().withMessage('URL chữ ký không được để trống')
-    .isURL().withMessage('URL chữ ký không hợp lệ'),
+    .notEmpty().withMessage('Chữ ký không được để trống')
+    .isString()
+    .notEmpty().withMessage('Chữ ký không hợp lệ'),
 ];
 
 exports.managerSign = [
   param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
   body('signature_url')
-    .notEmpty().withMessage('URL chữ ký không được để trống')
-    .isURL().withMessage('URL chữ ký không hợp lệ'),
+    .notEmpty().withMessage('Chữ ký không được để trống')
+    .isString()
+    .notEmpty().withMessage('Chữ ký không hợp lệ'),
 ];
 
 exports.renew = [
