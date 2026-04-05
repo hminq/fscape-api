@@ -61,6 +61,16 @@ const addMonths = (dateStr, months) => {
     return `${yyyy}-${mm}-${dd}`;
 };
 
+const HARD_CODED_CDN_BASE = 'https://d1b3vbhmpnv3fk.cloudfront.net';
+
+const toPublicAssetUrl = (value) => {
+    if (!value) return value;
+    if (value.startsWith('http://') || value.startsWith('https://')) return value;
+    const base = (process.env.CLOUD_FRONT_URL || process.env.CDN_BASE_URL || HARD_CODED_CDN_BASE).replace(/\/$/, '');
+    const path = value.replace(/^\//, '');
+    return base ? `${base}/${path}` : value;
+};
+
 /**
  * Replace {{variable}} placeholders in HTML template with values.
  */
@@ -658,7 +668,7 @@ const customerSign = async (contractId, signatureUrl, user, req) => {
     const oldStatus = contract.status;
 
     // Update rendered_content: replace customer_signature placeholder with <img>
-    const signatureImg = `<img src="${signatureUrl}" alt="Customer Signature" style="width:200px;height:80px;object-fit:contain" />`;
+    const signatureImg = `<img src="${toPublicAssetUrl(signatureUrl)}" alt="Customer Signature" style="width:200px;height:80px;object-fit:contain" />`;
     let updatedContent = contract.rendered_content || '';
     updatedContent = updatedContent.replace('{{customer_signature}}', signatureImg);
 
@@ -748,7 +758,7 @@ const managerSign = async (contractId, signatureUrl, user, req) => {
         const oldStatus = contract.status;
 
         // Update rendered_content: replace manager_signature placeholder with <img>
-        const signatureImg = `<img src="${signatureUrl}" alt="Manager Signature" style="width:200px;height:80px;object-fit:contain" />`;
+        const signatureImg = `<img src="${toPublicAssetUrl(signatureUrl)}" alt="Manager Signature" style="width:200px;height:80px;object-fit:contain" />`;
         let updatedContent = contract.rendered_content || '';
         updatedContent = updatedContent.replace('{{manager_signature}}', signatureImg);
 
