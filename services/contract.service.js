@@ -870,7 +870,7 @@ const managerSign = async (contractId, signatureUrl, user, req) => {
 
         await transaction.commit();
 
-        // Generate final PDF and upload to Cloudinary (async, non-blocking)
+        // Generate final PDF and upload to S3 (async, non-blocking)
         generateContractPdf(contract.rendered_content, contract.contract_number)
             .then(async (pdfUrl) => {
                 await Contract.update({ pdf_url: pdfUrl }, { where: { id: contract.id } });

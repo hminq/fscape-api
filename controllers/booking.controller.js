@@ -60,7 +60,9 @@ const getAllBookings = async (req, res) => {
             booking_number: req.query.booking_number,
             customer_name: req.query.customer_name,
             room_number: req.query.room_number,
-            building_name: req.query.building_name
+            building_name: req.query.building_name,
+            building_id: req.query.building_id,
+            search: req.query.search
         };
         
         const result = await bookingService.getAllBookings(filters);
