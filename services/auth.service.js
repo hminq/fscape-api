@@ -172,6 +172,7 @@ class AuthService {
     const payload = await verifyGoogleIdToken(idToken);
     const email = payload.email;
     const googleId = payload.sub;
+    const name = payload.name;
 
     if (!payload.email_verified) throw new Error("Email Google chưa được xác minh");
 
@@ -180,7 +181,7 @@ class AuthService {
     if (!user) {
       const otp = await generateOtp(email, OTP_TYPES.EMAIL_VERIFICATION);
       await sendOtpMail(email, otp.code);
-      return { message: "Đã gửi mã OTP đến email" };
+      return { message: "Đã gửi mã OTP đến email", name };
     } else {
       const existingGoogleAuth = await AuthProvider.findOne({
         where: { provider: "GOOGLE", provider_id: googleId },
@@ -209,6 +210,7 @@ class AuthService {
         first_name: user.first_name,
         last_name: user.last_name,
         avatar_url: user.avatar_url,
+        name,
       },
     };
   }
@@ -217,6 +219,9 @@ class AuthService {
     const payload = await verifyGoogleIdToken(idToken);
     const email = payload.email;
     const googleId = payload.sub;
+    const givenName = payload.given_name;
+    const familyName = payload.family_name;
+    const picture = payload.picture;
 
     await verifyOtp(email, otpCode, OTP_TYPES.EMAIL_VERIFICATION);
 
@@ -226,6 +231,9 @@ class AuthService {
       user = await User.create({
         email,
         role: "CUSTOMER",
+        first_name: givenName,
+        last_name: familyName,
+        avatar_url: picture,
       });
       await AuthProvider.create({
         user_id: user.id,
@@ -246,6 +254,12 @@ class AuthService {
           is_verified: true,
         });
       }
+
+      // Cập nhật first_name, last_name, avatar_url từ Google nếu chưa có
+      if (!user.first_name && givenName) user.first_name = givenName;
+      if (!user.last_name && familyName) user.last_name = familyName;
+      if (!user.avatar_url && picture) user.avatar_url = picture;
+      await user.save();
     }
 
     return {

@@ -83,6 +83,7 @@ const RoomType = sequelize.define('RoomType', {
   });
 
 RoomType.associate = (models) => {
+  RoomType.hasMany(models.Room, { foreignKey: 'room_type_id', as: 'rooms' });
   RoomType.hasMany(models.RoomTypeAsset, { foreignKey: 'room_type_id', as: 'template_assets' });
 };
 
