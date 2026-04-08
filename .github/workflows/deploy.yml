@@ -2,14 +2,17 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
     paths-ignore: 
       - '.gitignore'
       - 'README.md'
 
 jobs:
-  build-and-deploy:
+  build-and-push:
     runs-on: ubuntu-latest
+    outputs:
+      ecr_registry: ${{ steps.login-ecr.outputs.registry }}
+      image_tag: ${{ github.sha }}
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
@@ -34,12 +37,47 @@ jobs:
         docker build --platform linux/amd64 -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-    - name: Deploy to EC2
+  deploy-dev:
+    if: github.ref == 'refs/heads/develop'
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+    - name: Deploy to Dev EC2
       uses: appleboy/ssh-action@v1.0.3
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REGISTRY: ${{ needs.build-and-push.outputs.ecr_registry }}
         ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPO }}
-        IMAGE_TAG: ${{ github.sha }}
+        IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+      with:
+        host: ${{ secrets.AWS_EC2_DEV_HOST }}
+        username: ${{ secrets.AWS_EC2_DEV_USERNAME }}
+        key: ${{ secrets.AWS_EC2_DEV_SSH_KEY }}
+        envs: ECR_REGISTRY,ECR_REPOSITORY,IMAGE_TAG,AWS_REGION
+        script: |
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+          docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker rm -f fscape-api || true
+          cd ~/fscape-api
+          docker run -d \
+            --name fscape-api \
+            -p 3000:3000 \
+            --env-file .env \
+            --restart unless-stopped \
+            $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker image prune -f
+
+  deploy-prod:
+    if: github.ref == 'refs/heads/main'
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+    - name: Deploy to Prod EC2
+      uses: appleboy/ssh-action@v1.0.3
+      env:
+        ECR_REGISTRY: ${{ needs.build-and-push.outputs.ecr_registry }}
+        ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPO }}
+        IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
         AWS_REGION: ${{ secrets.AWS_REGION }}
       with:
         host: ${{ secrets.AWS_EC2_HOST }}
