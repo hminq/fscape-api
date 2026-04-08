@@ -8,7 +8,7 @@ on:
       - 'README.md'
 
 jobs:
-  build-and-push:
+  build_and_push:
     runs-on: ubuntu-latest
     outputs:
       ecr_registry: ${{ steps.login-ecr.outputs.registry }}
@@ -39,15 +39,15 @@ jobs:
 
   deploy-dev:
     if: github.ref == 'refs/heads/develop'
-    needs: build-and-push
+    needs: build_and_push
     runs-on: ubuntu-latest
     steps:
     - name: Deploy to Dev EC2
       uses: appleboy/ssh-action@v1.0.3
       env:
-        ECR_REGISTRY: ${{ needs.build-and-push.outputs.ecr_registry }}
+        ECR_REGISTRY: ${{ needs.build_and_push.outputs.ecr_registry }}
         ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPO }}
-        IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+        IMAGE_TAG: ${{ needs.build_and_push.outputs.image_tag }}
         AWS_REGION: ${{ secrets.AWS_REGION }}
       with:
         host: ${{ secrets.AWS_EC2_DEV_HOST }}
@@ -55,6 +55,8 @@ jobs:
         key: ${{ secrets.AWS_EC2_DEV_SSH_KEY }}
         envs: ECR_REGISTRY,ECR_REPOSITORY,IMAGE_TAG,AWS_REGION
         script: |
+          set -e
+          echo "Deploying $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
           aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
           docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker rm -f fscape-api || true
@@ -69,15 +71,15 @@ jobs:
 
   deploy-prod:
     if: github.ref == 'refs/heads/main'
-    needs: build-and-push
+    needs: build_and_push
     runs-on: ubuntu-latest
     steps:
     - name: Deploy to Prod EC2
       uses: appleboy/ssh-action@v1.0.3
       env:
-        ECR_REGISTRY: ${{ needs.build-and-push.outputs.ecr_registry }}
+        ECR_REGISTRY: ${{ needs.build_and_push.outputs.ecr_registry }}
         ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPO }}
-        IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+        IMAGE_TAG: ${{ needs.build_and_push.outputs.image_tag }}
         AWS_REGION: ${{ secrets.AWS_REGION }}
       with:
         host: ${{ secrets.AWS_EC2_HOST }}
@@ -85,6 +87,8 @@ jobs:
         key: ${{ secrets.AWS_EC2_SSH_KEY }}
         envs: ECR_REGISTRY,ECR_REPOSITORY,IMAGE_TAG,AWS_REGION
         script: |
+          set -e
+          echo "Deploying $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
           # Login to ECR from EC2
           aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
           
