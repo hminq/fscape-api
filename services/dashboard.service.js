@@ -8,6 +8,9 @@ const User = require('../models/user.model');
 const dayjs = require('dayjs');
 
 class DashboardService {
+  static ROOM_STATUSES = ['OCCUPIED', 'AVAILABLE', 'LOCKED'];
+  static REQUEST_SUMMARY_STATUSES = ['PENDING', 'ASSIGNED', 'PRICE_PROPOSED', 'APPROVED', 'IN_PROGRESS', 'DONE', 'COMPLETED'];
+
 
   // Tổng số phòng
   static async getTotalRooms() {
@@ -240,6 +243,203 @@ class DashboardService {
     return { total: employees.length, active, inactive };
   }
 
+  static async getBuildingRoomStatusSummary(buildingId) {
+    const rows = await sequelize.query(`
+      SELECT status, COUNT(*)::int AS count
+      FROM public.rooms
+      WHERE building_id = :buildingId
+        AND deleted_at IS NULL
+      GROUP BY status
+    `, {
+      replacements: { buildingId },
+      type: sequelize.QueryTypes.SELECT,
+    });
+
+    const countMap = Object.fromEntries(rows.map((row) => [row.status, Number(row.count)]));
+
+    return this.ROOM_STATUSES.map((status) => ({
+      status,
+      count: countMap[status] || 0,
+    }));
+  }
+
+  static async getBuildingRequestStatusSummary(buildingId) {
+    const rows = await sequelize.query(`
+      SELECT req.status, COUNT(*)::int AS count
+      FROM public.requests req
+      INNER JOIN public.rooms room
+        ON room.id = req.room_id
+        AND room.deleted_at IS NULL
+      WHERE room.building_id = :buildingId
+      GROUP BY req.status
+    `, {
+      replacements: { buildingId },
+      type: sequelize.QueryTypes.SELECT,
+    });
+
+    const countMap = Object.fromEntries(rows.map((row) => [row.status, Number(row.count)]));
+
+    return this.REQUEST_SUMMARY_STATUSES.map((status) => ({
+      status,
+      count: countMap[status] || 0,
+    }));
+  }
+
+  static async getBuildingContractSummary(buildingId) {
+    const [row] = await sequelize.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE contract.status = 'PENDING_MANAGER_SIGNATURE')::int AS pending_manager_sign,
+        COUNT(*) FILTER (WHERE contract.status = 'EXPIRING_SOON')::int AS expiring_soon,
+        COUNT(*) FILTER (WHERE contract.status = 'ACTIVE')::int AS active
+      FROM public.contracts contract
+      INNER JOIN public.rooms room
+        ON room.id = contract.room_id
+        AND room.deleted_at IS NULL
+      WHERE room.building_id = :buildingId
+    `, {
+      replacements: { buildingId },
+      type: sequelize.QueryTypes.SELECT,
+    });
+
+    return {
+      pending_manager_sign: Number(row?.pending_manager_sign || 0),
+      expiring_soon: Number(row?.expiring_soon || 0),
+      active: Number(row?.active || 0),
+    };
+  }
+
+  static async getBuildingInvoiceSummary(buildingId) {
+    const [row] = await sequelize.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE invoice.status = 'UNPAID')::int AS unpaid,
+        COUNT(*) FILTER (WHERE invoice.status = 'OVERDUE')::int AS overdue
+      FROM public.invoices invoice
+      INNER JOIN public.contracts contract
+        ON contract.id = invoice.contract_id
+      INNER JOIN public.rooms room
+        ON room.id = contract.room_id
+        AND room.deleted_at IS NULL
+      WHERE room.building_id = :buildingId
+    `, {
+      replacements: { buildingId },
+      type: sequelize.QueryTypes.SELECT,
+    });
+
+    return {
+      unpaid: Number(row?.unpaid || 0),
+      overdue: Number(row?.overdue || 0),
+    };
+  }
+
+  static async getBuildingFloorOccupancy(buildingId) {
+    const rows = await sequelize.query(`
+      SELECT
+        room.floor,
+        COUNT(*)::int AS total_rooms,
+        COUNT(*) FILTER (WHERE room.status = 'OCCUPIED')::int AS occupied_rooms
+      FROM public.rooms room
+      WHERE room.building_id = :buildingId
+        AND room.deleted_at IS NULL
+        AND room.floor IS NOT NULL
+      GROUP BY room.floor
+      ORDER BY room.floor ASC
+    `, {
+      replacements: { buildingId },
+      type: sequelize.QueryTypes.SELECT,
+    });
+
+    return rows.map((row) => ({
+      floor: row.floor,
+      label: `Tầng ${row.floor}`,
+      total_rooms: Number(row.total_rooms || 0),
+      occupied_rooms: Number(row.occupied_rooms || 0),
+      vacant_rooms: Math.max(0, Number(row.total_rooms || 0) - Number(row.occupied_rooms || 0)),
+    }));
+  }
+
+  static async getBuildingRecentRequests(buildingId) {
+    return sequelize.query(`
+      SELECT
+        req.id,
+        req.request_number,
+        req.request_type,
+        req.title,
+        req.status,
+        req.created_at,
+        room.room_number,
+        TRIM(CONCAT(COALESCE(resident.first_name, ''), ' ', COALESCE(resident.last_name, ''))) AS resident_name
+      FROM public.requests req
+      INNER JOIN public.rooms room
+        ON room.id = req.room_id
+        AND room.deleted_at IS NULL
+      INNER JOIN public.users resident
+        ON resident.id = req.resident_id
+      WHERE room.building_id = :buildingId
+      ORDER BY req.created_at DESC
+      LIMIT 5
+    `, {
+      replacements: { buildingId },
+      type: sequelize.QueryTypes.SELECT,
+    });
+  }
+
+  static async getBuildingPendingContracts(buildingId) {
+    return sequelize.query(`
+      SELECT
+        contract.id,
+        contract.contract_number,
+        contract.status,
+        contract.signature_expires_at,
+        contract.end_date,
+        room.room_number,
+        TRIM(CONCAT(COALESCE(customer.first_name, ''), ' ', COALESCE(customer.last_name, ''))) AS customer_name
+      FROM public.contracts contract
+      INNER JOIN public.rooms room
+        ON room.id = contract.room_id
+        AND room.deleted_at IS NULL
+      INNER JOIN public.users customer
+        ON customer.id = contract.customer_id
+      WHERE room.building_id = :buildingId
+        AND contract.status IN ('PENDING_MANAGER_SIGNATURE', 'EXPIRING_SOON')
+      ORDER BY
+        CASE
+          WHEN contract.status = 'PENDING_MANAGER_SIGNATURE' THEN 0
+          ELSE 1
+        END,
+        contract.signature_expires_at ASC NULLS LAST,
+        contract.end_date ASC NULLS LAST
+      LIMIT 5
+    `, {
+      replacements: { buildingId },
+      type: sequelize.QueryTypes.SELECT,
+    });
+  }
+
+  static async getBuildingRecentBookings(buildingId) {
+    return sequelize.query(`
+      SELECT
+        booking.id,
+        booking.booking_number,
+        booking.status,
+        booking.check_in_date,
+        booking.created_at,
+        room.room_number,
+        TRIM(CONCAT(COALESCE(customer.first_name, ''), ' ', COALESCE(customer.last_name, ''))) AS customer_name
+      FROM public.bookings booking
+      INNER JOIN public.rooms room
+        ON room.id = booking.room_id
+        AND room.deleted_at IS NULL
+      INNER JOIN public.users customer
+        ON customer.id = booking.customer_id
+      WHERE room.building_id = :buildingId
+      ORDER BY booking.created_at DESC
+      LIMIT 5
+    `, {
+      replacements: { buildingId },
+      type: sequelize.QueryTypes.SELECT,
+    });
+  }
+
   // Payload tổng hợp cho dashboard admin
   static async getDashboard(user) {
     if (!user || user.role !== 'ADMIN') {
@@ -278,6 +478,69 @@ class DashboardService {
       top_booked_room_type: bookingRoomTypeSummary.top_booked_room_type,
       room_types_overview: roomTypesOverview,
       employee_stats: employeeStats
+    };
+  }
+
+  static async getBuildingManagerDashboard(user) {
+    if (!user || user.role !== 'BUILDING_MANAGER') {
+      throw { status: 403, message: 'Bạn không có quyền truy cập dashboard quản lý tòa nhà' };
+    }
+
+    if (!user.building_id) {
+      throw { status: 400, message: 'Quản lý tòa nhà chưa được phân công tòa nhà nào' };
+    }
+
+    const building = await sequelize.models.Building.findByPk(user.building_id, {
+      attributes: ['id', 'name'],
+      raw: true,
+    });
+
+    if (!building) {
+      throw { status: 404, message: 'Không tìm thấy tòa nhà được phân công' };
+    }
+
+    const [
+      roomStatusSummary,
+      requestStatusSummary,
+      contractSummary,
+      invoiceSummary,
+      floorOccupancy,
+      recentRequests,
+      pendingContracts,
+      recentBookings,
+    ] = await Promise.all([
+      this.getBuildingRoomStatusSummary(user.building_id),
+      this.getBuildingRequestStatusSummary(user.building_id),
+      this.getBuildingContractSummary(user.building_id),
+      this.getBuildingInvoiceSummary(user.building_id),
+      this.getBuildingFloorOccupancy(user.building_id),
+      this.getBuildingRecentRequests(user.building_id),
+      this.getBuildingPendingContracts(user.building_id),
+      this.getBuildingRecentBookings(user.building_id),
+    ]);
+
+    const roomCountMap = Object.fromEntries(roomStatusSummary.map((item) => [item.status, item.count]));
+    const activeRequestStatuses = ['PENDING', 'ASSIGNED', 'PRICE_PROPOSED', 'APPROVED', 'IN_PROGRESS', 'DONE'];
+    const activeRequests = requestStatusSummary
+      .filter((item) => activeRequestStatuses.includes(item.status))
+      .reduce((sum, item) => sum + item.count, 0);
+
+    return {
+      building,
+      kpis: {
+        occupied_rooms: roomCountMap.OCCUPIED || 0,
+        available_rooms: roomCountMap.AVAILABLE || 0,
+        active_requests: activeRequests,
+        expiring_contracts: contractSummary.expiring_soon,
+      },
+      room_status_summary: roomStatusSummary,
+      request_status_summary: requestStatusSummary,
+      contract_summary: contractSummary,
+      invoice_summary: invoiceSummary,
+      floor_occupancy: floorOccupancy,
+      recent_requests: recentRequests,
+      pending_contracts: pendingContracts,
+      recent_bookings: recentBookings,
     };
   }
 }
