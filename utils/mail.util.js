@@ -55,7 +55,7 @@ const wrapEmailTemplate = (bodyContent) => `
           <!-- Footer -->
           <tr>
             <td style="background-color:#f4f4f5; padding:16px 32px; text-align:center; font-size:12px; color:#71717a;">
-              <p style="margin:0;">FScape — Student Housing Platform</p>
+              <p style="margin:0;">Student Accommodation Management System</p>
               <p style="margin:4px 0 0;">Email này được gửi tự động, vui lòng không trả lời.</p>
             </td>
           </tr>
