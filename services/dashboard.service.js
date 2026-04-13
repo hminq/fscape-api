@@ -139,8 +139,12 @@ class DashboardService {
     return { total: employees.length, active, inactive };
   }
 
-  // Tất cả stats cho dashboard
-  static async getDashboardStats() {
+  // Payload tổng hợp cho dashboard admin
+  static async getDashboard(user) {
+    if (!user || user.role !== 'ADMIN') {
+      throw { status: 403, message: 'Bạn không có quyền truy cập dashboard này' };
+    }
+
     const [
       totalRooms,
       occupiedRooms,
