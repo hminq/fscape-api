@@ -289,8 +289,8 @@ class AdminUserService {
     const user = await User.findByPk(userId);
     if (!user) throw new Error('Không tìm thấy người dùng');
 
-    if (user.role === ROLES.ADMIN) {
-      throw new Error('Không thể đặt lại mật khẩu cho quản trị viên tối cao');
+    if (![ROLES.BUILDING_MANAGER, ROLES.STAFF].includes(user.role)) {
+      throw new Error('Chỉ có thể đặt lại mật khẩu cho quản lý tòa nhà hoặc nhân viên');
     }
 
     const newPassword = crypto.randomBytes(4).toString('hex');

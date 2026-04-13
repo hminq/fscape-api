@@ -7,8 +7,8 @@ const { ROLES } = require('../constants/roles');
 const controller = require('../controllers/dashboard.controller');
 
 router.use(authJwt);
-router.use(requireRoles(ROLES.ADMIN, ROLES.BUILDING_MANAGER));
+router.use(requireRoles(ROLES.ADMIN));
 
-router.get('/stats', controller.getDashboardStats);
+router.get('/', controller.getDashboard);
 
 module.exports = router;

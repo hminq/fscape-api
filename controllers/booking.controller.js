@@ -2,9 +2,11 @@ const bookingService = require('../services/booking.service');
 const paymentService = require('../services/payment.service');
 
 const createBooking = async (req, res) => {
+    let booking = null;
+
     try {
         const userId = req.user.id;
-        const booking = await bookingService.createBooking(userId, req.body);
+        booking = await bookingService.createBooking(userId, req.body);
 
         const payosResult = await paymentService.createBookingPaymentUrlPayOS(userId, booking.id);
         const paymentData = { checkoutUrl: payosResult.checkoutUrl, orderCode: payosResult.orderCode };
@@ -17,7 +19,15 @@ const createBooking = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('❌ Controller Error (createBooking):', error);
+        if (booking && error.status === 502) {
+            try {
+                await bookingService.cancelBookingForPaymentFailure(booking.id);
+            } catch (cleanupError) {
+                console.error('Failed to cleanup booking after payment gateway error:', cleanupError);
+            }
+        }
+
+        console.error('Controller Error (createBooking):', error);
         return res.status(error.status || 500).json({
             message: error.message || 'Internal Server Error'
         });
