@@ -376,9 +376,49 @@ const getAllBookings = async (filters = {}) => {
         }
     };
 };
+
+const cancelBookingForPaymentFailure = async (bookingId) => {
+  const { Booking, Room } = sequelize.models;
+
+  const transaction = await sequelize.transaction();
+
+  try {
+    const booking = await Booking.findByPk(bookingId, {
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    if (!booking || booking.status !== "PENDING") {
+      await transaction.rollback();
+      return false;
+    }
+
+    await booking.update(
+      {
+        status: "CANCELLED",
+        cancelled_at: new Date(),
+        cancellation_reason: "Không thể khởi tạo thanh toán",
+      },
+      { transaction },
+    );
+
+    await Room.update(
+      { status: "AVAILABLE" },
+      { where: { id: booking.room_id }, transaction },
+    );
+
+    await transaction.commit();
+    return true;
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+};
+
 module.exports = {
   createBooking,
   getMyBookings,
   getBookingById,
   getAllBookings,
+  cancelBookingForPaymentFailure,
 };

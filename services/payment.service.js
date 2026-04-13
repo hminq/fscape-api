@@ -3,6 +3,11 @@ const getPayOS = require('../utils/payos');
 const payosConfig = require('../config/payos.config');
 const contractService = require('./contract.service');
 
+const PAYOS_GATEWAY_ERROR = {
+    status: 502,
+    message: 'Cổng thanh toán đang gặp sự cố. Vui lòng thử lại sau.'
+};
+
 /**
  * Số tiền gửi tới PayOS (hỗ trợ test với số tiền nhỏ).
  * Nếu PAYOS_TEST_AMOUNT được đặt, dùng giá trị đó thay vì giá thật.
@@ -11,6 +16,15 @@ const getPayosAmount = (realAmount) => {
     const testAmount = process.env.PAYOS_TEST_AMOUNT;
     if (testAmount) return Number(testAmount);
     return Math.round(Number(realAmount));
+};
+
+const normalizePayosCreateError = (error, context = {}) => {
+    console.error('[PayOS] Failed to create payment link:', {
+        message: error?.message,
+        context
+    });
+
+    return PAYOS_GATEWAY_ERROR;
 };
 
 const createBookingPaymentUrlPayOS = async (userId, booking_id) => {
@@ -27,31 +41,42 @@ const createBookingPaymentUrlPayOS = async (userId, booking_id) => {
     const orderCode = Date.now();
     const paymentNumber = `PAY-${orderCode}`;
 
-    const payment = await Payment.create({
-        payment_number: paymentNumber,
-        user_id: userId,
-        amount: booking.deposit_amount, // lưu giá thật vào DB
-        payment_type: 'DEPOSIT',
-        status: 'PENDING',
-        gateway_transaction_id: String(orderCode)
-    });
+    try {
+        return await sequelize.transaction(async (transaction) => {
+            const payment = await Payment.create({
+                payment_number: paymentNumber,
+                user_id: userId,
+                amount: booking.deposit_amount, // lưu giá thật vào DB
+                payment_type: 'DEPOSIT',
+                status: 'PENDING',
+                gateway_transaction_id: String(orderCode)
+            }, { transaction });
 
-    await booking.update({ deposit_payment_id: payment.id });
+            await booking.update({ deposit_payment_id: payment.id }, { transaction });
 
-    // Hết hạn sau 1 giờ 
-    const expiredAt = Math.floor(Date.now() / 1000) + 3600;
+            // Hết hạn sau 1 giờ
+            const expiredAt = Math.floor(Date.now() / 1000) + 3600;
 
-    const paymentLink = await getPayOS().paymentRequests.create({
-        orderCode,
-        amount: getPayosAmount(booking.deposit_amount),
-        description: booking.booking_number,
-        items: [{ name: `Đặt cọc ${booking.booking_number}`, quantity: 1, price: getPayosAmount(booking.deposit_amount) }],
-        returnUrl: payosConfig.returnUrl,
-        cancelUrl: payosConfig.cancelUrl,
-        expiredAt,
-    });
+            const paymentLink = await getPayOS().paymentRequests.create({
+                orderCode,
+                amount: getPayosAmount(booking.deposit_amount),
+                description: booking.booking_number,
+                items: [{ name: `Đặt cọc ${booking.booking_number}`, quantity: 1, price: getPayosAmount(booking.deposit_amount) }],
+                returnUrl: payosConfig.returnUrl,
+                cancelUrl: payosConfig.cancelUrl,
+                expiredAt,
+            });
 
-    return { checkoutUrl: paymentLink.checkoutUrl, orderCode, amount: booking.deposit_amount };
+            if (!paymentLink?.checkoutUrl) {
+                throw new Error('PayOS did not return checkoutUrl');
+            }
+
+            return { checkoutUrl: paymentLink.checkoutUrl, orderCode, amount: booking.deposit_amount };
+        });
+    } catch (error) {
+        if (error?.status) throw error;
+        throw normalizePayosCreateError(error, { type: 'booking', bookingId: booking_id, userId });
+    }
 };
 
 const createInvoicePaymentUrlPayOS = async (userId, invoice_id) => {
@@ -70,31 +95,42 @@ const createInvoicePaymentUrlPayOS = async (userId, invoice_id) => {
     const orderCode = Date.now();
     const paymentNumber = `PAY-INV-${orderCode}`;
 
-    const payment = await Payment.create({
-        payment_number: paymentNumber,
-        invoice_id: invoice.id,
-        contract_id: invoice.contract_id,
-        user_id: userId,
-        amount: invoice.total_amount,
-        payment_type: paymentType,
-        status: 'PENDING',
-        gateway_transaction_id: String(orderCode)
-    });
+    try {
+        return await sequelize.transaction(async (transaction) => {
+            await Payment.create({
+                payment_number: paymentNumber,
+                invoice_id: invoice.id,
+                contract_id: invoice.contract_id,
+                user_id: userId,
+                amount: invoice.total_amount,
+                payment_type: paymentType,
+                status: 'PENDING',
+                gateway_transaction_id: String(orderCode)
+            }, { transaction });
 
-    // Hết hạn sau 24 giờ
-    const expiredAt = Math.floor(Date.now() / 1000) + 86400;
+            // Hết hạn sau 24 giờ
+            const expiredAt = Math.floor(Date.now() / 1000) + 86400;
 
-    const paymentLink = await getPayOS().paymentRequests.create({
-        orderCode,
-        amount: getPayosAmount(invoice.total_amount),
-        description: invoice.invoice_number,
-        items: [{ name: `Thanh toán ${invoice.invoice_number}`, quantity: 1, price: getPayosAmount(invoice.total_amount) }],
-        returnUrl: payosConfig.returnUrl,
-        cancelUrl: payosConfig.cancelUrl,
-        expiredAt,
-    });
+            const paymentLink = await getPayOS().paymentRequests.create({
+                orderCode,
+                amount: getPayosAmount(invoice.total_amount),
+                description: invoice.invoice_number,
+                items: [{ name: `Thanh toán ${invoice.invoice_number}`, quantity: 1, price: getPayosAmount(invoice.total_amount) }],
+                returnUrl: payosConfig.returnUrl,
+                cancelUrl: payosConfig.cancelUrl,
+                expiredAt,
+            });
 
-    return { checkoutUrl: paymentLink.checkoutUrl, orderCode, amount: invoice.total_amount };
+            if (!paymentLink?.checkoutUrl) {
+                throw new Error('PayOS did not return checkoutUrl');
+            }
+
+            return { checkoutUrl: paymentLink.checkoutUrl, orderCode, amount: invoice.total_amount };
+        });
+    } catch (error) {
+        if (error?.status) throw error;
+        throw normalizePayosCreateError(error, { type: 'invoice', invoiceId: invoice_id, userId });
+    }
 };
 
 /**
