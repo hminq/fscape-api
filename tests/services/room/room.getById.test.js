@@ -84,16 +84,11 @@ describe('RoomService - getRoomById', () => {
         };
         Room.findByPk.mockResolvedValue(mockRoom);
 
-        const expectedError = 'You can only view rooms in your assigned building';
-
-        console.log(`[TEST]: MANAGER truy cập chéo phòng tòa nhà khác`);
-        console.log(`- Input   : building_id=1, room.building_id=2`);
-        console.log(`- Expected Error: "${expectedError}"`);
+        const expectedError = 'Bạn chỉ có thể xem phòng trong tòa nhà được phân công';
 
         try {
             await RoomService.getRoomById(id, { role: ROLES.BUILDING_MANAGER, building_id: 1 });
         } catch (error) {
-            console.log(`- Actual Error  : "${error.message}"`);
             expect(error.status).toBe(403);
             expect(error.message).toBe(expectedError);
         }
@@ -102,13 +97,11 @@ describe('RoomService - getRoomById', () => {
     it('ID phòng không tồn tại', async () => {
         Room.findByPk.mockResolvedValue(null);
         
-        console.log(`[TEST]: Phòng không tồn tại`);
         try {
             await RoomService.getRoomById(999, { role: 'PUBLIC' });
         } catch (error) {
-            console.log(`- Actual Error  : "${error.message}"`);
             expect(error.status).toBe(404);
-            expect(error.message).toBe('Room not found');
+            expect(error.message).toBe('Không tìm thấy phòng');
         }
     });
 });

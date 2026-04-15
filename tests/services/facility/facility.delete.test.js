@@ -22,46 +22,32 @@ describe('FacilityService - deleteFacility', () => {
 
         const result = await FacilityService.deleteFacility(1);
 
-        console.log(`[TEST]: Xóa Facility thành công`);
-        console.log(`- Input   : ID=1`);
-        console.log(`- Expected: "Facility \"Gym\" deleted successfully"`);
-        console.log(`- Actual  : "${result.message}"`);
-
-        expect(result.message).toContain('deleted successfully');
+        expect(result.message).toContain('thành công');
         expect(mockFacility.destroy).toHaveBeenCalled();
     });
 
     it('Chặn xóa Facility vì có tòa nhà đang gán tiện ích này', async () => {
         const mockFacility = { id: 1, name: 'Bể bơi' };
         Facility.findByPk.mockResolvedValue(mockFacility);
-        BuildingFacility.count.mockResolvedValue(3); // Có 3 tòa nhà đang sử dụng
-        const expectedError = 'Facility cannot be deleted because it is assigned to 3 building(s).';
-
-        console.log(`[TEST]: Lỗi xóa Facility đang được sử dụng`);
-        console.log(`- Input   : ID=1 (Có 3 tòa nhà liên kết)`);
-        console.log(`- Expected Error: "${expectedError}"`);
+        BuildingFacility.count.mockResolvedValue(3); 
+        const expectedError = 'Không thể xóa tiện ích vì đang được gán cho 3 tòa nhà.';
 
         try {
             await FacilityService.deleteFacility(1);
         } catch (error) {
-            console.log(`- Actual Error  : "${error.message}"`);
             expect(error.status).toBe(400);
             expect(error.message).toBe(expectedError);
         }
     });
 
-    it('Xóa Facility với ID bị null', async () => {
+    it('Xóa Facility với ID không tồn tại', async () => {
         Facility.findByPk.mockResolvedValue(null);
-        const expectedError = 'Facility not found';
-
-        console.log(`[TEST]: Xóa Facility với ID=null`);
-        console.log(`- Input   : ID=null`);
-        console.log(`- Expected Error: "${expectedError}"`);
+        const expectedError = 'Không tìm thấy tiện ích';
 
         try {
             await FacilityService.deleteFacility(null);
         } catch (error) {
-            console.log(`- Actual Error  : "${error.message}"`);
+            expect(error.status).toBe(404);
             expect(error.message).toBe(expectedError);
         }
     });

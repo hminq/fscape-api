@@ -42,6 +42,11 @@ describe('RoomService - createRoom', () => {
         jest.clearAllMocks();
         mockTransaction = { commit: jest.fn(), rollback: jest.fn() };
         sequelize.transaction.mockResolvedValue(mockTransaction);
+
+        // Mặc định là tìm thấy để các test case Happy Path / Validation khác không bị dừng ở bước check 404
+        sequelize.models.Building.findByPk.mockResolvedValue({ id: 1, name: 'Building A' });
+        sequelize.models.RoomType.findByPk.mockResolvedValue({ id: 1, name: 'Type A' });
+
         console.log('\n=========================================================================');
     });
 
@@ -101,6 +106,7 @@ describe('RoomService - createRoom', () => {
         const newData = { building_id: 1, room_number: '101', floor: 1, room_type_id: 1 };
         Room.findOne.mockResolvedValue({ id: 5, room_number: '101', building_id: 1 });
 
+        const expectedError = 'Số phòng 101 đã tồn tại trong tòa nhà này';
         console.log(`[TEST]: Trùng số phòng trong tòa nhà`);
         try {
             await RoomService.createRoom(newData);
@@ -108,15 +114,101 @@ describe('RoomService - createRoom', () => {
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
             expect(error.status).toBe(409);
-            expect(error.message).toBe('Số phòng 101 đã tồn tại trong tòa nhà này');
+            expect(error.message).toBe(expectedError);
             expect(Room.create).not.toHaveBeenCalled();
         }
     });
 
-    it('TC_ROOM_04: Lỗi database rollback transaction (Abnormal)', async () => {
+    it('TC_ROOM_04: Lỗi khi tòa nhà không tồn tại (Abnormal)', async () => {
+        sequelize.models.Building.findByPk.mockResolvedValue(null);
+        const expectedError = 'Không tìm thấy tòa nhà';
+
+        console.log(`[TEST]: Tòa nhà không tồn tại`);
+        try {
+            await RoomService.createRoom({ building_id: 999, room_type_id: 1 });
+        } catch (error) {
+            console.log(`- Actual Error  : "${error.message}"`);
+            expect(error.status).toBe(404);
+            expect(error.message).toBe(expectedError);
+        }
+    });
+
+    it('TC_ROOM_05: Lỗi khi loại phòng không tồn tại (Abnormal)', async () => {
+        sequelize.models.RoomType.findByPk.mockResolvedValue(null);
+        const expectedError = 'Không tìm thấy loại phòng';
+
+        console.log(`[TEST]: Loại phòng không tồn tại`);
+        try {
+            await RoomService.createRoom({ building_id: 1, room_type_id: 999 });
+        } catch (error) {
+            console.log(`- Actual Error  : "${error.message}"`);
+            expect(error.status).toBe(404);
+            expect(error.message).toBe(expectedError);
+        }
+    });
+
+    it('TC_ROOM_06: Lỗi số phòng không được để trống (Abnormal)', async () => {
+        const newData = { building_id: 1, room_number: null, floor: 1, room_type_id: 1 };
+        const expectedError = 'Số phòng không được để trống';
+        Room.create.mockRejectedValue(new Error(expectedError));
+
+        console.log(`[TEST]: Số phòng bị null`);
+        try {
+            await RoomService.createRoom(newData);
+        } catch (error) {
+            console.log(`- Actual Error  : "${error.message}"`);
+            expect(error.message).toBe(expectedError);
+            expect(mockTransaction.rollback).toHaveBeenCalled();
+        }
+    });
+
+    it('TC_ROOM_07: Lỗi tòa nhà không được để trống (Abnormal)', async () => {
+        const newData = { room_number: '105', floor: 1, room_type_id: 1 };
+        const expectedError = 'Tòa nhà không được để trống';
+        Room.create.mockRejectedValue(new Error(expectedError));
+
+        console.log(`[TEST]: Building ID bị thiếu`);
+        try {
+            await RoomService.createRoom(newData);
+        } catch (error) {
+            console.log(`- Actual Error  : "${error.message}"`);
+            expect(error.message).toBe(expectedError);
+        }
+    });
+
+    it('TC_ROOM_08: Lỗi số tầng không được để trống (Abnormal)', async () => {
+        const newData = { building_id: 1, room_number: '105', room_type_id: 1 };
+        const expectedError = 'Số tầng không được để trống';
+        Room.create.mockRejectedValue(new Error(expectedError));
+
+        console.log(`[TEST]: Số tầng bị thiếu`);
+        try {
+            await RoomService.createRoom(newData);
+        } catch (error) {
+            console.log(`- Actual Error  : "${error.message}"`);
+            expect(error.message).toBe(expectedError);
+        }
+    });
+
+    it('TC_ROOM_09: Lỗi loại phòng không được để trống (Abnormal)', async () => {
+        const newData = { building_id: 1, room_number: '105', floor: 1 };
+        const expectedError = 'Loại phòng không được để trống';
+        Room.create.mockRejectedValue(new Error(expectedError));
+
+        console.log(`[TEST]: Room Type ID bị thiếu`);
+        try {
+            await RoomService.createRoom(newData);
+        } catch (error) {
+            console.log(`- Actual Error  : "${error.message}"`);
+            expect(error.message).toBe(expectedError);
+        }
+    });
+
+    it('TC_ROOM_10: Lỗi hệ thống (Abnormal)', async () => {
         const newData = { building_id: 1, room_number: '105', floor: 1, room_type_id: 1 };
+        const expectedError = 'Lỗi hệ thống';
         Room.findOne.mockResolvedValue(null);
-        Room.create.mockRejectedValue(new Error('DB Error'));
+        Room.create.mockRejectedValue(new Error(expectedError));
 
         console.log(`[TEST]: Database error - Transaction rollback`);
         try {
@@ -124,7 +216,7 @@ describe('RoomService - createRoom', () => {
             throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe('DB Error');
+            expect(error.message).toBe(expectedError);
             expect(mockTransaction.rollback).toHaveBeenCalled();
         }
     });

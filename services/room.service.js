@@ -189,6 +189,12 @@ const getRoomById = async (id, user = {}) => {
 const createRoom = async (data) => {
   const { gallery_images, ...roomData } = data;
 
+  const building = await Building.findByPk(roomData.building_id);
+  if (!building) throw { status: 404, message: 'Không tìm thấy tòa nhà' };
+
+  const roomType = await RoomType.findByPk(roomData.room_type_id);
+  if (!roomType) throw { status: 404, message: 'Không tìm thấy loại phòng' };
+
   const existingRoom = await Room.findOne({
     where: { building_id: roomData.building_id, room_number: roomData.room_number }
   });
@@ -238,6 +244,23 @@ const updateRoom = async (id, data) => {
   const room = await Room.findByPk(id);
   if (!room) throw { status: 404, message: 'Không tìm thấy phòng' };
 
+  // Kiểm tra tòa nhà mới nếu có thay đổi
+  if (updateData.building_id) {
+    const building = await Building.findByPk(updateData.building_id);
+    if (!building) throw { status: 404, message: 'Không tìm thấy tòa nhà' };
+  }
+
+  // Kiểm tra loại phòng mới nếu có thay đổi
+  if (updateData.room_type_id) {
+    const roomType = await RoomType.findByPk(updateData.room_type_id);
+    if (!roomType) throw { status: 404, message: 'Không tìm thấy loại phòng' };
+  }
+
+  // Chặn để trống trường bắt buộc
+  if (updateData.hasOwnProperty('room_number') && !updateData.room_number) {
+    throw { status: 400, message: 'Số phòng không được để trống' };
+  }
+
   // Guard against changing fundamental identity parameters if there are active bookings or contracts
   const hasCriticalChanges = updateData.building_id || updateData.room_type_id || updateData.room_number;
   if (hasCriticalChanges) {
@@ -258,7 +281,7 @@ const updateRoom = async (id, data) => {
 
   if (updateData.room_number && updateData.room_number !== room.room_number) {
     const existingRoom = await Room.findOne({
-      where: { building_id: room.building_id, room_number: updateData.room_number }
+      where: { building_id: updateData.building_id || room.building_id, room_number: updateData.room_number }
     });
     if (existingRoom) {
       throw { status: 409, message: `Số phòng ${updateData.room_number} đã tồn tại trong tòa nhà này` };

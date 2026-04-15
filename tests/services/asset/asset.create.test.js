@@ -13,8 +13,8 @@ jest.mock('../../../config/db', () => {
     return {
         sequelize: {
             models: mockModels,
-            transaction: jest.fn().mockResolvedValue({ 
-                commit: jest.fn(), 
+            transaction: jest.fn().mockResolvedValue({
+                commit: jest.fn(),
                 rollback: jest.fn(),
                 LOCK: { UPDATE: 'UPDATE' }
             }),
@@ -43,14 +43,14 @@ describe('AssetService - createAsset', () => {
     it('TC_ASSET_01: Tạo Asset mới thành công (Happy Path)', async () => {
         const newData = { name: 'Monitor', building_id: 'b1' };
         Building.findByPk.mockResolvedValue({ id: 'b1' });
-        
-        const mockCreatedAsset = { 
-            id: 'a1', 
+
+        const mockCreatedAsset = {
+            id: 'a1',
             ...newData,
             toJSON: () => ({ id: 'a1', ...newData })
         };
         Asset.create.mockResolvedValue(mockCreatedAsset);
-        
+
         // Mock findByPk for getAssetById inside createAsset
         Asset.findByPk.mockResolvedValue(mockCreatedAsset);
 
@@ -80,7 +80,7 @@ describe('AssetService - createAsset', () => {
 
     it('TC_ASSET_03: Lỗi khi phòng không thuộc tòa nhà đã chọn (Abnormal)', async () => {
         Building.findByPk.mockResolvedValue({ id: 'b1' });
-        Room.findByPk.mockResolvedValue({ id: 'r1', building_id: 'b2' }); 
+        Room.findByPk.mockResolvedValue({ id: 'r1', building_id: 'b2' });
 
         console.log(`[TEST]: Tạo Asset với phòng không khớp tòa nhà`);
         try {

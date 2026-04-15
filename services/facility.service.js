@@ -63,8 +63,9 @@ const getFacilityById = async (id) => {
 
 const createFacility = async (data) => {
     const { name, is_active } = data;
-    // Check duplicate name (trim and ignore case)
+    if (!name || !name.trim()) throw { status: 400, message: 'Tên tiện ích không được để trống' };
     const normalizedName = name.trim();
+
     const duplicate = await Facility.findOne({
         where: sequelize.where(
             sequelize.fn('LOWER', sequelize.col('name')),
@@ -85,20 +86,26 @@ const updateFacility = async (id, data) => {
     const facility = await Facility.findByPk(id)
     if (!facility) throw { status: 404, message: 'Không tìm thấy tiện ích' }
 
-    if (data.name && data.name.trim() !== facility.name) {
+    if (data.name !== undefined) {
+        if (!data.name || !data.name.trim()) {
+            throw { status: 400, message: 'Tên tiện ích không được để trống' };
+        }
         const normalizedName = data.name.trim();
-        const duplicate = await Facility.findOne({
-            where: {
-                [Op.and]: [
-                    sequelize.where(
-                        sequelize.fn('LOWER', sequelize.col('name')),
-                        normalizedName.toLowerCase()
-                    ),
-                    { id: { [Op.ne]: id } }
-                ]
-            }
-        });
-        if (duplicate) throw { status: 409, message: `Tiện ích "${normalizedName}" đã tồn tại` }
+        if (normalizedName !== facility.name) {
+            const duplicate = await Facility.findOne({
+                where: {
+                    [Op.and]: [
+                        sequelize.where(
+                            sequelize.fn('LOWER', sequelize.col('name')),
+                            normalizedName.toLowerCase()
+                        ),
+                        { id: { [Op.ne]: id } }
+                    ]
+                }
+            });
+            if (duplicate) throw { status: 409, message: `Tiện ích "${normalizedName}" đã tồn tại` }
+            data.name = normalizedName;
+        }
     }
 
     await facility.update(data)

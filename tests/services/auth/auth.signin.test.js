@@ -172,5 +172,31 @@ describe('AuthService - Signin', () => {
                 expect(error.message).toBe(expectedError);
             }
         });
+
+        it('TC_AUTH_06: Login with mixed-case email (Boundary Success)', async () => {
+            const mixedCaseEmail = email.toUpperCase(); // 'ADMIN@FSCAPE.VN'
+            AuthProvider.findOne.mockResolvedValue(mockAuth);
+            passwordUtil.comparePassword.mockResolvedValue(true);
+            tokenUtil.generateAccessToken.mockReturnValue('valid-token');
+
+            const result = await AuthService.signin(mixedCaseEmail, password);
+
+            console.log(`[TEST]: Login with mixed-case email`);
+            console.log(`- Input   : Email="${mixedCaseEmail}"`);
+            expect(result).toHaveProperty('access_token');
+        });
+
+        it('TC_AUTH_07: Login with maximum password length (Boundary Success)', async () => {
+            const longPassword = 'P'.repeat(255);
+            AuthProvider.findOne.mockResolvedValue(mockAuth);
+            passwordUtil.comparePassword.mockResolvedValue(true);
+            tokenUtil.generateAccessToken.mockReturnValue('valid-token');
+
+            const result = await AuthService.signin(email, longPassword);
+
+            console.log(`[TEST]: Login with maximum password length`);
+            console.log(`- Input   : Password Length="${longPassword.length}"`);
+            expect(result).toHaveProperty('access_token');
+        });
     });
 });

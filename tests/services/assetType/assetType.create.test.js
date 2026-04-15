@@ -77,4 +77,25 @@ describe('AssetTypeService - createAssetType', () => {
             expect(error.message).toContain('đã tồn tại');
         }
     });
+
+    it('Giá mặc định bằng 0 (Boundary Success)', async () => {
+        const newData = { name: 'Đèn', default_price: 0 };
+        AssetType.findOne.mockResolvedValue(null);
+        AssetType.create.mockResolvedValue({ id: 6, ...newData });
+
+        const result = await AssetTypeService.createAssetType(newData);
+        expect(result.default_price).toBe(0);
+        console.log(`[TEST]: Giá mặc định bằng 0 (Success)`);
+    });
+
+    it('Tên dài tối đa 255 ký tự (Boundary Success)', async () => {
+        const longName = 'A'.repeat(255);
+        const newData = { name: longName };
+        AssetType.findOne.mockResolvedValue(null);
+        AssetType.create.mockResolvedValue({ id: 7, ...newData });
+
+        const result = await AssetTypeService.createAssetType(newData);
+        expect(result.name.length).toBe(255);
+        console.log(`[TEST]: Tên dài 255 ký tự (Success)`);
+    });
 });
