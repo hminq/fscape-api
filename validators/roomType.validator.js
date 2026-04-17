@@ -4,32 +4,32 @@ exports.create = [
   body('name')
     .notEmpty().withMessage('Tên không được để trống')
     .isString()
-    .isLength({ min: 1, max: 255 }).withMessage('Tên phải từ 1–255 ký tự'),
+    .isLength({ min: 1, max: 100 }).withMessage('Tên phải từ 1–100 ký tự'),
   body('description')
     .optional()
     .isString()
     .isLength({ max: 2000 }).withMessage('Mô tả tối đa 2000 ký tự'),
   body('base_price')
     .notEmpty().withMessage('Giá cơ bản không được để trống')
-    .isFloat({ gt: 0, max: 500000000 }).withMessage('Giá cơ bản phải từ >0 đến 500,000,000'),
+    .isFloat({ min: 0, max: 500000000 }).withMessage('Giá cơ bản phải từ 0 đến 500.000.000'),
   body('deposit_months')
     .optional()
     .isInt({ min: 1, max: 1 }).withMessage('Số tháng đặt cọc cố định là 1'),
   body('capacity_min')
-    .optional()
+    .notEmpty().withMessage('Sức chứa tối thiểu không được để trống')
     .isInt({ min: 1, max: 10 }).withMessage('Sức chứa tối thiểu phải từ 1–10'),
   body('capacity_max')
-    .optional()
+    .notEmpty().withMessage('Sức chứa tối đa không được để trống')
     .isInt({ min: 1, max: 10 }).withMessage('Sức chứa tối đa phải từ 1–10'),
   body('bedrooms')
     .optional()
-    .isInt({ min: 1, max: 10 }).withMessage('Số phòng ngủ phải từ 1–10'),
+    .isInt({ min: 0, max: 10 }).withMessage('Số phòng ngủ phải từ 0–10'),
   body('bathrooms')
     .optional()
     .isInt({ min: 0, max: 10 }).withMessage('Số phòng tắm phải từ 0–10'),
   body('area_sqm')
     .optional()
-    .isFloat({ min: 5, max: 10000 }).withMessage('Diện tích phải từ 5–10,000 m²'),
+    .isFloat({ min: 0, max: 1000 }).withMessage('Diện tích phải từ 0–1000 m²'),
   body('is_active')
     .optional()
     .isBoolean().withMessage('Trạng thái hoạt động không hợp lệ'),
@@ -40,14 +40,14 @@ exports.update = [
   body('name')
     .optional()
     .isString()
-    .isLength({ min: 1, max: 255 }).withMessage('Tên phải từ 1–255 ký tự'),
+    .isLength({ min: 1, max: 100 }).withMessage('Tên phải từ 1–100 ký tự'),
   body('description')
     .optional()
     .isString()
     .isLength({ max: 2000 }).withMessage('Mô tả tối đa 2000 ký tự'),
   body('base_price')
     .optional()
-    .isFloat({ gt: 0, max: 500000000 }).withMessage('Giá cơ bản phải từ >0 đến 500,000,000'),
+    .isFloat({ min: 0, max: 500000000 }).withMessage('Giá cơ bản phải từ 0 đến 500.000.000'),
   body('deposit_months')
     .optional()
     .isInt({ min: 1, max: 1 }).withMessage('Số tháng đặt cọc cố định là 1'),
@@ -59,13 +59,13 @@ exports.update = [
     .isInt({ min: 1, max: 10 }).withMessage('Sức chứa tối đa phải từ 1–10'),
   body('bedrooms')
     .optional()
-    .isInt({ min: 1, max: 10 }).withMessage('Số phòng ngủ phải từ 1–10'),
+    .isInt({ min: 0, max: 10 }).withMessage('Số phòng ngủ phải từ 0–10'),
   body('bathrooms')
     .optional()
     .isInt({ min: 0, max: 10 }).withMessage('Số phòng tắm phải từ 0–10'),
   body('area_sqm')
     .optional()
-    .isFloat({ min: 5, max: 10000 }).withMessage('Diện tích phải từ 5–10,000 m²'),
+    .isFloat({ min: 0, max: 1000 }).withMessage('Diện tích phải từ 0–1000 m²'),
   body('is_active')
     .optional()
     .isBoolean().withMessage('Trạng thái hoạt động không hợp lệ'),
@@ -74,7 +74,7 @@ exports.update = [
 exports.replaceTemplateAssets = [
   param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
   body()
-    .isArray({ min: 0, max: 50 }).withMessage('Danh sách tài sản phải từ 0–50 mục'),
+    .isArray({ min: 0, max: 20 }).withMessage('Danh sách tài sản phải từ 0–20 mục'),
   body('*.asset_type_id')
     .isUUID().withMessage('Mã loại tài sản không hợp lệ'),
   body('*.quantity')

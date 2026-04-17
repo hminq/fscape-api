@@ -70,7 +70,7 @@ const getTemplateAssets = async (req, res) => {
 const replaceTemplateAssets = async (req, res) => {
     try {
         const data = await roomTypeService.replaceTemplateAssets(req.params.id, req.body)
-        return res.status(200).json({ message: 'Cập nhật mẫu tài sản thành công', data })
+        return res.status(200).json({ message: 'Cập nhật định mức tài sản thành công', data })
     } catch (err) {
         return handleError(res, err)
     }

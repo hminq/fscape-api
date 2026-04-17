@@ -141,6 +141,10 @@ const getBuildingById = async (id, user) => {
 const createBuilding = async (data) => {
     const { facilities, images, manager_id, ...buildingData } = data;
 
+    if (images && images.length > 5) {
+        throw { status: 400, message: 'Tối đa 5 ảnh' };
+    }
+
     if (facilities && facilities.length > 20) {
         throw { status: 400, message: 'Một tòa nhà chỉ được gán tối đa 20 tiện ích' };
     }
@@ -200,6 +204,10 @@ const createBuilding = async (data) => {
 
 const updateBuilding = async (id, data) => {
     const { facilities, images, is_active, ...updateData } = data;
+
+    if (images && images.length > 5) {
+        throw { status: 400, message: 'Tối đa 5 ảnh' };
+    }
 
     if (facilities && facilities.length > 20) {
         throw { status: 400, message: 'Một tòa nhà chỉ được gán tối đa 20 tiện ích' };

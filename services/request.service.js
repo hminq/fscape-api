@@ -11,6 +11,19 @@ const Building = require('../models/building.model');
 const { ROLES } = require('../constants/roles');
 const { createNotification } = require('./notification.service');
 
+const REQUEST_STATUS_LABELS = {
+    PENDING: 'Đang chờ xử lý',
+    ASSIGNED: 'Đã phân công',
+    PRICE_PROPOSED: 'Đã báo giá',
+    APPROVED: 'Đã xác nhận',
+    IN_PROGRESS: 'Đang xử lý',
+    DONE: 'Đã hoàn thành',
+    COMPLETED: 'Đã kết thúc',
+    REVIEWED: 'Đã báo cáo lại',
+    REFUNDED: 'Đã chấp nhận hoàn tiền',
+    CANCELLED: 'Đã hủy',
+};
+
 // ── Status transition map ──
 // Mỗi key là from_status, value là object { to_status: { roles, requiredFields } }
 const TRANSITION_MAP = {
@@ -422,6 +435,10 @@ const updateRequestStatus = async (id, updateData) => {
                 title: 'Có báo giá dịch vụ mới',
                 content: `Nhân viên đã báo giá cho yêu cầu ${request.request_number}. Vui lòng kiểm tra và xác nhận.`,
             },
+            APPROVED: {
+                title: 'Yêu cầu đã được xác nhận',
+                content: `Yêu cầu ${request.request_number} đã được xác nhận.`,
+            },
             IN_PROGRESS: {
                 title: 'Yêu cầu đang được xử lý',
                 content: `Nhân viên đã bắt đầu xử lý yêu cầu ${request.request_number}.`,
@@ -430,15 +447,27 @@ const updateRequestStatus = async (id, updateData) => {
                 title: 'Yêu cầu đã hoàn thành',
                 content: `Nhân viên đã hoàn thành yêu cầu ${request.request_number}. Vui lòng đánh giá dịch vụ.`,
             },
+            COMPLETED: {
+                title: 'Yêu cầu đã kết thúc',
+                content: `Yêu cầu ${request.request_number} đã kết thúc.`,
+            },
+            REVIEWED: {
+                title: 'Yêu cầu đã được báo cáo lại',
+                content: `Yêu cầu ${request.request_number} đã được báo cáo lại để quản lý xem xét.`,
+            },
             REFUNDED: {
                 title: 'Yêu cầu được chấp nhận hoàn tiền',
                 content: `Quản lý đã chấp nhận báo cáo cho yêu cầu ${request.request_number}. Hoàn tiền sẽ được xử lý.`,
+            },
+            CANCELLED: {
+                title: 'Yêu cầu đã bị hủy',
+                content: `Yêu cầu ${request.request_number} đã bị hủy.`,
             },
         };
 
         const notif = NOTIF_MAP[status] || {
             title: 'Cập nhật yêu cầu',
-            content: `Yêu cầu ${request.request_number} đã chuyển sang trạng thái: ${status}`,
+            content: `Yêu cầu ${request.request_number} đã chuyển sang trạng thái: ${REQUEST_STATUS_LABELS[status] || status}`,
         };
 
         await notificationService.createNotification({

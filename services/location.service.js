@@ -131,7 +131,7 @@ const toggleLocationStatus = async (id, isActive) => {
     if (!location) throw { status: 404, message: 'Không tìm thấy khu vực' }
 
     if (location.is_active === isActive) {
-        throw { status: 400, message: `Khu vực đã ở trạng thái ${isActive ? 'hoạt động' : 'ngừng hoạt động'}` }
+        throw { status: 400, message: `Khu vực đã ở trạng thái ${isActive ? 'hoạt động' : 'vô hiệu hóa'}` }
     }
 
     location.is_active = isActive

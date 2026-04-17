@@ -45,11 +45,6 @@ const createBuilding = async (req, res) => {
             manager_id
         } = req.body;
 
-        if (!location_id || !name || !address || latitude === undefined || longitude === undefined || !total_floors) {
-            console.warn('[BuildingController] createBuilding: missing required fields');
-            return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
-        }
-
         // Xử lý mảng facilities
         let parsedFacilities = [];
         if (facilities) {

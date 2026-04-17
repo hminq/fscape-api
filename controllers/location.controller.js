@@ -19,7 +19,7 @@ const getAllLocations = async (req, res) => {
             ...result
         });
     } catch (error) {
-        console.error("❌ Controller Error (getAllLocations):", error);
+        console.error("LocationController getAllLocations:", error);
         return res.status(error.status || 500).json({
             message: error.message || "Lỗi hệ thống"
         });
@@ -38,7 +38,7 @@ const getLocationById = async (req, res) => {
             data: location
         });
     } catch (error) {
-        console.error(`❌ Controller Error (getLocationById - ${req.params.id}):`, error);
+        console.error(`LocationController getLocationById (${req.params.id}):`, error);
         return res.status(error.status || 500).json({
             message: error.message || "Lỗi hệ thống"
         });
@@ -57,7 +57,7 @@ const createLocation = async (req, res) => {
             data: location
         });
     } catch (error) {
-        console.error("❌ Controller Error (createLocation):", error);
+        console.error("LocationController createLocation:", error);
         return res.status(error.status || 500).json({
             message: error.message || "Lỗi hệ thống"
         });
@@ -77,7 +77,7 @@ const updateLocation = async (req, res) => {
             data: updatedLocation
         });
     } catch (error) {
-        console.error(`❌ Controller Error (updateLocation - ${req.params.id}):`, error);
+        console.error(`LocationController updateLocation (${req.params.id}):`, error);
         return res.status(error.status || 500).json({
             message: error.message || "Lỗi hệ thống"
         });
@@ -96,7 +96,7 @@ const deleteLocation = async (req, res) => {
             ...result
         });
     } catch (error) {
-        console.error(`❌ Controller Error (deleteLocation - ${req.params.id}):`, error);
+        console.error(`LocationController deleteLocation (${req.params.id}):`, error);
         return res.status(error.status || 500).json({
             message: error.message || "Lỗi hệ thống"
         });

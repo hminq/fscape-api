@@ -9,11 +9,11 @@ exports.createUser = [
   body('first_name')
     .optional()
     .isString()
-    .isLength({ min: 1, max: 100 }).withMessage('Tên phải từ 1–100 ký tự'),
+    .isLength({ min: 1, max: 100 }).withMessage('Họ phải từ 1–100 ký tự'),
   body('last_name')
     .optional()
     .isString()
-    .isLength({ min: 1, max: 100 }).withMessage('Họ phải từ 1–100 ký tự'),
+    .isLength({ min: 1, max: 100 }).withMessage('Tên phải từ 1–100 ký tự'),
   body('phone')
     .optional()
     .isString()

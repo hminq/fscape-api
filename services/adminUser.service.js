@@ -27,8 +27,8 @@ class AdminUserService {
 
     const generatedPassword = crypto.randomBytes(4).toString('hex');
 
-    if (phone.length < 9 || phone.length > 15) {
-      throw new Error('Số điện thoại phải từ 9 đến 15 ký tự');
+    if (!/^[0-9]{8,15}$/.test(phone)) {
+      throw new Error('Số điện thoại phải gồm 8–15 chữ số');
     }
 
     // --- Email & Phone uniqueness ---

@@ -37,7 +37,7 @@ exports.create = [
     .isBoolean().withMessage('Trạng thái hoạt động không hợp lệ'),
   body('images')
     .optional()
-    .isArray({ max: 10 }).withMessage('Tối đa 10 ảnh'),
+    .isArray({ max: 5 }).withMessage('Tối đa 5 ảnh'),
   body('images.*')
     .optional()
     .isString()
@@ -88,7 +88,7 @@ exports.update = [
     .isBoolean().withMessage('Trạng thái hoạt động không hợp lệ'),
   body('images')
     .optional()
-    .isArray({ max: 10 }).withMessage('Tối đa 10 ảnh'),
+    .isArray({ max: 5 }).withMessage('Tối đa 5 ảnh'),
   body('images.*')
     .optional()
     .isString()
