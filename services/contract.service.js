@@ -115,7 +115,7 @@ const getAllContracts = async ({ page = 1, limit = 10, status, building_id, sear
         {
             model: Room,
             as: 'room',
-            attributes: ['id', 'room_number'],
+            attributes: ['id', 'room_number', 'floor'],
             ...(scopedBuildingId ? { required: true } : {}),
             include: [{
                 model: Building,
