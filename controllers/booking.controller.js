@@ -75,7 +75,7 @@ const getAllBookings = async (req, res) => {
             search: req.query.search
         };
         
-        const result = await bookingService.getAllBookings(filters);
+        const result = await bookingService.getAllBookings(filters, req.user);
 
         return res.status(200).json({
             message: 'Danh sách đơn đặt phòng',

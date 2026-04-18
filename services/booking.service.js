@@ -261,16 +261,20 @@ const getBookingById = async (id, caller) => {
 
   if (!booking) throw { status: 404, message: "Không tìm thấy đơn đặt phòng." };
 
-  // ADMIN and BUILDING_MANAGER can view any booking
   const role = caller.role || caller;
-  if (role !== 'ADMIN' && role !== 'BUILDING_MANAGER') {
+  if (role === 'BUILDING_MANAGER') {
+    const bookingBuildingId = booking.room?.building?.id || booking.room?.building_id;
+    if (!bookingBuildingId || bookingBuildingId !== caller.building_id) {
+      throw { status: 403, message: "Bạn không có quyền truy cập đơn này." };
+    }
+  } else if (role !== 'ADMIN') {
     if (booking.customer_id !== caller.id)
       throw { status: 403, message: "Bạn không có quyền truy cập đơn này." };
   }
 
   return booking;
 };
-const getAllBookings = async (filters = {}) => {
+const getAllBookings = async (filters = {}, caller = {}) => {
     const { Booking, Room, Building, RoomType, User, CustomerProfile } = sequelize.models;
     
     // Pagination
@@ -296,6 +300,12 @@ const getAllBookings = async (filters = {}) => {
     }
     
     // Build includes with nested where for related models
+    const buildingWhere = caller.role === 'BUILDING_MANAGER'
+        ? { id: caller.building_id }
+        : filters.building_id
+            ? { id: filters.building_id }
+            : (filters.building_name ? { name: { [Op.iLike]: `%${filters.building_name}%` } } : undefined);
+
     const include = [
         {
             model: Room,
@@ -307,9 +317,7 @@ const getAllBookings = async (filters = {}) => {
                     model: Building,
                     as: 'building',
                     attributes: ['id', 'name', 'address'],
-                    where: filters.building_id 
-                        ? { id: filters.building_id } 
-                        : (filters.building_name ? { name: { [Op.iLike]: `%${filters.building_name}%` } } : undefined),
+                    where: buildingWhere,
                 },
                 {
                     model: RoomType,
