@@ -11,6 +11,7 @@ const RoomType = require('../models/roomType.model');
 const User = require('../models/user.model');
 const Contract = require('../models/contract.model');
 const Booking = require('../models/booking.model');
+const { ROLES } = require('../constants/roles');
 
 const ACTIVE_CONTRACT_STATUSES = [
     'DRAFT', 'PENDING_CUSTOMER_SIGNATURE', 'PENDING_MANAGER_SIGNATURE',
@@ -332,7 +333,7 @@ const getStaffsByBuilding = async (buildingId) => {
   return await User.findAll({
     where: {
       building_id: buildingId,
-      role: "STAFF",
+      role: ROLES.STAFF,
       is_active: true
     },
     attributes: [
@@ -344,7 +345,7 @@ const getStaffsByBuilding = async (buildingId) => {
       "avatar_url",
       "is_active"
     ],
-    order: [["created_at", "DESC"]]
+    order: [["createdAt", "DESC"]]
   });
 };
 

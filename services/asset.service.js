@@ -479,8 +479,15 @@ const deleteAsset = async (id) => {
 };
 
 // ─── GET /api/assets/stats ──────────────────────────────────
-const getAssetStats = async () => {
+const getAssetStats = async (user = {}) => {
+    const where = {};
+
+    if (user.role === ROLES.BUILDING_MANAGER || user.role === ROLES.STAFF) {
+        where.building_id = user.building_id;
+    }
+
     const assets = await Asset.findAll({
+        where,
         attributes: ['status', 'building_id'],
         include: [{ model: Building, as: 'building', attributes: ['id', 'name'] }],
         raw: true,

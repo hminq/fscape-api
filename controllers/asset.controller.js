@@ -67,7 +67,7 @@ const deleteAsset = async (req, res) => {
 
 const getAssetStats = async (req, res) => {
     try {
-        const stats = await assetService.getAssetStats();
+        const stats = await assetService.getAssetStats(req.user);
         return res.status(200).json({ data: stats });
     } catch (err) { return handleError(res, err); }
 };
