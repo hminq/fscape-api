@@ -915,13 +915,24 @@ const managerSign = async (contractId, signatureUrl, user, req) => {
     }
 };
 
-const getContractStats = async () => {
+const getContractStats = async (user) => {
+    const include = [{
+        model: Room, as: 'room', attributes: ['id'],
+        include: [{ model: Building, as: 'building', attributes: ['id', 'name'] }]
+    }];
+
+    if (user?.role === ROLES.BUILDING_MANAGER) {
+        if (!user.building_id) {
+            throw { status: 403, message: 'Building Manager chưa được gán tòa nhà.' };
+        }
+        include[0].include[0].where = { id: user.building_id };
+        include[0].include[0].required = true;
+        include[0].required = true;
+    }
+
     const contracts = await Contract.findAll({
         attributes: ['status', 'room_id'],
-        include: [{
-            model: Room, as: 'room', attributes: ['id'],
-            include: [{ model: Building, as: 'building', attributes: ['id', 'name'] }]
-        }],
+        include,
         raw: true, nest: true,
     });
 

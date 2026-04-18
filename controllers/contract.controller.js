@@ -101,7 +101,7 @@ const renewContract = async (req, res) => {
 // [GET] /api/contracts/stats
 const getContractStats = async (req, res) => {
     try {
-        const stats = await contractService.getContractStats();
+        const stats = await contractService.getContractStats(req.user);
         return res.status(200).json({ data: stats });
     } catch (err) { return handleError(res, err); }
 };
