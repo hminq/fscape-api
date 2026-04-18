@@ -24,6 +24,8 @@ const REQUEST_STATUS_LABELS = {
     CANCELLED: 'Đã hủy',
 };
 
+const ACCESS_DENIED_MESSAGE = 'Bạn không có quyền thực hiện hành động này';
+
 // ── Status transition map ──
 // Mỗi key là from_status, value là object { to_status: { roles, requiredFields } }
 const TRANSITION_MAP = {
@@ -101,6 +103,48 @@ const validateTransition = (fromStatus, toStatus, callerRole, body) => {
         }
     }
 };
+
+const getRequestAccessPayload = async (id) => {
+    return Request.findByPk(id, {
+        include: [
+            {
+                model: Room,
+                as: 'room',
+                attributes: ['id', 'room_number', 'floor', 'building_id'],
+            },
+        ],
+    });
+};
+
+const assertRequestAccess = (request, actor) => {
+    if (!request) {
+        throw { status: 404, message: 'Không tìm thấy yêu cầu' };
+    }
+
+    if (actor.role === ROLES.ADMIN) {
+        return;
+    }
+
+    if (actor.role === ROLES.BUILDING_MANAGER) {
+        if (!actor.building_id || request.room?.building_id !== actor.building_id) {
+            throw { status: 403, message: ACCESS_DENIED_MESSAGE };
+        }
+        return;
+    }
+
+    if (actor.role === ROLES.STAFF) {
+        if (request.assigned_staff_id !== actor.id) {
+            throw { status: 403, message: ACCESS_DENIED_MESSAGE };
+        }
+        return;
+    }
+
+    if (actor.role === ROLES.RESIDENT) {
+        if (request.resident_id !== actor.id) {
+            throw { status: 403, message: ACCESS_DENIED_MESSAGE };
+        }
+    }
+};
 // Helper sinh mã Request tự động (VD: REQ-20260302-001)
 const generateRequestNumber = async () => {
     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -138,6 +182,18 @@ const getAllRequests = async (caller, { page = 1, limit = 10, status, request_ty
         where[Op.or] = [
             { title: { [Op.iLike]: `%${search}%` } },
             { request_number: { [Op.iLike]: `%${search}%` } },
+            sequelize.where(sequelize.col('room.room_number'), { [Op.iLike]: `%${search}%` }),
+            sequelize.where(sequelize.col('resident.first_name'), { [Op.iLike]: `%${search}%` }),
+            sequelize.where(sequelize.col('resident.last_name'), { [Op.iLike]: `%${search}%` }),
+            sequelize.where(
+                sequelize.fn(
+                    'concat',
+                    sequelize.col('resident.last_name'),
+                    ' ',
+                    sequelize.col('resident.first_name')
+                ),
+                { [Op.iLike]: `%${search}%` }
+            ),
         ];
     }
 
@@ -276,7 +332,7 @@ const createRequest = async (data) => {
             from_status: null,
             to_status: 'PENDING',
             changed_by: requestData.resident_id,
-            reason: 'User created request'
+            reason: 'Cư dân đã tạo yêu cầu'
         }, { transaction });
 
         await createNotification({
@@ -318,12 +374,32 @@ const createRequest = async (data) => {
     }
 };
 
-const assignRequest = async (id, staff_id, manager_id) => {
-    const request = await Request.findByPk(id);
-    if (!request) throw { status: 404, message: 'Không tìm thấy yêu cầu' };
+const assignRequest = async (id, staff_id, actor) => {
+    const request = await getRequestAccessPayload(id);
+    assertRequestAccess(request, actor);
 
     if (request.status !== 'PENDING') {
         throw { status: 400, message: `Không thể phân công: trạng thái yêu cầu là ${request.status}, yêu cầu PENDING` };
+    }
+
+    const staff = await User.findByPk(staff_id, {
+        attributes: ['id', 'role', 'building_id', 'is_active'],
+    });
+
+    if (!staff) {
+        throw { status: 404, message: 'Không tìm thấy nhân viên được phân công' };
+    }
+
+    if (staff.role !== ROLES.STAFF) {
+        throw { status: 400, message: 'Người dùng được chọn không phải nhân viên xử lý' };
+    }
+
+    if (!staff.is_active) {
+        throw { status: 400, message: 'Nhân viên được chọn đã bị vô hiệu hóa' };
+    }
+
+    if (!request.room?.building_id || staff.building_id !== request.room.building_id) {
+        throw { status: 400, message: 'Nhân viên được chọn không thuộc cùng tòa nhà với yêu cầu' };
     }
 
     const transaction = await sequelize.transaction();
@@ -337,8 +413,8 @@ const assignRequest = async (id, staff_id, manager_id) => {
             request_id: request.id,
             from_status: 'PENDING',
             to_status: 'ASSIGNED',
-            changed_by: manager_id,
-            reason: 'Manager assigned task to staff'
+            changed_by: actor.id,
+            reason: 'Quản lý đã phân công yêu cầu cho nhân viên xử lý'
         }, { transaction });
 
         await transaction.commit();
@@ -352,7 +428,7 @@ const assignRequest = async (id, staff_id, manager_id) => {
             target_id: staff_id,
             reference_type: 'REQUEST',
             reference_id: request.id,
-            created_by: manager_id,
+            created_by: actor.id,
             specific_user_ids: [staff_id]
         });
 
@@ -363,15 +439,15 @@ const assignRequest = async (id, staff_id, manager_id) => {
     }
 };
 
-const updateRequestStatus = async (id, updateData) => {
+const updateRequestStatus = async (id, updateData, actor) => {
     const {
         status, changed_by, caller_role, reason,
         completionImages, service_price, completion_note,
         feedback_rating, feedback_comment, report_reason
     } = updateData;
 
-    const request = await Request.findByPk(id);
-    if (!request) throw { status: 404, message: 'Không tìm thấy yêu cầu' };
+    const request = await getRequestAccessPayload(id);
+    assertRequestAccess(request, actor);
 
     const oldStatus = request.status;
 
@@ -406,6 +482,12 @@ const updateRequestStatus = async (id, updateData) => {
             requestUpdatePayload.reported_at = new Date();
         }
 
+        if (status === 'REFUNDED') {
+            requestUpdatePayload.refund_approved = true;
+            requestUpdatePayload.refund_approved_by = changed_by;
+            requestUpdatePayload.refund_approved_at = new Date();
+        }
+
         await request.update(requestUpdatePayload, { transaction });
 
         // Ảnh hoàn thành (khi DONE)
@@ -424,7 +506,7 @@ const updateRequestStatus = async (id, updateData) => {
             from_status: oldStatus,
             to_status: status,
             changed_by,
-            reason: reason || `Status updated to ${status}`
+            reason: reason || `Cập nhật trạng thái thành ${REQUEST_STATUS_LABELS[status] || status}`
         }, { transaction });
 
         await transaction.commit();

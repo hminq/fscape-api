@@ -71,7 +71,7 @@ const assignRequest = async (req, res) => {
             return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
         }
 
-        const request = await requestService.assignRequest(req.params.id, assigned_staff_id, req.user.id);
+        const request = await requestService.assignRequest(req.params.id, assigned_staff_id, req.user);
 
         return res.status(200).json({
             message: 'Phân công yêu cầu thành công',
@@ -97,10 +97,10 @@ const updateRequestStatus = async (req, res) => {
 
         updateData.completionImages = updateData.completion_images || [];
 
-        const request = await requestService.updateRequestStatus(id, updateData);
+        const request = await requestService.updateRequestStatus(id, updateData, req.user);
 
         return res.status(200).json({
-            message: `Đã cập nhật trạng thái yêu cầu thành ${updateData.status}`,
+            message: 'Cập nhật trạng thái yêu cầu thành công',
             data: request
         });
     } catch (err) {
