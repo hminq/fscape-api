@@ -28,10 +28,119 @@ function ensureBuildingAccess(user, buildingId) {
     }
 }
 
+function toPlain(record) {
+    return typeof record?.toJSON === 'function' ? record.toJSON() : record;
+}
+
+function getFloorKey(asset) {
+    return asset.room?.floor == null ? 'storage' : String(asset.room.floor);
+}
+
+function buildStorageStacks(assets) {
+    const map = new Map();
+    for (const asset of assets) {
+        const typeId = asset.asset_type?.id || asset.asset_type_id || 'unknown';
+        const typeName = asset.asset_type?.name || 'Tài sản';
+        if (!map.has(typeId)) {
+            map.set(typeId, {
+                asset_type_id: typeId,
+                asset_type_name: typeName,
+                count: 0,
+                assets: [],
+            });
+        }
+        const stack = map.get(typeId);
+        stack.count += 1;
+        stack.assets.push(asset);
+    }
+    return [...map.values()].sort((a, b) => b.count - a.count || a.asset_type_name.localeCompare(b.asset_type_name));
+}
+
+function buildBuildingHierarchy(rows) {
+    const buildingMap = new Map();
+
+    for (const row of rows) {
+        const asset = toPlain(row);
+        const buildingId = asset.building_id;
+        const buildingName = asset.building?.name || 'Khác';
+        if (!buildingMap.has(buildingId)) {
+            buildingMap.set(buildingId, {
+                building_id: buildingId,
+                name: buildingName,
+                total_assets: 0,
+                storage_total: 0,
+                floors: new Map(),
+            });
+        }
+
+        const building = buildingMap.get(buildingId);
+        building.total_assets += 1;
+
+        const floorKey = getFloorKey(asset);
+        if (!building.floors.has(floorKey)) {
+            building.floors.set(floorKey, {
+                floor_key: floorKey,
+                floor: floorKey === 'storage' ? null : Number(floorKey),
+                total_assets: 0,
+                rooms: new Map(),
+                storage: [],
+            });
+        }
+
+        const floor = building.floors.get(floorKey);
+        floor.total_assets += 1;
+
+        if (floorKey === 'storage') {
+            floor.storage.push(asset);
+            building.storage_total += 1;
+            continue;
+        }
+
+        const roomId = asset.room?.id || 'unknown-room';
+        if (!floor.rooms.has(roomId)) {
+            floor.rooms.set(roomId, {
+                room_id: roomId,
+                room_number: asset.room?.room_number || '—',
+                assets: [],
+            });
+        }
+        floor.rooms.get(roomId).assets.push(asset);
+    }
+
+    return [...buildingMap.values()]
+        .map((building) => {
+            const floors = [...building.floors.values()]
+                .sort((a, b) => {
+                    if (a.floor_key === 'storage') return -1;
+                    if (b.floor_key === 'storage') return 1;
+                    return Number(a.floor) - Number(b.floor);
+                })
+                .map((floor) => ({
+                    floor_key: floor.floor_key,
+                    floor: floor.floor,
+                    total_assets: floor.total_assets,
+                    storage_stacks: floor.floor_key === 'storage' ? buildStorageStacks(floor.storage) : [],
+                    rooms: [...floor.rooms.values()].map((room) => ({
+                        room_id: room.room_id,
+                        room_number: room.room_number,
+                        assets: room.assets,
+                    })),
+                }));
+
+            return {
+                building_id: building.building_id,
+                name: building.name,
+                total_assets: building.total_assets,
+                storage_total: building.storage_total,
+                floors,
+            };
+        })
+        .sort((a, b) => b.total_assets - a.total_assets || a.name.localeCompare(b.name));
+}
+
 // ─── GET /api/assets ──────────────────────────────────────────
 const getAllAssets = async (query = {}, user = {}) => {
-    const { page = 1, limit = 10, building_id, current_room_id, status, search } = query;
-    const offset = (page - 1) * limit;
+    const { page = 1, limit = 10, building_id, current_room_id, status, search, grouped } = query;
     const where = {};
 
     // Building-scoped for BM and STAFF
@@ -50,14 +159,46 @@ const getAllAssets = async (query = {}, user = {}) => {
         ];
     }
 
+    const include = [
+        { model: Building, as: 'building', attributes: ['id', 'name'] },
+        { model: Room, as: 'room', attributes: ['id', 'room_number', 'floor', 'building_id'] },
+        { model: require('../models/assetType.model'), as: 'asset_type', attributes: ['id', 'name'] }
+    ];
+
+    if (grouped === 'true' || grouped === true) {
+        const rows = await Asset.findAll({
+            where,
+            include,
+            order: [
+                [{ model: Building, as: 'building' }, 'name', 'ASC'],
+                [{ model: Room, as: 'room' }, 'floor', 'ASC'],
+                ['createdAt', 'DESC']
+            ]
+        });
+
+        const data = buildBuildingHierarchy(rows);
+        const total = data.length;
+        const offset = (page - 1) * limit;
+        const paged = data.slice(offset, offset + Number(limit));
+
+        return {
+            total,
+            page: Number(page),
+            limit: Number(limit),
+            current_page: Number(page),
+            per_page: Number(limit),
+            totalPages: Math.ceil(total / limit),
+            total_pages: Math.ceil(total / limit),
+            data: paged
+        };
+    }
+
     const { count, rows } = await Asset.findAndCountAll({
         where,
-        include: [
-            { model: Building, as: 'building', attributes: ['id', 'name'] },
-            { model: Room, as: 'room', attributes: ['id', 'room_number'] }
-        ],
+        include,
+        distinct: true,
         limit: Number(limit),
-        offset: Number(offset),
+        offset: (page - 1) * limit,
         order: [['createdAt', 'DESC']]
     });
 
@@ -70,7 +211,10 @@ const getAllAssets = async (query = {}, user = {}) => {
         total: count,
         page: Number(page),
         limit: Number(limit),
+        current_page: Number(page),
+        per_page: Number(limit),
         totalPages: Math.ceil(count / limit),
+        total_pages: Math.ceil(count / limit),
         data
     };
 };

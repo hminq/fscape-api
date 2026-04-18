@@ -25,7 +25,7 @@ class AuthService {
   }
 
   // STEP 2: verify OTP + create user
-  static async verifySignup(email, password, otp) {
+  static async verifySignup(email, password, otp, firstName, lastName) {
     await verifyOtp(email, otp, "EMAIL_VERIFICATION");
 
     let user = await User.findOne({ where: { email } });
@@ -33,7 +33,17 @@ class AuthService {
       user = await User.create({
         email,
         role: "CUSTOMER",
+        first_name: firstName?.trim() || null,
+        last_name: lastName?.trim() || null,
       });
+    } else {
+      const normalizedFirstName = firstName?.trim();
+      const normalizedLastName = lastName?.trim();
+      if (!user.first_name && normalizedFirstName) user.first_name = normalizedFirstName;
+      if (!user.last_name && normalizedLastName) user.last_name = normalizedLastName;
+      if (!user.first_name || !user.last_name) {
+        await user.save();
+      }
     }
 
     const emailAuth = await AuthProvider.findOne({
