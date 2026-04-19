@@ -402,11 +402,15 @@ const assignRequest = async (id, staff_id, actor) => {
         throw { status: 400, message: 'Nhân viên được chọn không thuộc cùng tòa nhà với yêu cầu' };
     }
 
+    const isCheckout = request.request_type === 'CHECKOUT';
+    const finalStatus = isCheckout ? 'IN_PROGRESS' : 'ASSIGNED';
+
     const transaction = await sequelize.transaction();
     try {
         await request.update({
             assigned_staff_id: staff_id,
-            status: 'ASSIGNED'
+            status: finalStatus,
+            ...(isCheckout && { request_price: 0 })
         }, { transaction });
 
         await RequestStatusHistory.create({
@@ -416,6 +420,18 @@ const assignRequest = async (id, staff_id, actor) => {
             changed_by: actor.id,
             reason: 'Quản lý đã phân công yêu cầu cho nhân viên xử lý'
         }, { transaction });
+
+        if (isCheckout) {
+            for (const [from, to] of [['ASSIGNED', 'PRICE_PROPOSED'], ['PRICE_PROPOSED', 'APPROVED'], ['APPROVED', 'IN_PROGRESS']]) {
+                await RequestStatusHistory.create({
+                    request_id: request.id,
+                    from_status: from,
+                    to_status: to,
+                    changed_by: actor.id,
+                    reason: 'Tự động bỏ qua - yêu cầu checkout không có phí dịch vụ'
+                }, { transaction });
+            }
+        }
 
         await transaction.commit();
 
