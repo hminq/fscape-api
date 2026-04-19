@@ -1,25 +1,39 @@
 const puppeteer = require('puppeteer');
+const path = require('path');
+const { pathToFileURL } = require('url');
 const { uploadBuffer } = require('../services/upload.service');
 
 const PDF_PAGE_FORMAT = 'A4';
 const PDF_MARGIN = { top: '20mm', right: '15mm', bottom: '20mm', left: '15mm' };
+const TIMES_FONT_FILE_URL = pathToFileURL(
+  path.resolve(__dirname, '../assets/fonts/times.ttf'),
+).href;
 
 /**
  * Wrap rendered contract HTML in a full HTML document with proper styling.
  */
 const buildFullHtml = (renderedContent) => `
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
   <style>
+    @font-face {
+      font-family: 'TimesLocal';
+      src: url('${TIMES_FONT_FILE_URL}') format('truetype');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
     body {
-      font-family: 'Times New Roman', serif;
+      font-family: 'TimesLocal', 'Times New Roman', Times, 'Liberation Serif', 'DejaVu Serif', serif;
       font-size: 14px;
       line-height: 1.6;
       color: #000;
       margin: 0;
       padding: 0;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
     }
     img { max-width: 100%; }
     h1, h2, h3, h4 { margin-top: 16px; margin-bottom: 8px; }
@@ -52,6 +66,12 @@ async function generateContractPdf(renderedContent, contractNumber) {
     const page = await browser.newPage();
     await page.setContent(buildFullHtml(renderedContent), {
       waitUntil: 'networkidle0',
+    });
+    await page.emulateMediaType('screen');
+    await page.evaluate(async () => {
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
     });
 
     const pdfBuffer = await page.pdf({
