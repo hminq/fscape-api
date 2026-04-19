@@ -679,6 +679,13 @@ const residentConfirmCheckIn = async (assetsInput, notes, user) => {
         }));
         const items = await AssetInspectionItem.bulkCreate(itemRows, { transaction });
 
+        // Validate building matching before assignment
+        for (const asset of assetsToAssign) {
+            if (asset.building_id !== room.building_id) {
+                throw { status: 400, message: `Tài sản ${asset.name} (${asset.qr_code}) không thuộc tòa nhà này.` };
+            }
+        }
+
         // Assign assets to room
         if (assetsToAssign.length > 0) {
             const assetIds = assetsToAssign.map(a => a.id);

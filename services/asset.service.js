@@ -360,11 +360,14 @@ const updateAsset = async (id, data, performerId = null) => {
         const oldStatus = asset.status;
         const oldRoom = asset.current_room_id;
 
-        // If changing room, validate it belongs to same building
-        if (data.current_room_id && data.current_room_id !== oldRoom) {
-            const room = await Room.findByPk(data.current_room_id);
+        // Validate consistency between new building_id and new room_id
+        const targetRoomId = data.current_room_id !== undefined ? data.current_room_id : oldRoom;
+        const targetBuildingId = data.building_id !== undefined ? data.building_id : asset.building_id;
+
+        if (targetRoomId) {
+            const room = await Room.findByPk(targetRoomId);
             if (!room) throw { status: 404, message: 'Không tìm thấy phòng' };
-            if (room.building_id !== asset.building_id) {
+            if (room.building_id !== targetBuildingId) {
                 throw { status: 400, message: 'Phòng không thuộc tòa nhà của tài sản' };
             }
         }
