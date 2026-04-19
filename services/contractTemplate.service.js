@@ -1,7 +1,7 @@
 const { Op } = require('sequelize');
 const ContractTemplate = require('../models/contractTemplate.model');
 
-// ─── GET /api/contract-templates ─────────────────────────────
+// GET /api/contract-templates
 const getAllTemplates = async (query = {}) => {
     const { page = 1, limit = 10, search, is_active } = query;
     const offset = (page - 1) * limit;
@@ -30,14 +30,14 @@ const getAllTemplates = async (query = {}) => {
     };
 };
 
-// ─── GET /api/contract-templates/:id ─────────────────────────
+// GET /api/contract-templates/:id
 const getTemplateById = async (id) => {
     const template = await ContractTemplate.findByPk(id);
     if (!template) throw { status: 404, message: 'Không tìm thấy mẫu hợp đồng' };
     return template;
 };
 
-// ─── POST /api/contract-templates ────────────────────────────
+// POST /api/contract-templates
 const createTemplate = async (data, userId) => {
     if (!data.name) throw { status: 400, message: 'Tên mẫu hợp đồng là bắt buộc' };
     if (!data.content) throw { status: 400, message: 'Nội dung mẫu (HTML) là bắt buộc' };
@@ -54,7 +54,7 @@ const createTemplate = async (data, userId) => {
     });
 };
 
-// ─── PUT /api/contract-templates/:id ─────────────────────────
+// PUT /api/contract-templates/:id
 const updateTemplate = async (id, data) => {
     const template = await ContractTemplate.findByPk(id);
     if (!template) throw { status: 404, message: 'Không tìm thấy mẫu hợp đồng' };
@@ -70,7 +70,7 @@ const updateTemplate = async (id, data) => {
     return template;
 };
 
-// ─── DELETE /api/contract-templates/:id (soft delete) ────────
+// DELETE /api/contract-templates/:id (soft delete)
 const deleteTemplate = async (id) => {
     const template = await ContractTemplate.findByPk(id);
     if (!template) throw { status: 404, message: 'Không tìm thấy mẫu hợp đồng' };

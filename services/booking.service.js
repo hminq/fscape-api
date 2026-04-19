@@ -32,7 +32,7 @@ const createBooking = async (userId, bookingData) => {
     };
   }
 
-  // Validate check-in date: phải trong khoảng [today + MIN, today + MAX]
+  // Validate check-in date within [today + MIN, today + MAX].
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const minCheckIn = new Date(today);
@@ -43,7 +43,7 @@ const createBooking = async (userId, bookingData) => {
   if (checkIn < minCheckIn || checkIn > maxCheckIn) {
     throw {
       status: 400,
-      message: `Ngày nhận phòng phải trong khoảng ${MIN_CHECKIN_DAYS}–${MAX_CHECKIN_DAYS} ngày kể từ hôm nay.`,
+      message: `Ngày nhận phòng phải trong khoảng ${MIN_CHECKIN_DAYS}-${MAX_CHECKIN_DAYS} ngày kể từ hôm nay.`,
     };
   }
 
@@ -61,7 +61,7 @@ const createBooking = async (userId, bookingData) => {
   let booking;
 
   try {
-    // 1. Lock phòng trước
+    // 1) Lock room row first.
     const room = await Room.findByPk(room_id, {
       include: [{ model: RoomType, as: "room_type", required: true }],
       transaction,
@@ -76,14 +76,14 @@ const createBooking = async (userId, bookingData) => {
       throw { status: 400, message: "Phòng này hiện không còn trống." };
     }
 
-    // 2. Lấy room type riêng (không cần lock)
+    // 2) Fetch room type (no lock needed).
     const roomType = await RoomType.findByPk(room.room_type_id, {
       transaction,
     });
     const basePrice = Number(roomType?.base_price || 0);
     const depositAmount = basePrice * DEPOSIT_MONTHS;
 
-    // 3. Lưu thông tin hồ sơ khách hàng (CustomerProfile)
+    // 3) Upsert customer profile details.
     const [profile, created] = await CustomerProfile.findOrCreate({
       where: { user_id: userId },
       defaults: {
@@ -113,7 +113,7 @@ const createBooking = async (userId, bookingData) => {
       );
     }
 
-    // 4. Tạo Booking (PENDING — chờ thanh toán)
+    // 4) Create booking in PENDING status.
     booking = await Booking.create(
       {
         booking_number: generateNumberedId("BK"),
@@ -130,7 +130,7 @@ const createBooking = async (userId, bookingData) => {
       { transaction },
     );
 
-    // 5. Giữ chỗ phòng
+    // 5) Reserve room by setting LOCKED status.
     await room.update({ status: "LOCKED" }, { transaction });
 
     await transaction.commit();

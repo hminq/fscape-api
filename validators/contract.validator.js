@@ -7,7 +7,7 @@ exports.update = [
     .isFloat({ gt: 0, max: 500000000 }).withMessage('Tiền thuê phải từ >0 đến 500,000,000'),
   body('deposit_amount')
     .optional()
-    .isFloat({ min: 0, max: 500000000 }).withMessage('Tiền cọc phải từ 0–500,000,000'),
+    .isFloat({ min: 0, max: 500000000 }).withMessage('Tiền cọc phải từ 0-500,000,000'),
   body('start_date')
     .optional()
     .isDate().withMessage('Ngày bắt đầu không hợp lệ (YYYY-MM-DD)'),

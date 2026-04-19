@@ -110,7 +110,7 @@ const run = async () => {
 
                 await transaction.commit();
                 processed++;
-                console.log(`[FirstRentExpiryJob] Terminated contract ${contract.contract_number} — first rent unpaid`);
+                console.log(`[FirstRentExpiryJob] Terminated contract ${contract.contract_number} - first rent unpaid`);
 
                 // Send cancellation notification email
                 try {

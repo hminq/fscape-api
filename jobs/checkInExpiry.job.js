@@ -1,7 +1,7 @@
 const { Op } = require('sequelize');
 const { sequelize } = require('../config/db');
 const auditService = require('../services/audit.service');
-const { CHECK_IN_EXPIRY_DAYS } = require('../constants/contract');
+const { CHECK_IN_EXPIRY_DAYS } = require('../constants/jobTimeRules');
 
 const run = async () => {
     const { Contract, Booking, Room, User, Building, ScheduledJob } = sequelize.models;
@@ -105,7 +105,7 @@ const run = async () => {
 
                 await transaction.commit();
                 processed++;
-                console.log(`[CheckInExpiryJob] Terminated contract ${contract.contract_number} — check-in deadline expired`);
+                console.log(`[CheckInExpiryJob] Terminated contract ${contract.contract_number} - check-in deadline expired`);
 
             } catch (err) {
                 await transaction.rollback();

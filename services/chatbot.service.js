@@ -12,7 +12,7 @@ NGUYÊN TẮC:
 5. Không bịa đặt thông tin. Nếu không có dữ liệu, hãy nói "Hiện tại tôi không có thông tin về vấn đề này."`;
 
 /**
- * Tạo embedding cho câu hỏi của user
+ * Create embedding for the user query.
  */
 async function embedQuery(text) {
   const result = await embeddingModel.embedContent(text);
@@ -20,7 +20,7 @@ async function embedQuery(text) {
 }
 
 /**
- * Tìm kiếm semantic trong Pinecone và trả về context chunks
+ * Perform semantic retrieval in Pinecone and return context chunks.
  */
 async function retrieveContext(query, topK = 6) {
   const index = getPineconeIndex();
@@ -36,14 +36,14 @@ async function retrieveContext(query, topK = 6) {
     return [];
   }
 
-  // Lọc những kết quả có score >= 0.6 (độ tương đồng đủ cao)
+  // Keep matches with similarity score >= 0.6.
   return searchResult.matches
     .filter(m => m.score >= 0.6)
     .map(m => m.metadata?.content || '');
 }
 
 /**
- * Build prompt với context từ VectorDB
+ * Build prompt with retrieved VectorDB context.
  */
 function buildPromptWithContext(contextChunks) {
   if (contextChunks.length === 0) {
@@ -58,10 +58,10 @@ function buildPromptWithContext(contextChunks) {
 }
 
 /**
- * Hàm chat chính — RAG pipeline
- * @param {string} message - Tin nhắn mới của user
- * @param {Array} history - Lịch sử chat Gemini format [{role, parts:[{text}]}]
- * @returns {string} - Phản hồi của AI
+ * Main chat function for the RAG pipeline.
+ * @param {string} message - Current user message.
+ * @param {Array} history - Gemini chat history [{ role, parts: [{ text }] }].
+ * @returns {string} Model response text.
  */
 async function chat(message, history = []) {
   // 1. Retrieve relevant context from VectorDB
@@ -80,7 +80,7 @@ async function chat(message, history = []) {
     parts: [{ text: 'Tôi đã hiểu. Tôi sẽ chỉ trả lời dựa trên thông tin hệ thống được cung cấp.' }]
   };
 
-  // Ghép: system context → history cũ → tin nhắn hiện tại
+  // Merge system context, previous history, and current message.
   const fullHistory = [systemTurn, systemAck, ...history];
 
   const chatSession = chatModel.startChat({

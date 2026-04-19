@@ -1,7 +1,7 @@
 const locationService = require('../services/location.service');
 
 /**
- * Lấy danh sách khu vực (Kèm phân trang và lọc)
+ * Get paginated locations with filters.
  */
 const getAllLocations = async (req, res) => {
     try {
@@ -27,7 +27,7 @@ const getAllLocations = async (req, res) => {
 };
 
 /**
- * Lấy chi tiết một khu vực
+ * Get location details by ID.
  */
 const getLocationById = async (req, res) => {
     try {
@@ -46,7 +46,7 @@ const getLocationById = async (req, res) => {
 };
 
 /**
- * Tạo mới khu vực
+ * Create a location.
  */
 const createLocation = async (req, res) => {
     try {
@@ -65,7 +65,7 @@ const createLocation = async (req, res) => {
 };
 
 /**
- * Cập nhật khu vực
+ * Update a location.
  */
 const updateLocation = async (req, res) => {
     try {
@@ -85,7 +85,7 @@ const updateLocation = async (req, res) => {
 };
 
 /**
- * Xóa khu vực
+ * Delete a location.
  */
 const deleteLocation = async (req, res) => {
     try {

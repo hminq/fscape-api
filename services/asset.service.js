@@ -11,7 +11,7 @@ const { ROLES } = require('../constants/roles');
 
 const TIMESTAMP_FIELDS = ['created_at', 'updated_at', 'createdAt', 'updatedAt'];
 
-// ─── Helpers ──────────────────────────────────────────────────
+// Helpers.
 
 function stripTimestamps(obj) {
     const data = typeof obj.toJSON === 'function' ? obj.toJSON() : { ...obj };
@@ -100,7 +100,7 @@ function buildBuildingHierarchy(rows) {
         if (!floor.rooms.has(roomId)) {
             floor.rooms.set(roomId, {
                 room_id: roomId,
-                room_number: asset.room?.room_number || '—',
+                room_number: asset.room?.room_number || '-',
                 assets: [],
             });
         }
@@ -138,7 +138,7 @@ function buildBuildingHierarchy(rows) {
         .sort((a, b) => b.total_assets - a.total_assets || a.name.localeCompare(b.name));
 }
 
-// ─── GET /api/assets ──────────────────────────────────────────
+// GET /api/assets
 const getAllAssets = async (query = {}, user = {}) => {
     const { page = 1, limit = 10, building_id, current_room_id, status, search, grouped } = query;
     const where = {};
@@ -219,7 +219,7 @@ const getAllAssets = async (query = {}, user = {}) => {
     };
 };
 
-// ─── GET /api/assets/:id ──────────────────────────────────────
+// GET /api/assets/:id
 const getAssetById = async (id, user = {}) => {
     const asset = await Asset.findByPk(id, {
         include: [
@@ -243,7 +243,7 @@ const getAssetById = async (id, user = {}) => {
     return asset;
 };
 
-// ─── POST /api/assets (Admin only) ───────────────────────────
+// POST /api/assets (ADMIN only)
 const createAsset = async (data) => {
     const transaction = await sequelize.transaction();
     try {
@@ -291,7 +291,7 @@ const createAsset = async (data) => {
     }
 };
 
-// ─── POST /api/assets/batch (Admin only) ─────────────────────
+// POST /api/assets/batch (ADMIN only)
 const createBatchAssets = async (data) => {
     const { name, building_id, asset_type_id, quantity = 1, price } = data;
 
@@ -347,7 +347,7 @@ const createBatchAssets = async (data) => {
     }
 };
 
-// ─── PUT /api/assets/:id (Admin only) ────────────────────────
+// PUT /api/assets/:id (ADMIN only)
 const updateAsset = async (id, data, user) => {
     const asset = await Asset.findByPk(id);
     if (!asset) throw { status: 404, message: 'Không tìm thấy tài sản' };
@@ -439,7 +439,7 @@ const updateAsset = async (id, data, user) => {
     }
 };
 
-// ─── PATCH /api/assets/:id/assign (Staff, BM, Admin) ─────────
+// PATCH /api/assets/:id/assign (STAFF, BM, ADMIN)
 const assignAsset = async (id, { room_id, notes }, user) => {
     const asset = await Asset.findByPk(id);
     if (!asset) throw { status: 404, message: 'Không tìm thấy tài sản' };
@@ -501,7 +501,7 @@ const assignAsset = async (id, { room_id, notes }, user) => {
     }
 };
 
-// ─── DELETE /api/assets/:id (Admin only) ─────────────────────
+// DELETE /api/assets/:id (ADMIN only)
 const deleteAsset = async (id) => {
     const asset = await Asset.findByPk(id);
     if (!asset) throw { status: 404, message: 'Không tìm thấy tài sản' };
@@ -525,7 +525,7 @@ const deleteAsset = async (id) => {
     return { message: `Đã xóa tài sản "${asset.name}" thành công` };
 };
 
-// ─── GET /api/assets/stats ──────────────────────────────────
+// GET /api/assets/stats
 const getAssetStats = async (user = {}) => {
     const where = {};
 

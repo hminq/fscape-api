@@ -5,7 +5,7 @@ const { generateNumberedId } = require('../utils/generateId');
 const { billingCycleToMonths } = require('../utils/billingCycle.util');
 const { createNotification } = require('./notification.service');
 
-// ── RENT invoice generation (billing_cycle: 1M/3M/6M) ──────────
+// Rent invoice generation by billing cycle.
 
 const generateRentInvoices = async () => {
     const { Contract, Invoice, InvoiceItem, Room } = sequelize.models;
@@ -97,7 +97,7 @@ const generateRentInvoices = async () => {
     return generatedCount;
 };
 
-// ── SERVICE invoice generation (monthly, every 30 days) ─────────
+// Service invoice generation (every 30 days).
 
 const generateServiceInvoices = async () => {
     const { Contract, Invoice, InvoiceItem, Request, Room } = sequelize.models;
@@ -212,7 +212,7 @@ const generateServiceInvoices = async () => {
     return generatedCount;
 };
 
-// ── Combined generator (called by cron job) ─────────────────────
+// Combined generator used by cron job.
 
 const generatePeriodicInvoices = async () => {
     const rentCount = await generateRentInvoices();
@@ -220,7 +220,7 @@ const generatePeriodicInvoices = async () => {
     return rentCount + serviceCount;
 };
 
-// ── Query helpers ───────────────────────────────────────────────
+// Query helpers.
 
 const { ROLES } = require('../constants/roles');
 

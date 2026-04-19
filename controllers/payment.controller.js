@@ -32,7 +32,7 @@ const getMyPayments = async (req, res) => {
     }
 };
 
-// ─── PayOS ──────────────────────────────────────────────────────────
+// PayOS handlers.
 
 const createBookingPaymentUrlPayOS = async (req, res) => {
     try {

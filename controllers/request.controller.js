@@ -34,7 +34,7 @@ const getRequestById = async (req, res) => {
     }
 };
 
-// Resident tạo Request
+// Resident creates a request.
 const createRequest = async (req, res) => {
     try {
         const requestData = { ...req.body };
@@ -61,7 +61,7 @@ const createRequest = async (req, res) => {
     }
 };
 
-// Manager gán việc cho Staff
+// Manager assigns request to staff.
 const assignRequest = async (req, res) => {
     try {
         const { assigned_staff_id } = req.body;

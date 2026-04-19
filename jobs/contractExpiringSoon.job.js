@@ -3,8 +3,7 @@ const { sequelize } = require('../config/db');
 const { createNotification } = require('../services/notification.service');
 const { parseLocalDate } = require('../utils/date.util');
 const { sendContractExpiringSoonEmail } = require('../utils/mail.util');
-
-const EXPIRY_THRESHOLD_DAYS = 30;
+const { CONTRACT_EXPIRING_SOON_THRESHOLD_DAYS } = require('../constants/jobTimeRules');
 
 const run = async () => {
     const { Contract, Room, User, ScheduledJob } = sequelize.models;
@@ -19,11 +18,11 @@ const run = async () => {
     try {
         const now = new Date();
         const thresholdDate = new Date();
-        thresholdDate.setDate(now.getDate() + EXPIRY_THRESHOLD_DAYS);
+        thresholdDate.setDate(now.getDate() + CONTRACT_EXPIRING_SOON_THRESHOLD_DAYS);
 
         let processed = 0;
 
-        // ── Phase 1: EXPIRING_SOON → FINISHED (end_date đã qua) ──
+        // Phase 1: EXPIRING_SOON -> FINISHED (past end_date).
         const expiredContracts = await Contract.findAll({
             where: {
                 status: 'EXPIRING_SOON',
@@ -46,7 +45,7 @@ const run = async () => {
                 await transaction.commit();
                 processed++;
 
-                // Notification (outside transaction)
+                // Send notifications outside the transaction.
                 try {
                     const recipientIds = [contract.customer_id];
                     if (contract.room?.building_id) {
@@ -80,7 +79,7 @@ const run = async () => {
             }
         }
 
-        // ── Phase 2: ACTIVE → EXPIRING_SOON (end_date ≤ 30 ngày) ──
+        // Phase 2: ACTIVE -> EXPIRING_SOON (end_date within 30 days).
         const soonContracts = await Contract.findAll({
             where: {
                 status: 'ACTIVE',
@@ -103,7 +102,7 @@ const run = async () => {
                 await transaction.commit();
                 processed++;
 
-                // Notification (outside transaction)
+                // Send notifications outside the transaction.
                 const endDate = parseLocalDate(contract.end_date).toLocaleDateString('vi-VN');
                 try {
                     const recipientIds = [contract.customer_id];

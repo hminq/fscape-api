@@ -11,7 +11,7 @@ exports.create = [
   body('title')
     .notEmpty().withMessage('Tiêu đề không được để trống')
     .isString()
-    .isLength({ min: 1, max: 255 }).withMessage('Tiêu đề phải từ 1–255 ký tự'),
+    .isLength({ min: 1, max: 255 }).withMessage('Tiêu đề phải từ 1-255 ký tự'),
   body('description')
     .optional()
     .isString()
@@ -42,14 +42,14 @@ exports.updateStatus = [
     .withMessage('Trạng thái không hợp lệ'),
   body('service_price')
     .optional()
-    .isFloat({ min: 0, max: 500000000 }).withMessage('Giá dịch vụ phải từ 0–500,000,000'),
+    .isFloat({ min: 0, max: 500000000 }).withMessage('Giá dịch vụ phải từ 0-500,000,000'),
   body('completion_note')
     .optional()
     .isString()
     .isLength({ max: 2000 }).withMessage('Ghi chú hoàn thành tối đa 2000 ký tự'),
   body('feedback_rating')
     .optional()
-    .isInt({ min: 1, max: 5 }).withMessage('Đánh giá phải từ 1–5'),
+    .isInt({ min: 1, max: 5 }).withMessage('Đánh giá phải từ 1-5'),
   body('feedback_comment')
     .optional()
     .isString()

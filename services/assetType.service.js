@@ -128,7 +128,7 @@ const deleteAssetType = async (id) => {
     return { message: `Đã xóa loại tài sản "${assetType.name}" thành công` };
 };
 
-// ─── GET /api/asset-types/stats ──────────────────────────────
+// GET /api/asset-types/stats
 const getAssetTypeStats = async () => {
     const all = await AssetType.findAll({
         attributes: ['is_active'],

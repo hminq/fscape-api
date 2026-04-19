@@ -12,13 +12,13 @@ class DashboardService {
   static REQUEST_SUMMARY_STATUSES = ['PENDING', 'ASSIGNED', 'PRICE_PROPOSED', 'APPROVED', 'IN_PROGRESS', 'DONE', 'COMPLETED'];
 
 
-  // Tổng số phòng
+  // Total room count.
   static async getTotalRooms() {
     const count = await Room.count();
     return count;
   }
 
-  // Phòng đã thuê
+  // Occupied room count.
   static async getOccupiedRooms() {
     const count = await Room.count({
       where: { status: 'OCCUPIED' }
@@ -26,7 +26,7 @@ class DashboardService {
     return count;
   }
 
-  // Doanh thu gần đây (30 ngày gần nhất)
+  // Revenue in the last 30 days.
   static async getRecentRevenue() {
     const thirtyDaysAgo = dayjs().subtract(30, 'day').toDate();
     const result = await Payment.sum('amount', {
@@ -40,7 +40,7 @@ class DashboardService {
     return result || 0;
   }
 
-  // Tổng quan các loại phòng hiện có
+  // Overview of available room types.
   static async getRoomTypesOverview() {
     const roomTypes = await sequelize.query(`
       SELECT
@@ -64,7 +64,7 @@ class DashboardService {
     return roomTypes;
   }
 
-  // Doanh thu theo tháng trong 6 tháng gần nhất + xu hướng tháng hiện tại
+  // Monthly revenue for the last 6 months with trend.
   static async getMonthlyRevenueSummary() {
     const monthCount = 6;
     const startMonth = dayjs().startOf('month').subtract(monthCount - 1, 'month');
@@ -125,7 +125,7 @@ class DashboardService {
     };
   }
 
-  // Số lượng booking theo tháng trong 6 tháng gần nhất + xu hướng tháng hiện tại
+  // Monthly bookings for the last 6 months with trend.
   static async getMonthlyBookingSummary() {
     const monthCount = 6;
     const startMonth = dayjs().startOf('month').subtract(monthCount - 1, 'month');
@@ -185,7 +185,7 @@ class DashboardService {
     };
   }
 
-  // Booking theo loại phòng để biết loại nào được chọn nhiều nhất
+  // Booking distribution by room type.
   static async getBookingRoomTypeSummary() {
     const roomTypeBookings = await sequelize.query(`
       SELECT
@@ -220,7 +220,7 @@ class DashboardService {
     };
   }
 
-  // Tổng nhân viên (active, not active)
+  // Employee totals by active status.
   static async getEmployeeStats() {
     const employees = await User.findAll({
       where: {
@@ -440,7 +440,7 @@ class DashboardService {
     });
   }
 
-  // Payload tổng hợp cho dashboard admin
+  // Aggregate payload for admin dashboard.
   static async getDashboard(user) {
     if (!user || user.role !== 'ADMIN') {
       throw { status: 403, message: 'Bạn không có quyền truy cập dashboard này' };

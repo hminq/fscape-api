@@ -71,31 +71,6 @@ const PORT = process.env.PORT || 3000;
 
 connectDB().then(async () => {
   try {
-
-    // await sequelize.sync({ alter: true }); // Dòng code cũ gây lỗi Foreign Key
-
-    // Danh sách các model theo thứ tự phụ thuộc để tránh lỗi Foreign Key
-    // const modelsToSync = [
-    //   'Location', 'Facility', 'RoomType', 'AssetType',
-    //   'University', 'User', 'Building',
-    //   'BuildingImage', 'BuildingFacility', 'Room',
-    //   'AuthProvider', 'CustomerProfile', 'RefreshToken', 'OtpCode', 'ContractTemplate',
-    //   'RoomImage', 'Asset', 'RoomTypeAsset',
-    //   'Contract', 'AssetHistory', 'AssetInspection',
-    //   'ContractExtension', 'Invoice', 'Settlement', 'SettlementItem', 'ViolationPenalty',
-    //   'Payment', 'InvoiceItem', 'Booking', 'Request', 'RequestImage', 'RequestStatusHistory',
-    //   'Notification', 'NotificationRecipient', 'AuditLog', 'ScheduledJob', 'EmailTemplate', 'EmailLog'
-    // ];
-
-    // console.log("Starting database sync...");
-    // for (const modelName of modelsToSync) {
-    //   if (sequelize.models[modelName]) {
-    //     await sequelize.models[modelName].sync({ alter: true });
-    //   }
-    // }
-
-    // console.log("Database synced");
-
     initCronJobs();
 
     app.listen(PORT, "0.0.0.0", () => {

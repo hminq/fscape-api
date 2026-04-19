@@ -4,12 +4,12 @@ exports.updateProfile = [
   body('first_name')
     .optional({ checkFalsy: true })
     .isString().withMessage('Tên phải là chuỗi')
-    .isLength({ min: 1, max: 100 }).withMessage('Tên phải từ 1–100 ký tự')
+    .isLength({ min: 1, max: 100 }).withMessage('Tên phải từ 1-100 ký tự')
     .matches(/^[\p{L}\s]+$/u).withMessage('Tên chỉ được chứa chữ cái và khoảng trắng'),
   body('last_name')
     .optional({ checkFalsy: true })
     .isString().withMessage('Họ phải là chuỗi')
-    .isLength({ min: 1, max: 100 }).withMessage('Họ phải từ 1–100 ký tự')
+    .isLength({ min: 1, max: 100 }).withMessage('Họ phải từ 1-100 ký tự')
     .matches(/^[\p{L}\s]+$/u).withMessage('Họ chỉ được chứa chữ cái và khoảng trắng'),
   body('phone')
     .optional({ checkFalsy: true })

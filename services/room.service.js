@@ -15,17 +15,17 @@ const Asset = require('../models/asset.model');
 const { ROLES } = require('../constants/roles');
 const { generateRoomNumbers } = require('../utils/roomNumber.util');
 
-// ─── Booking/Contract statuses that block delete or lock ──────
+// Booking/contract statuses that block delete or lock.
 const ACTIVE_BOOKING_STATUSES = ['PENDING', 'DEPOSIT_PAID'];
 const ACTIVE_CONTRACT_STATUSES = [
   'DRAFT', 'PENDING_CUSTOMER_SIGNATURE', 'PENDING_MANAGER_SIGNATURE',
   'ACTIVE', 'EXPIRING_SOON'
 ];
 
-// ─── Fields to strip per role on detail response ──────────────
+// Fields stripped from detail response by role.
 const TIMESTAMP_FIELDS = ['created_at', 'updated_at', 'deleted_at', 'createdAt', 'updatedAt', 'deletedAt'];
 
-// ─── GET /api/rooms ───────────────────────────────────────────
+// GET /api/rooms
 const getAllRooms = async (query = {}, user = {}) => {
   const { page = 1, limit = 10, building_id, room_type_id, status, floor, search } = query;
   const offset = (page - 1) * limit;
@@ -74,7 +74,7 @@ const getAllRooms = async (query = {}, user = {}) => {
   };
 };
 
-// ─── GET /api/rooms/:id ──────────────────────────────────────
+// GET /api/rooms/:id
 const getRoomById = async (id, user = {}) => {
   const role = user.role || 'PUBLIC';
 
@@ -114,7 +114,7 @@ const getRoomById = async (id, user = {}) => {
 
   const data = room.toJSON();
 
-  // ─── Fetch additional data based on role ──────────────────
+  // Fetch additional data based on role.
   if (role === ROLES.ADMIN || role === ROLES.BUILDING_MANAGER || role === ROLES.STAFF) {
     // 1. Find the current resident (user with an ACTIVE contract on this room)
     const activeContract = await Contract.findOne({
@@ -157,7 +157,7 @@ const getRoomById = async (id, user = {}) => {
     }
   }
 
-  // ─── Strip fields based on role ───────────────────────────
+  // Strip fields based on role.
   if (role === 'PUBLIC' || role === ROLES.RESIDENT || role === ROLES.CUSTOMER) {
     // Public/Resident: basic info only, no timestamps, no internal data
     for (const field of TIMESTAMP_FIELDS) delete data[field];
@@ -176,7 +176,7 @@ const getRoomById = async (id, user = {}) => {
     // No timestamps
     for (const field of TIMESTAMP_FIELDS) delete data[field];
   }
-  // ADMIN: no stripping — sees everything
+  // ADMIN: no stripping - sees everything
 
   if (data.images) {
     data.images = data.images.map(img => img.image_url);
@@ -185,7 +185,7 @@ const getRoomById = async (id, user = {}) => {
   return data;
 };
 
-// ─── POST /api/rooms ─────────────────────────────────────────
+// POST /api/rooms
 const createRoom = async (data) => {
   const { gallery_images, ...roomData } = data;
 
@@ -231,7 +231,7 @@ const createRoom = async (data) => {
   }
 };
 
-// ─── PUT /api/rooms/:id ──────────────────────────────────────
+// PUT /api/rooms/:id
 const updateRoom = async (id, data) => {
   const { gallery_images, ...updateData } = data;
 
@@ -288,7 +288,7 @@ const updateRoom = async (id, data) => {
   }
 };
 
-// ─── DELETE /api/rooms/:id (soft delete) ─────────────────────
+// DELETE /api/rooms/:id (soft delete)
 const deleteRoom = async (id) => {
   const room = await Room.findByPk(id);
   if (!room) throw { status: 404, message: 'Không tìm thấy phòng' };
@@ -313,7 +313,7 @@ const deleteRoom = async (id) => {
   return { message: `Đã xóa phòng ${room.room_number} thành công` };
 };
 
-// ─── PATCH /api/rooms/:id/status ─────────────────────────────
+// PATCH /api/rooms/:id/status
 const toggleRoomStatus = async (id, targetStatus, user) => {
   if (!['AVAILABLE', 'LOCKED'].includes(targetStatus)) {
     throw { status: 400, message: 'Trạng thái phải là AVAILABLE hoặc LOCKED' };
@@ -429,7 +429,7 @@ const getRoomsByBuilding = async (building_id, query = {}, user = {}) => {
   return data;
 };
 
-// ─── GET /api/rooms/my — rooms for CUSTOMER/RESIDENT ────────
+// GET /api/rooms/my for CUSTOMER/RESIDENT.
 const getMyRooms = async (userId) => {
   // Find rooms where the user has an active contract
   const contracts = await Contract.findAll({
@@ -468,7 +468,7 @@ const getMyRooms = async (userId) => {
   return contracts;
 };
 
-// ─── POST /api/rooms/batch ──────────────────────────────────
+// POST /api/rooms/batch
 const createBatchRooms = async ({
   building_id, room_type_id, floor, count,
   thumbnail_url, image_3d_url, blueprint_url, gallery_images
@@ -525,7 +525,7 @@ const createBatchRooms = async ({
   }
 };
 
-// ─── GET /api/rooms/stats ────────────────────────────────────
+// GET /api/rooms/stats
 const getRoomStats = async (user) => {
   const where = {};
   if (user && ['BUILDING_MANAGER', 'STAFF'].includes(user.role)) {

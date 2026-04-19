@@ -5,8 +5,8 @@
  * Collision handling: if "101" is taken, try "101A", "101B", … up to "101Z".
  *
  * @param {number} floor
- * @param {number} count        – how many numbers to generate
- * @param {string[]} existing   – room numbers already present in the building
+ * @param {number} count        - how many numbers to generate
+ * @param {string[]} existing   - room numbers already present in the building
  * @returns {string[]}
  */
 function generateRoomNumbers(floor, count, existing = []) {

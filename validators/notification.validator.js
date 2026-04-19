@@ -4,14 +4,14 @@ exports.send = [
   body('title')
     .notEmpty().withMessage('Tiêu đề không được để trống')
     .isString()
-    .isLength({ min: 1, max: 255 }).withMessage('Tiêu đề phải từ 1–255 ký tự'),
+    .isLength({ min: 1, max: 255 }).withMessage('Tiêu đề phải từ 1-255 ký tự'),
   body('content')
     .notEmpty().withMessage('Nội dung không được để trống')
     .isString()
     .isLength({ max: 2000 }).withMessage('Nội dung tối đa 2000 ký tự'),
   body('target')
     .notEmpty().withMessage('Đối tượng gửi không được để trống')
-    .isIn(['building', 'room']).withMessage('Đối tượng gửi phải là building hoặc room'),
+    .isIn(['building', 'room']).withMessage('Đối tượng gửi không hợp lệ. Chỉ hỗ trợ gửi toàn tòa nhà hoặc theo phòng.'),
   body('room_id')
     .optional()
     .isUUID().withMessage('Mã phòng không hợp lệ'),

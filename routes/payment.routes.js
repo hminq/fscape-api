@@ -7,7 +7,7 @@ const validator = require("../validators/payment.validator");
 
 router.get("/my", authJwt, paymentController.getMyPayments);
 
-// ─── PayOS ──────────────────────────────────────────────────────────
+// PayOS routes.
 router.post("/create-booking-payos", authJwt, validator.createBookingPayment, validate, paymentController.createBookingPaymentUrlPayOS);
 
 router.post("/create-invoice-payos", authJwt, validator.createInvoicePayment, validate, paymentController.createInvoicePaymentUrlPayOS);

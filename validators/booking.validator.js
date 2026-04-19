@@ -34,7 +34,7 @@ exports.create = [
   body('customer_info.emergency_contact_phone')
     .optional()
     .isString()
-    .matches(/^[0-9]{8,15}$/).withMessage('SĐT liên hệ khẩn cấp phải gồm 8–15 chữ số'),
+    .matches(/^[0-9]{8,15}$/).withMessage('SĐT liên hệ khẩn cấp phải gồm 8-15 chữ số'),
 ];
 
 exports.paramId = [

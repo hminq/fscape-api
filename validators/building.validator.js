@@ -4,7 +4,7 @@ exports.create = [
   body('name')
     .notEmpty().withMessage('Tên không được để trống')
     .isString()
-    .isLength({ min: 1, max: 255 }).withMessage('Tên phải từ 1–255 ký tự'),
+    .isLength({ min: 1, max: 255 }).withMessage('Tên phải từ 1-255 ký tự'),
   body('location_id')
     .notEmpty().withMessage('Vui lòng chọn khu vực')
     .isUUID().withMessage('Mã khu vực không hợp lệ'),
@@ -55,7 +55,7 @@ exports.update = [
   body('name')
     .optional()
     .isString()
-    .isLength({ min: 1, max: 255 }).withMessage('Tên phải từ 1–255 ký tự'),
+    .isLength({ min: 1, max: 255 }).withMessage('Tên phải từ 1-255 ký tự'),
   body('location_id')
     .optional()
     .isUUID().withMessage('Mã khu vực không hợp lệ'),

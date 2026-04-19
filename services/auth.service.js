@@ -6,7 +6,7 @@ const { sendOtpMail } = require("../utils/mail.util");
 const { generateAccessToken } = require("../utils/token.util");
 const { verifyGoogleIdToken } = require("../utils/google.util");
 class AuthService {
-  // STEP 1: signup -> send OTP
+  // Step 1: signup and send verification OTP.
   static async signup(email, password) {
     const user = await User.findOne({ where: { email } });
     if (user) {
@@ -24,7 +24,7 @@ class AuthService {
     return { message: "Đã gửi mã OTP đến email" };
   }
 
-  // STEP 2: verify OTP + create user
+  // Step 2: verify OTP and create user.
   static async verifySignup(email, password, otp, firstName, lastName) {
     await verifyOtp(email, otp, "EMAIL_VERIFICATION");
 
@@ -265,7 +265,7 @@ class AuthService {
         });
       }
 
-      // Cập nhật first_name, last_name, avatar_url từ Google nếu chưa có
+      // Backfill profile fields from Google when missing.
       if (!user.first_name && givenName) user.first_name = givenName;
       if (!user.last_name && familyName) user.last_name = familyName;
       if (!user.avatar_url && picture) user.avatar_url = picture;

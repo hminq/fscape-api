@@ -5,13 +5,14 @@ const {
     sendPaymentReminderEmail,
     sendPaymentUrgentReminderEmail
 } = require('../utils/mail.util');
+const { FIRST_RENT_REMINDER_DAYS_BEFORE_DUE } = require('../constants/jobTimeRules');
 
 const run = async () => {
     const { Invoice, Contract, User, Room, Building } = sequelize.models;
 
     const today = parseLocalDate(new Date().toISOString().split('T')[0]);
     const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setDate(tomorrow.getDate() + FIRST_RENT_REMINDER_DAYS_BEFORE_DUE);
     const tomorrowStr = tomorrow.toISOString().split('T')[0];
     const todayStr = today.toISOString().split('T')[0];
 

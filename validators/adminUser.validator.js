@@ -9,15 +9,15 @@ exports.createUser = [
   body('first_name')
     .optional()
     .isString()
-    .isLength({ min: 1, max: 100 }).withMessage('Họ phải từ 1–100 ký tự'),
+    .isLength({ min: 1, max: 100 }).withMessage('Họ phải từ 1-100 ký tự'),
   body('last_name')
     .optional()
     .isString()
-    .isLength({ min: 1, max: 100 }).withMessage('Tên phải từ 1–100 ký tự'),
+    .isLength({ min: 1, max: 100 }).withMessage('Tên phải từ 1-100 ký tự'),
   body('phone')
     .optional()
     .isString()
-    .matches(/^[0-9]{8,15}$/).withMessage('Số điện thoại phải gồm 8–15 chữ số'),
+    .matches(/^[0-9]{8,15}$/).withMessage('Số điện thoại phải gồm 8-15 chữ số'),
   body('building_id')
     .optional()
     .isUUID().withMessage('Mã tòa nhà không hợp lệ'),

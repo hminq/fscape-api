@@ -23,7 +23,7 @@ function validateAssetsInput(assets) {
     return null;
 }
 
-// ─── Staff CHECK_OUT ─────────────────────────────────────────
+// Staff CHECK_OUT endpoints.
 
 const previewInspection = async (req, res) => {
     try {
@@ -59,7 +59,7 @@ const confirmInspection = async (req, res) => {
     } catch (err) { return handleError(res, err); }
 };
 
-// ─── Resident CHECK_IN ───────────────────────────────────────
+// Resident CHECK_IN endpoints.
 
 const residentPreviewCheckIn = async (req, res) => {
     try {
@@ -90,7 +90,7 @@ const residentConfirmCheckIn = async (req, res) => {
     }
 };
 
-// ─── GET /api/inspections?room_id= ──────────────────────────
+// GET /api/inspections?room_id=
 
 const getInspectionsByRoom = async (req, res) => {
     try {

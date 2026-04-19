@@ -273,7 +273,7 @@ const replaceTemplateAssets = async (roomTypeId, items) => {
     }
 }
 
-// ─── GET /api/room-types/stats ──────────────────────────────
+// GET /api/room-types/stats
 const getRoomTypeStats = async () => {
     const all = await RoomType.findAll({
         attributes: ['is_active'],

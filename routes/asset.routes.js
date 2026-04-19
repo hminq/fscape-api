@@ -10,7 +10,7 @@ const validator = require('../validators/asset.validator');
 
 router.get('/', authJwt, requireRoles(ROLES.ADMIN, ROLES.BUILDING_MANAGER, ROLES.STAFF), assetController.getAllAssets);
 
-// Stats — must be before /:id
+// Stats - must be before /:id
 router.get('/stats', authJwt, requireRoles(ROLES.ADMIN, ROLES.BUILDING_MANAGER), assetController.getAssetStats);
 
 router.get('/:id', authJwt, requireRoles(ROLES.ADMIN, ROLES.BUILDING_MANAGER, ROLES.STAFF), validator.paramId, validate, assetController.getAssetById);

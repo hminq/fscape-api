@@ -4,7 +4,7 @@ exports.create = [
   body('room_number')
     .notEmpty().withMessage('Số phòng không được để trống')
     .isString()
-    .isLength({ min: 1, max: 20 }).withMessage('Số phòng phải từ 1–20 ký tự'),
+    .isLength({ min: 1, max: 20 }).withMessage('Số phòng phải từ 1-20 ký tự'),
   body('building_id')
     .notEmpty().withMessage('Vui lòng chọn tòa nhà')
     .isUUID().withMessage('Mã tòa nhà không hợp lệ'),
@@ -13,7 +13,7 @@ exports.create = [
     .isUUID().withMessage('Mã loại phòng không hợp lệ'),
   body('floor')
     .notEmpty().withMessage('Tầng không được để trống')
-    .isInt({ min: 1, max: 100 }).withMessage('Tầng phải từ 1–100'),
+    .isInt({ min: 1, max: 100 }).withMessage('Tầng phải từ 1-100'),
   body('thumbnail_url')
     .optional()
     .isString()
@@ -37,10 +37,10 @@ exports.createBatch = [
     .isUUID().withMessage('Mã loại phòng không hợp lệ'),
   body('floor')
     .notEmpty().withMessage('Tầng không được để trống')
-    .isInt({ min: 1, max: 100 }).withMessage('Tầng phải từ 1–100'),
+    .isInt({ min: 1, max: 100 }).withMessage('Tầng phải từ 1-100'),
   body('count')
     .notEmpty().withMessage('Số lượng không được để trống')
-    .isInt({ min: 1, max: 50 }).withMessage('Số lượng phải từ 1–50'),
+    .isInt({ min: 1, max: 50 }).withMessage('Số lượng phải từ 1-50'),
   body('thumbnail_url')
     .optional()
     .isString()
@@ -67,13 +67,13 @@ exports.update = [
   body('room_number')
     .optional()
     .isString()
-    .isLength({ min: 1, max: 20 }).withMessage('Số phòng phải từ 1–20 ký tự'),
+    .isLength({ min: 1, max: 20 }).withMessage('Số phòng phải từ 1-20 ký tự'),
   body('room_type_id')
     .optional()
     .isUUID().withMessage('Mã loại phòng không hợp lệ'),
   body('floor')
     .optional()
-    .isInt({ min: 1, max: 100 }).withMessage('Tầng phải từ 1–100'),
+    .isInt({ min: 1, max: 100 }).withMessage('Tầng phải từ 1-100'),
   body('thumbnail_url')
     .optional()
     .isString()

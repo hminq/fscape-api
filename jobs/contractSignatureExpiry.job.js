@@ -103,7 +103,7 @@ const run = async () => {
                     };
 
                     if (previousStatus === 'PENDING_MANAGER_SIGNATURE') {
-                        // Manager's fault — send different email to customer
+                        // Manager's fault - send different email to customer
                         if (contract.customer?.email) {
                             await sendSigningCancelledByManagerEmail(contract.customer.email, emailData);
                         }
@@ -127,7 +127,7 @@ const run = async () => {
                             }
                         }
                     } else {
-                        // Customer's fault — send original email
+                        // Customer's fault - send original email
                         if (contract.customer?.email) {
                             await sendSigningCancelledEmail(contract.customer.email, emailData);
                         }

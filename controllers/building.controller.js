@@ -45,7 +45,7 @@ const createBuilding = async (req, res) => {
             manager_id
         } = req.body;
 
-        // Xử lý mảng facilities
+        // Normalize facilities to array format.
         let parsedFacilities = [];
         if (facilities) {
             if (Array.isArray(facilities)) {
@@ -85,7 +85,7 @@ const updateBuilding = async (req, res) => {
     try {
         const updateData = { ...req.body };
 
-        // Xử lý mảng facilities
+        // Normalize facilities to array format.
         if (updateData.facilities) {
             if (!Array.isArray(updateData.facilities)) {
                 updateData.facilities = [updateData.facilities];

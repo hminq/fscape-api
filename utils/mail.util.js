@@ -93,7 +93,7 @@ const sendMailWithAudit = async ({
   }
 };
 
-// ── Email dedup helpers (prevent duplicate sends across cron cycles) ──
+// Email dedup helpers (prevent duplicate sends across cron cycles).
 const wasEmailSent = async (templateKey, entityId) => {
   const [results] = await sequelize.query(
     `SELECT id FROM email_logs
@@ -133,7 +133,7 @@ const logEmailSent = async (recipientEmail, subject, templateKey, entityId) => {
 exports.sendOtpMail = async (email, code) => {
   await sendMailWithAudit({
     to: email,
-    subject: "Mã xác thực OTP — FScape",
+    subject: "Mã xác thực OTP - FScape",
     templateKey: "OTP_VERIFICATION",
     context: { flow: "AUTH" },
     html: wrapEmailTemplate(`
@@ -166,7 +166,7 @@ exports.sendManagerSigningEmail = async (
 ) => {
   await sendMailWithAudit({
     to: email,
-    subject: `Hợp đồng ${contractNumber} — Khách hàng đã ký, chờ bạn xác nhận`,
+    subject: `Hợp đồng ${contractNumber} - Khách hàng đã ký, chờ bạn xác nhận`,
     templateKey: "CONTRACT_MANAGER_SIGNING",
     context: { contractNumber, roomNumber, buildingName },
     html: wrapEmailTemplate(`
@@ -230,7 +230,7 @@ exports.sendContractActivatedEmail = async (
 ) => {
   await sendMailWithAudit({
     to: email,
-    subject: `Hợp đồng ${contractNumber} — Đã kích hoạt thành công`,
+    subject: `Hợp đồng ${contractNumber} - Đã kích hoạt thành công`,
     templateKey: "CONTRACT_ACTIVATED",
     context: { contractNumber, roomNumber, buildingName },
     html: wrapEmailTemplate(`
@@ -293,7 +293,7 @@ exports.sendInvoiceCreatedEmail = async (
   const invoiceUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/my-invoices?invoiceId=${invoiceId}`;
   await sendMailWithAudit({
     to: email,
-    subject: `Hóa đơn ${invoiceNumber} — Vui lòng thanh toán trước ${dueDate}`,
+    subject: `Hóa đơn ${invoiceNumber} - Vui lòng thanh toán trước ${dueDate}`,
     templateKey: "INVOICE_CREATED",
     context: { invoiceNumber, roomNumber, buildingName },
     html: wrapEmailTemplate(`
@@ -365,7 +365,7 @@ exports.sendContractSigningEmail = async (
 ) => {
   await sendMailWithAudit({
     to: email,
-    subject: `Hợp đồng ${contractNumber} — Vui lòng ký xác nhận`,
+    subject: `Hợp đồng ${contractNumber} - Vui lòng ký xác nhận`,
     templateKey: "CONTRACT_CUSTOMER_SIGNING",
     context: { contractNumber, roomNumber, buildingName },
     html: wrapEmailTemplate(`
@@ -434,7 +434,7 @@ exports.sendRenewalSigningEmail = async (
 ) => {
   await sendMailWithAudit({
     to: email,
-    subject: `Gia hạn hợp đồng ${contractNumber} — Vui lòng ký xác nhận`,
+    subject: `Gia hạn hợp đồng ${contractNumber} - Vui lòng ký xác nhận`,
     templateKey: "CONTRACT_RENEWAL_SIGNING",
     context: { contractNumber, oldContractNumber, roomNumber, buildingName },
     html: wrapEmailTemplate(`
@@ -513,7 +513,7 @@ exports.sendContractExpiringSoonEmail = async (
   },
 ) => {
   if (await wasEmailSent("CONTRACT_EXPIRING_SOON", contractId)) return;
-  const subject = `Hợp đồng ${contractNumber} — Sắp hết hạn vào ${endDate}`;
+  const subject = `Hợp đồng ${contractNumber} - Sắp hết hạn vào ${endDate}`;
   await sendMailWithAudit({
     to: email,
     subject,
@@ -562,7 +562,7 @@ exports.sendContractExpiringSoonEmail = async (
   await logEmailSent(email, subject, "CONTRACT_EXPIRING_SOON", contractId);
 };
 
-// ── Signing Reminder & Cancellation Emails ──
+// Signing reminder and cancellation emails.
 
 exports.sendSigningReminderEmail = async (
   email,
@@ -577,7 +577,7 @@ exports.sendSigningReminderEmail = async (
   },
 ) => {
   if (await wasEmailSent("CONTRACT_SIGNING_REMINDER", contractId)) return;
-  const subject = `Nhắc nhở: Hợp đồng ${contractNumber} — Vui lòng ký trước khi hết hạn`;
+  const subject = `Nhắc nhở: Hợp đồng ${contractNumber} - Vui lòng ký trước khi hết hạn`;
   await sendMailWithAudit({
     to: email,
     subject,
@@ -644,7 +644,7 @@ exports.sendSigningUrgentReminderEmail = async (
   },
 ) => {
   if (await wasEmailSent("CONTRACT_SIGNING_URGENT", contractId)) return;
-  const subject = `KHẨN: Hợp đồng ${contractNumber} — Chỉ còn 1 giờ để ký`;
+  const subject = `KHẨN: Hợp đồng ${contractNumber} - Chỉ còn 1 giờ để ký`;
   await sendMailWithAudit({
     to: email,
     subject,
@@ -701,7 +701,7 @@ exports.sendSigningCancelledEmail = async (
   { customerName, contractNumber, contractId, roomNumber, buildingName },
 ) => {
   if (await wasEmailSent("CONTRACT_SIGNING_CANCELLED", contractId)) return;
-  const subject = `Hợp đồng ${contractNumber} — Đã bị hủy do hết hạn ký`;
+  const subject = `Hợp đồng ${contractNumber} - Đã bị hủy do hết hạn ký`;
   await sendMailWithAudit({
     to: email,
     subject,
@@ -755,7 +755,7 @@ exports.sendSigningCancelledByManagerEmail = async (
 ) => {
   if (await wasEmailSent("CONTRACT_CANCELLED_MANAGER_FAULT", contractId))
     return;
-  const subject = `Hợp đồng ${contractNumber} — Đã bị hủy do quản lý chưa ký kịp thời`;
+  const subject = `Hợp đồng ${contractNumber} - Đã bị hủy do quản lý chưa ký kịp thời`;
   await sendMailWithAudit({
     to: email,
     subject,
@@ -821,7 +821,7 @@ exports.sendManagerSigningExpiredAdminEmail = async (
 ) => {
   const uniqueKey = `${contractId}_admin_${email}`;
   if (await wasEmailSent("MANAGER_SIGNING_EXPIRED_ADMIN", uniqueKey)) return;
-  const subject = `[Cảnh báo] Hợp đồng ${contractNumber} bị hủy — Quản lý không ký kịp thời`;
+  const subject = `[Cảnh báo] Hợp đồng ${contractNumber} bị hủy - Quản lý không ký kịp thời`;
   await sendMailWithAudit({
     to: email,
     subject,
@@ -876,7 +876,7 @@ exports.sendManagerSigningExpiredAdminEmail = async (
   );
 };
 
-// ── Contract Termination Email ──
+// Contract termination email.
 
 /**
  * Email to customer when Admin/BM manually terminates their contract.
@@ -886,7 +886,7 @@ exports.sendContractTerminatedEmail = async (
   { customerName, contractNumber, contractId, roomNumber, buildingName, terminationReason },
 ) => {
   if (await wasEmailSent("CONTRACT_TERMINATED", contractId)) return;
-  const subject = `Hợp đồng ${contractNumber} — Đã bị chấm dứt`;
+  const subject = `Hợp đồng ${contractNumber} - Đã bị chấm dứt`;
   await sendMailWithAudit({
     to: email,
     subject,
@@ -934,7 +934,7 @@ exports.sendContractTerminatedEmail = async (
   await logEmailSent(email, subject, "CONTRACT_TERMINATED", contractId);
 };
 
-// ── Payment Reminder & Cancellation Emails ──
+// Payment reminder and cancellation emails.
 
 exports.sendPaymentReminderEmail = async (
   email,
@@ -950,7 +950,7 @@ exports.sendPaymentReminderEmail = async (
 ) => {
   if (await wasEmailSent("FIRST_RENT_PAYMENT_REMINDER", invoiceId)) return;
   const invoiceUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/my-invoices?invoiceId=${invoiceId}`;
-  const subject = `Nhắc nhở: Hóa đơn ${invoiceNumber} — Thanh toán trước ${dueDate}`;
+  const subject = `Nhắc nhở: Hóa đơn ${invoiceNumber} - Thanh toán trước ${dueDate}`;
   await sendMailWithAudit({
     to: email,
     subject,
@@ -1027,7 +1027,7 @@ exports.sendPaymentUrgentReminderEmail = async (
 ) => {
   if (await wasEmailSent("FIRST_RENT_PAYMENT_URGENT", invoiceId)) return;
   const invoiceUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/my-invoices?invoiceId=${invoiceId}`;
-  const subject = `KHẨN: Hóa đơn ${invoiceNumber} — Hôm nay là hạn cuối`;
+  const subject = `KHẨN: Hóa đơn ${invoiceNumber} - Hôm nay là hạn cuối`;
   await sendMailWithAudit({
     to: email,
     subject,
@@ -1100,7 +1100,7 @@ exports.sendFirstRentCancelledEmail = async (
   },
 ) => {
   if (await wasEmailSent("FIRST_RENT_CANCELLED", invoiceId)) return;
-  const subject = `Hợp đồng ${contractNumber} — Đã bị hủy do chưa thanh toán kỳ đầu`;
+  const subject = `Hợp đồng ${contractNumber} - Đã bị hủy do chưa thanh toán kỳ đầu`;
   await sendMailWithAudit({
     to: email,
     subject,
@@ -1166,7 +1166,7 @@ exports.sendCheckInReminderEmail = async (
     startDate,
   },
 ) => {
-  const subject = `Nhắc nhở nhận phòng — Hợp đồng ${contractNumber}`;
+  const subject = `Nhắc nhở nhận phòng - Hợp đồng ${contractNumber}`;
   await sendMailWithAudit({
     to: email,
     subject,
@@ -1228,7 +1228,7 @@ exports.sendManualExpiringReminderEmail = async (
     endDate,
   },
 ) => {
-  const subject = `Nhắc nhở: Hợp đồng ${contractNumber} — Sắp hết hạn vào ${endDate}`;
+  const subject = `Nhắc nhở: Hợp đồng ${contractNumber} - Sắp hết hạn vào ${endDate}`;
   await sendMailWithAudit({
     to: email,
     subject,

@@ -31,7 +31,7 @@ const getAllBuildings = async ({ page = 1, limit = 10, location_id, search, is_a
         throw { status: 403, message: 'Quản lý và nhân viên phải sử dụng endpoint tòa nhà được phân công' };
     }
 
-    // Public attributes — exclude timestamps for non-admin
+    // Public attributes - exclude timestamps for non-admin
     const publicBuildingAttrs = [
         'id', 'location_id', 'name', 'address', 'latitude', 'longitude',
         'description', 'total_floors', 'thumbnail_url', 'is_active'

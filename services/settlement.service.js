@@ -22,7 +22,7 @@ const { ROLES } = require('../constants/roles');
  * @returns {Object} settlement with items
  */
 const createCheckoutSettlement = async (contract, penaltyData, user, transaction) => {
-    // ── Query unbilled service requests ──
+    // Query unbilled service requests.
     const unbilledRequests = await Request.findAll({
         where: {
             room_id: contract.room_id,
@@ -37,7 +37,7 @@ const createCheckoutSettlement = async (contract, penaltyData, user, transaction
         (sum, req) => sum + Number(req.request_price || 0), 0
     );
 
-    // ── Calculate amounts ──
+    // Calculate settlement amounts.
     const depositOriginal = Number(contract.deposit_original_amount || contract.deposit_amount);
     const depositBefore = Number(contract.deposit_amount);
     const totalPenalty = penaltyData.totalPenalty;
@@ -46,7 +46,7 @@ const createCheckoutSettlement = async (contract, penaltyData, user, transaction
     const amountRefund = Math.max(0, depositBefore - totalDeductions);
     const amountDue = Math.max(0, totalDeductions - depositBefore);
 
-    // ── Create Settlement ──
+    // Create settlement record.
     const settlement = await Settlement.create({
         contract_id: contract.id,
         resident_id: contract.customer_id,
@@ -61,7 +61,7 @@ const createCheckoutSettlement = async (contract, penaltyData, user, transaction
         created_by: user.id
     }, { transaction });
 
-    // ── Create SettlementItems ──
+    // Create settlement items.
     const items = [];
 
     // Missing asset penalties
@@ -137,7 +137,7 @@ const createCheckoutSettlement = async (contract, penaltyData, user, transaction
         createdItems = await SettlementItem.bulkCreate(items, { transaction });
     }
 
-    // ── Mark unbilled requests as SETTLED ──
+    // Mark unbilled requests as SETTLED.
     if (unbilledRequests.length > 0) {
         const requestIds = unbilledRequests.map(r => r.id);
         await Request.update(

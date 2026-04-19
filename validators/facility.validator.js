@@ -4,7 +4,7 @@ exports.create = [
   body('name')
     .notEmpty().withMessage('Tên không được để trống')
     .isString()
-    .isLength({ min: 1, max: 100 }).withMessage('Tên phải từ 1–100 ký tự'),
+    .isLength({ min: 1, max: 100 }).withMessage('Tên phải từ 1-100 ký tự'),
   body('is_active')
     .optional()
     .isBoolean().withMessage('Trạng thái hoạt động không hợp lệ'),
@@ -15,7 +15,7 @@ exports.update = [
   body('name')
     .optional()
     .isString()
-    .isLength({ min: 1, max: 100 }).withMessage('Tên phải từ 1–100 ký tự'),
+    .isLength({ min: 1, max: 100 }).withMessage('Tên phải từ 1-100 ký tự'),
   body('is_active')
     .optional()
     .isBoolean().withMessage('Trạng thái hoạt động không hợp lệ'),

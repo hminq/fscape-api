@@ -26,8 +26,8 @@ const REQUEST_STATUS_LABELS = {
 
 const ACCESS_DENIED_MESSAGE = 'Bạn không có quyền thực hiện hành động này';
 
-// ── Status transition map ──
-// Mỗi key là from_status, value là object { to_status: { roles, requiredFields } }
+// Status transition rules.
+// Each key is from_status with allowed target statuses and constraints.
 const TRANSITION_MAP = {
     PENDING: {
         CANCELLED: {
@@ -145,11 +145,11 @@ const assertRequestAccess = (request, actor) => {
         }
     }
 };
-// Helper sinh mã Request tự động (VD: REQ-20260302-001)
+// Generate request number (e.g., REQ-20260302-001).
 const generateRequestNumber = async () => {
     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
 
-    // Đếm số lượng request trong ngày
+    // Count requests created today.
     const count = await Request.count({
         where: {
             request_number: { [Op.like]: `REQ-${dateStr}-%` }
@@ -206,7 +206,7 @@ const getAllRequests = async (caller, { page = 1, limit = 10, status, request_ty
     } else if (caller.role === ROLES.RESIDENT) {
         where.resident_id = caller.id;
     }
-    // ADMIN sees all — no extra filter
+    // ADMIN sees all - no extra filter
 
     const { count, rows } = await Request.findAndCountAll({
         where,
@@ -346,7 +346,7 @@ const createRequest = async (data) => {
             roles: ["BUILDING_MANAGER"]
         }, transaction);
 
-        // 4️ Notify Resident (tạo thành công)
+        // Notify resident that request was created successfully.
         await createNotification({
             type: "REQUEST_CREATED_SUCCESS",
             title: "Tạo yêu cầu thành công",
@@ -419,7 +419,7 @@ const assignRequest = async (id, staff_id, actor) => {
 
         await transaction.commit();
 
-        // Bắn thông báo cho Staff
+        // Notify assigned staff.
         await notificationService.createNotification({
             type: 'REQUEST_ASSIGNED',
             title: 'Nhiệm vụ mới',
@@ -451,19 +451,19 @@ const updateRequestStatus = async (id, updateData, actor) => {
 
     const oldStatus = request.status;
 
-    // ── Validate transition, role, required fields ──
+    // Validate transition, role, and required fields.
     validateTransition(oldStatus, status, caller_role, updateData);
 
     const transaction = await sequelize.transaction();
     try {
         const requestUpdatePayload = { status };
 
-        // PRICE_PROPOSED: Staff báo giá
+        // PRICE_PROPOSED: staff submits a service quote.
         if (status === 'PRICE_PROPOSED') {
             requestUpdatePayload.request_price = service_price;
         }
 
-        // DONE: Staff hoàn thành
+        // DONE: staff marks work as completed.
         if (status === 'DONE') {
             requestUpdatePayload.completion_note = completion_note;
             requestUpdatePayload.completed_at = new Date();
@@ -476,7 +476,7 @@ const updateRequestStatus = async (id, updateData, actor) => {
             requestUpdatePayload.feedback_at = new Date();
         }
 
-        // REVIEWED: Resident report vấn đề
+        // REVIEWED: resident reports an issue after completion.
         if (status === 'REVIEWED') {
             requestUpdatePayload.report_reason = report_reason;
             requestUpdatePayload.reported_at = new Date();
@@ -490,7 +490,7 @@ const updateRequestStatus = async (id, updateData, actor) => {
 
         await request.update(requestUpdatePayload, { transaction });
 
-        // Ảnh hoàn thành (khi DONE)
+        // Store completion images for DONE status.
         if (completionImages && completionImages.length > 0) {
             const imageRecords = completionImages.map(url => ({
                 request_id: id,
@@ -511,7 +511,7 @@ const updateRequestStatus = async (id, updateData, actor) => {
 
         await transaction.commit();
 
-        // ── Notifications ──
+        // Send status-change notification.
         const NOTIF_MAP = {
             PRICE_PROPOSED: {
                 title: 'Có báo giá dịch vụ mới',

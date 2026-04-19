@@ -5,7 +5,7 @@ const Location = require('../models/location.model');
 const Building = require('../models/building.model');
 
 /**
- * Lấy danh sách trường đại học kèm phân trang và khu vực
+ * Get paginated universities with location data.
  */
 const getAllUniversities = async ({ page = 1, limit = 10, location_id, is_active, search } = {}) => {
     const offset = (page - 1) * limit;
@@ -36,7 +36,7 @@ const getAllUniversities = async ({ page = 1, limit = 10, location_id, is_active
 };
 
 /**
- * Lấy chi tiết trường đại học và các tòa nhà lân cận (cùng location_id)
+ * Get university details and nearby buildings in the same location.
  */
 const getUniversityById = async (id) => {
     const university = await University.findByPk(id, {

@@ -1,5 +1,5 @@
 /**
- * Haversine formula — straight-line distance between two lat/lng points.
+ * Haversine formula - straight-line distance between two lat/lng points.
  * @returns {number} Distance in kilometres
  */
 function getDistanceKm(lat1, lng1, lat2, lng2) {

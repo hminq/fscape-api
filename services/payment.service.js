@@ -9,8 +9,8 @@ const PAYOS_GATEWAY_ERROR = {
 };
 
 /**
- * Số tiền gửi tới PayOS (hỗ trợ test với số tiền nhỏ).
- * Nếu PAYOS_TEST_AMOUNT được đặt, dùng giá trị đó thay vì giá thật.
+ * Resolve amount sent to PayOS.
+ * Uses PAYOS_TEST_AMOUNT when provided.
  */
 const getPayosAmount = (realAmount) => {
     const testAmount = process.env.PAYOS_TEST_AMOUNT;
@@ -46,7 +46,7 @@ const createBookingPaymentUrlPayOS = async (userId, booking_id) => {
             const payment = await Payment.create({
                 payment_number: paymentNumber,
                 user_id: userId,
-                amount: booking.deposit_amount, // lưu giá thật vào DB
+                amount: booking.deposit_amount, // Always persist real amount in DB.
                 payment_type: 'DEPOSIT',
                 status: 'PENDING',
                 gateway_transaction_id: String(orderCode)
@@ -54,7 +54,7 @@ const createBookingPaymentUrlPayOS = async (userId, booking_id) => {
 
             await booking.update({ deposit_payment_id: payment.id }, { transaction });
 
-            // Hết hạn sau 1 giờ
+            // Expire payment link in 1 hour.
             const expiredAt = Math.floor(Date.now() / 1000) + 3600;
 
             const paymentLink = await getPayOS().paymentRequests.create({
@@ -108,7 +108,7 @@ const createInvoicePaymentUrlPayOS = async (userId, invoice_id) => {
                 gateway_transaction_id: String(orderCode)
             }, { transaction });
 
-            // Hết hạn sau 24 giờ
+            // Expire payment link in 24 hours.
             const expiredAt = Math.floor(Date.now() / 1000) + 86400;
 
             const paymentLink = await getPayOS().paymentRequests.create({
@@ -134,7 +134,7 @@ const createInvoicePaymentUrlPayOS = async (userId, invoice_id) => {
 };
 
 /**
- * Xử lý chung sau khi thanh toán thành công cho PayOS webhook.
+ * Shared business flow after successful PayOS payment.
  */
 const processSuccessPayment = async (payment, gatewayResponse) => {
     const { Booking, Invoice } = sequelize.models;
@@ -217,13 +217,13 @@ const processSuccessPayment = async (payment, gatewayResponse) => {
 const payosWebhook = async (body) => {
     const { Payment } = sequelize.models;
 
-    // Xác thực chữ ký webhook
+    // Verify webhook signature.
     let webhookData;
     try {
         webhookData = await getPayOS().webhooks.verify(body);
     } catch (err) {
         console.error('[PayOS Webhook] Signature verification failed:', err.message);
-        return { success: true }; // vẫn trả 200 để PayOS không retry
+        return { success: true }; // Always return 200 to avoid retries.
     }
 
     const { orderCode, amount, code } = webhookData;
@@ -231,7 +231,7 @@ const payosWebhook = async (body) => {
 
     console.log(`[PayOS Webhook] orderCode=${orderCode}, amount=${amount}, code=${code}, success=${isSuccess}`);
 
-    // Tìm giao dịch theo orderCode
+    // Find payment by orderCode.
     const payment = await Payment.findOne({
         where: { gateway_transaction_id: String(orderCode) }
     });
@@ -241,7 +241,7 @@ const payosWebhook = async (body) => {
         return { success: true };
     }
 
-    // Kiểm tra số tiền (bỏ qua trong chế độ test)
+    // Validate paid amount (skipped in test mode).
     if (!process.env.PAYOS_TEST_AMOUNT && Number(payment.amount) !== amount) {
         console.error(`[PayOS Webhook] Amount mismatch: expected ${payment.amount}, got ${amount}`);
         return { success: true };
@@ -253,7 +253,7 @@ const payosWebhook = async (body) => {
         return { success: true };
     }
 
-    // Thanh toán thất bại
+    // Mark failed payment.
     if (!isSuccess) {
         await payment.update({
             status: 'FAILED',
@@ -262,7 +262,7 @@ const payosWebhook = async (body) => {
         return { success: true };
     }
 
-    // Thanh toán thành công — xử lý business logic
+    // Process successful payment business logic.
     try {
         await processSuccessPayment(payment, body);
         console.log(`[PayOS Webhook] Payment ${orderCode} processed successfully`);

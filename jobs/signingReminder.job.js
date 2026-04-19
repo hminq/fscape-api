@@ -5,9 +5,14 @@ const {
     sendSigningReminderEmail,
     sendSigningUrgentReminderEmail
 } = require('../utils/mail.util');
+const {
+    MS_PER_HOUR,
+    SIGNING_REMINDER_AFTER_HOURS,
+    SIGNING_URGENT_BEFORE_HOURS
+} = require('../constants/jobTimeRules');
 
-const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
-const ONE_HOUR_MS = 1 * 60 * 60 * 1000;
+const SIGNING_REMINDER_AFTER_MS = SIGNING_REMINDER_AFTER_HOURS * MS_PER_HOUR;
+const SIGNING_URGENT_BEFORE_MS = SIGNING_URGENT_BEFORE_HOURS * MS_PER_HOUR;
 
 const run = async () => {
     const { Contract, User, Room, Building } = sequelize.models;
@@ -61,13 +66,13 @@ const run = async () => {
             };
 
             // 6h+ elapsed → send reminder
-            if (elapsed >= SIX_HOURS_MS) {
-                const hoursRemaining = Math.floor(remaining / (60 * 60 * 1000));
+            if (elapsed >= SIGNING_REMINDER_AFTER_MS) {
+                const hoursRemaining = Math.floor(remaining / MS_PER_HOUR);
                 await sendSigningReminderEmail(recipientEmail, { ...emailData, hoursRemaining });
             }
 
             // ≤1h remaining → send urgent
-            if (remaining <= ONE_HOUR_MS) {
+            if (remaining <= SIGNING_URGENT_BEFORE_MS) {
                 await sendSigningUrgentReminderEmail(recipientEmail, emailData);
             }
         } catch (err) {

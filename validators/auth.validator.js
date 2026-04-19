@@ -13,12 +13,12 @@ const emailRules = body('email')
 const firstNameRules = body('first_name')
   .isString().withMessage('Họ phải là chuỗi')
   .trim()
-  .isLength({ min: 1, max: 100 }).withMessage('Họ phải từ 1–100 ký tự');
+  .isLength({ min: 1, max: 100 }).withMessage('Họ phải từ 1-100 ký tự');
 
 const lastNameRules = body('last_name')
   .isString().withMessage('Tên phải là chuỗi')
   .trim()
-  .isLength({ min: 1, max: 100 }).withMessage('Tên phải từ 1–100 ký tự');
+  .isLength({ min: 1, max: 100 }).withMessage('Tên phải từ 1-100 ký tự');
 
 const otpRules = body('otp')
   .isLength({ min: 6, max: 6 }).withMessage('OTP phải gồm 6 ký tự');
