@@ -45,6 +45,9 @@ exports.renew = [
   body('billing_cycle')
     .optional()
     .isIn(['CYCLE_1M', 'CYCLE_3M', 'CYCLE_6M', 'ALL_IN']).withMessage('Chu kỳ thanh toán phải là CYCLE_1M, CYCLE_3M, CYCLE_6M hoặc ALL_IN'),
+  body('start_date')
+    .optional()
+    .isDate().withMessage('Ngày bắt đầu không hợp lệ (YYYY-MM-DD)'),
 ];
 
 exports.sendReminder = [

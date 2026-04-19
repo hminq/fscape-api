@@ -53,7 +53,7 @@ const run = async () => {
             }
 
             if (!recipientEmail) continue;
-
+            
             const roomNumber = contract.room?.room_number || '';
             const buildingName = contract.room?.building?.name || '';
             const emailData = {

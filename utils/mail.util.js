@@ -523,7 +523,7 @@ exports.sendContractExpiringSoonEmail = async (
       <h2 style="margin:0 0 8px; color:#011936;">Xin chào ${customerName},</h2>
       <p style="margin:0 0 16px; color:#52525b;">
         Hợp đồng thuê phòng của bạn sẽ hết hạn vào ngày <strong style="color:#ea580c;">${endDate}</strong>.
-        Nếu bạn muốn tiếp tục ở lại, vui lòng gia hạn hợp đồng trên ứng dụng FScape trước khi hết hạn.
+        Nếu bạn muốn tiếp tục ở lại, vui lòng gia hạn hợp đồng trên website FScape trước khi hết hạn.
       </p>
 
       <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#fff7ed; border:1px solid #fdba74; border-radius:8px; margin:0 0 24px;">
@@ -552,7 +552,7 @@ exports.sendContractExpiringSoonEmail = async (
       </table>
 
       <p style="margin:0 0 8px; color:#52525b;">
-        Vui lòng mở ứng dụng FScape và vào mục <strong>Hợp đồng của tôi</strong> để thực hiện gia hạn.
+        Vui lòng truy cập website FScape và vào mục <strong>Hợp đồng của tôi</strong> để thực hiện gia hạn.
       </p>
       <p style="margin:0; color:#71717a; font-size:13px;">
         Nếu không gia hạn, hợp đồng sẽ tự động kết thúc khi hết hạn và phòng sẽ được trả lại.
@@ -1238,7 +1238,7 @@ exports.sendManualExpiringReminderEmail = async (
       <h2 style="margin:0 0 8px; color:#011936;">Xin chào ${customerName},</h2>
       <p style="margin:0 0 16px; color:#52525b;">
         Hợp đồng thuê phòng của bạn sẽ hết hạn vào ngày <strong style="color:#ea580c;">${endDate}</strong>.
-        Nếu bạn muốn tiếp tục ở lại, vui lòng gia hạn hợp đồng trên ứng dụng FScape trước khi hết hạn.
+        Nếu bạn muốn tiếp tục ở lại, vui lòng gia hạn hợp đồng trên website FScape trước khi hết hạn.
       </p>
 
       <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#fff7ed; border:1px solid #fdba74; border-radius:8px; margin:0 0 24px;">
@@ -1267,7 +1267,7 @@ exports.sendManualExpiringReminderEmail = async (
       </table>
 
       <p style="margin:0 0 8px; color:#52525b;">
-        Vui lòng mở ứng dụng FScape và vào mục <strong>Hợp đồng của tôi</strong> để thực hiện gia hạn.
+        Vui lòng truy cập website FScape và vào mục <strong>Hợp đồng của tôi</strong> để thực hiện gia hạn.
       </p>
       <p style="margin:0; color:#71717a; font-size:13px;">
         Nếu không gia hạn, hợp đồng sẽ tự động kết thúc khi hết hạn và phòng sẽ được trả lại.

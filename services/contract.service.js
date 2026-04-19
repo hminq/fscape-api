@@ -16,6 +16,7 @@ const {
 } = require('../constants/bookingEnums');
 const { billingCycleToMonths } = require('../utils/billingCycle.util');
 const { SIGNATURE_EXPIRY_MS } = require('../constants/contract');
+const { RENEWAL_MAX_GAP_DAYS } = require('../constants/jobTimeRules');
 const { generateSequentialId, generateNumberedId } = require('../utils/generateId');
 const { INVOICE_TYPE } = require('../constants/invoiceEnums');
 const { sendContractSigningEmail, sendManagerSigningEmail, sendInvoiceCreatedEmail, sendRenewalSigningEmail, sendCheckInReminderEmail, sendManualExpiringReminderEmail, sendContractTerminatedEmail } = require('../utils/mail.util');
@@ -50,6 +51,19 @@ const formatDate = (date) => {
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const yyyy = d.getFullYear();
     return `${dd}/${mm}/${yyyy}`;
+};
+
+const formatGender = (gender) => {
+    switch ((gender || '').toUpperCase()) {
+        case 'MALE':
+            return 'Nam';
+        case 'FEMALE':
+            return 'Nữ';
+        case 'OTHER':
+            return 'Khác';
+        default:
+            return '';
+    }
 };
 
 const addMonths = (dateStr, months) => {
@@ -370,7 +384,7 @@ const createContractFromBooking = async (bookingId) => {
             manager_name: `${manager.last_name || ''} ${manager.first_name || ''}`.trim(),
             customer_name: `${customer.last_name || ''} ${customer.first_name || ''}`.trim(),
             customer_date_of_birth: formatDate(profile?.date_of_birth),
-            customer_gender: profile?.gender || '',
+            customer_gender: formatGender(profile?.gender),
             customer_phone: customer.phone || '',
             customer_email: customer.email || '',
             customer_permanent_address: profile?.permanent_address || '',
@@ -451,7 +465,7 @@ const createContractFromBooking = async (bookingId) => {
  * 7. Send renewal signing email.
  *
  * @param {string} contractId - Contract UUID to renew
- * @param {Object} body - { duration_months, billing_cycle?, notes? }
+ * @param {Object} body - { duration_months, billing_cycle?, start_date?, notes? }
  * @param {Object} user - Authenticated user (req.user)
  * @returns {Object} New contract instance
  */
@@ -499,7 +513,7 @@ const renewContract = async (contractId, body, user) => {
         }
 
         // 5. Validate duration_months
-        const { duration_months, billing_cycle, notes } = body;
+        const { duration_months, billing_cycle, notes, start_date } = body;
         if (!duration_months || !isValidContractLength(duration_months)) {
             throw { status: 400, message: 'duration_months phải là 6 hoặc 12' };
         }
@@ -510,34 +524,50 @@ const renewContract = async (contractId, body, user) => {
             throw { status: 400, message: 'billing_cycle không hợp lệ (CYCLE_1M, CYCLE_3M, CYCLE_6M, ALL_IN)' };
         }
 
+        // 7. Validate start_date: must be within [old.end_date, old.end_date + RENEWAL_MAX_GAP_DAYS]
+        const oldEndDate = parseLocalDate(oldContract.end_date);
+        const maxStartDate = new Date(oldEndDate);
+        maxStartDate.setDate(maxStartDate.getDate() + RENEWAL_MAX_GAP_DAYS);
+
+        let startDate = oldContract.end_date;
+        if (start_date) {
+            const requested = parseLocalDate(start_date);
+            if (requested < oldEndDate || requested > maxStartDate) {
+                throw {
+                    status: 400,
+                    message: `Ngày bắt đầu phải từ ${oldContract.end_date} đến ${maxStartDate.toISOString().split('T')[0]}`
+                };
+            }
+            startDate = start_date;
+        }
+
         const room = oldContract.room;
         const building = room.building;
         const roomType = room.room_type;
 
-        // 7. Fetch customer + profile
+        // 8. Fetch customer + profile
         const customer = await User.findByPk(oldContract.customer_id, {
             include: [{ model: CustomerProfile, as: 'profile' }],
             transaction
         });
         if (!customer) throw { status: 404, message: 'Không tìm thấy khách hàng' };
 
-        // 8. Fetch building manager
+        // 9. Fetch building manager
         const manager = await User.findOne({
             where: { building_id: building.id, role: ROLES.BUILDING_MANAGER, is_active: true },
             transaction
         });
         if (!manager) throw { status: 400, message: 'Không tìm thấy Quản lý tòa nhà đang hoạt động cho tòa nhà này' };
 
-        // 9. Fetch default contract template
+        // 10. Fetch default contract template
         const template = await ContractTemplate.findOne({
             where: { is_default: true, is_active: true },
             transaction
         });
         if (!template) throw { status: 400, message: 'Không tìm thấy mẫu hợp đồng mặc định đang hoạt động' };
 
-        // 10. Calculate dates
+        // 11. Calculate dates
         const durationMonths = Number(duration_months);
-        const startDate = oldContract.end_date; // seamless transition
         const endDate = addMonths(startDate, durationMonths);
 
         // 11. Generate contract number
@@ -555,7 +585,7 @@ const renewContract = async (contractId, body, user) => {
             manager_name: `${manager.last_name || ''} ${manager.first_name || ''}`.trim(),
             customer_name: `${customer.last_name || ''} ${customer.first_name || ''}`.trim(),
             customer_date_of_birth: formatDate(profile?.date_of_birth),
-            customer_gender: profile?.gender || '',
+            customer_gender: formatGender(profile?.gender),
             customer_phone: customer.phone || '',
             customer_email: customer.email || '',
             customer_permanent_address: profile?.permanent_address || '',

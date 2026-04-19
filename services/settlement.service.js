@@ -8,8 +8,9 @@ const Room = require('../models/room.model');
 const Building = require('../models/building.model');
 const Request = require('../models/request.model');
 const auditService = require('./audit.service');
-const { SETTLEMENT_STATUS, SETTLEMENT_ITEM_TYPE } = require('../constants/settlementEnums');
+const { SETTLEMENT_STATUS, SETTLEMENT_ITEM_TYPE, EARLY_CHECKOUT_DEPOSIT_PENALTY_RATE } = require('../constants/settlementEnums');
 const { REQUEST_SERVICE_BILLING_STATUS } = require('../constants/invoiceEnums');
+const { billingCycleToMonths, isAllInBillingCycle } = require('../utils/billingCycle.util');
 const { ROLES } = require('../constants/roles');
 
 /**
@@ -37,11 +38,28 @@ const createCheckoutSettlement = async (contract, penaltyData, user, transaction
         (sum, req) => sum + Number(req.request_price || 0), 0
     );
 
-    // Calculate settlement amounts.
+    // Early checkout penalty: 50% of original deposit when checkout before end_date.
+    // Exempt only when billing cycle covers the entire contract in a single payment:
+    //   ALL_IN, or cycle months >= duration_months (e.g. CYCLE_6M + 6-month contract).
     const depositOriginal = Number(contract.deposit_original_amount || contract.deposit_amount);
+    const today = new Date().toISOString().split('T')[0];
+    const isBeforeEndDate = contract.end_date && today < contract.end_date;
+
+    let earlyCheckoutPenalty = 0;
+    if (isBeforeEndDate) {
+        const cycleMonths = billingCycleToMonths(contract.billing_cycle);
+        const paidFullUpfront = isAllInBillingCycle(contract.billing_cycle)
+            || (cycleMonths != null && cycleMonths >= Number(contract.duration_months));
+
+        if (!paidFullUpfront) {
+            earlyCheckoutPenalty = Math.round(depositOriginal * EARLY_CHECKOUT_DEPOSIT_PENALTY_RATE);
+        }
+    }
+
+    // Calculate settlement amounts.
     const depositBefore = Number(contract.deposit_amount);
     const totalPenalty = penaltyData.totalPenalty;
-    const totalDeductions = totalPenalty + totalUnbilledService;
+    const totalDeductions = totalPenalty + totalUnbilledService + earlyCheckoutPenalty;
 
     const amountRefund = Math.max(0, depositBefore - totalDeductions);
     const amountDue = Math.max(0, totalDeductions - depositBefore);
@@ -53,7 +71,7 @@ const createCheckoutSettlement = async (contract, penaltyData, user, transaction
         status: SETTLEMENT_STATUS.FINALIZED,
         deposit_original_amount: depositOriginal,
         deposit_balance_before: depositBefore,
-        total_penalty_amount: totalPenalty,
+        total_penalty_amount: totalPenalty + earlyCheckoutPenalty,
         total_unbilled_service_amount: totalUnbilledService,
         amount_due_from_resident: amountDue,
         amount_refund_to_resident: amountRefund,
@@ -98,6 +116,21 @@ const createCheckoutSettlement = async (contract, penaltyData, user, transaction
                 metadata: { reason: 'BROKEN', qr_code: asset.qr_code }
             });
         }
+    }
+
+    // Early checkout penalty
+    if (earlyCheckoutPenalty > 0) {
+        items.push({
+            settlement_id: settlement.id,
+            item_type: SETTLEMENT_ITEM_TYPE.EARLY_CHECKOUT,
+            reference_type: 'Contract',
+            reference_id: contract.id,
+            description: `Phạt trả phòng trước hạn (${EARLY_CHECKOUT_DEPOSIT_PENALTY_RATE * 100}% tiền cọc)`,
+            quantity: 1,
+            unit_amount: earlyCheckoutPenalty,
+            amount: earlyCheckoutPenalty,
+            metadata: { end_date: contract.end_date, checkout_date: new Date().toISOString() }
+        });
     }
 
     // Unbilled service requests
