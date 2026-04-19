@@ -45,7 +45,7 @@ const createBatchAssets = async (req, res) => {
 
 const updateAsset = async (req, res) => {
     try {
-        const asset = await assetService.updateAsset(req.params.id, req.body, req.user.id);
+        const asset = await assetService.updateAsset(req.params.id, req.body, req.user);
         return res.status(200).json({ message: 'Cập nhật tài sản thành công', data: asset });
     } catch (err) { return handleError(res, err); }
 };

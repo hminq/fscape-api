@@ -348,9 +348,11 @@ const createBatchAssets = async (data) => {
 };
 
 // ─── PUT /api/assets/:id (Admin only) ────────────────────────
-const updateAsset = async (id, data, performerId = null) => {
+const updateAsset = async (id, data, user) => {
     const asset = await Asset.findByPk(id);
     if (!asset) throw { status: 404, message: 'Không tìm thấy tài sản' };
+
+    ensureBuildingAccess(user, asset.building_id);
 
     // Prevent changing qr_code
     delete data.qr_code;
@@ -359,10 +361,33 @@ const updateAsset = async (id, data, performerId = null) => {
     try {
         const oldStatus = asset.status;
         const oldRoom = asset.current_room_id;
+        const oldBuildingId = asset.building_id;
 
         // Validate consistency between new building_id and new room_id
         const targetRoomId = data.current_room_id !== undefined ? data.current_room_id : oldRoom;
         const targetBuildingId = data.building_id !== undefined ? data.building_id : asset.building_id;
+
+        const buildingChanged = targetBuildingId !== oldBuildingId;
+
+        if (buildingChanged) {
+            if (oldStatus === 'IN_USE') {
+                throw { status: 400, message: 'Chỉ có thể chuyển tòa nhà khi tài sản không ở trạng thái đang sử dụng' };
+            }
+
+            if (oldRoom) {
+                throw { status: 400, message: 'Chỉ có thể chuyển tòa nhà khi tài sản đang ở kho' };
+            }
+
+            const building = await Building.findByPk(targetBuildingId);
+            if (!building) {
+                throw { status: 404, message: 'Không tìm thấy tòa nhà đích' };
+            }
+
+            data.current_room_id = null;
+            if (data.status === undefined) {
+                data.status = oldStatus;
+            }
+        }
 
         if (targetRoomId) {
             const room = await Room.findByPk(targetRoomId);
@@ -372,9 +397,28 @@ const updateAsset = async (id, data, performerId = null) => {
             }
         }
 
+        if (data.current_room_id !== undefined && data.current_room_id !== oldRoom) {
+            throw { status: 400, message: 'Không thể đổi phòng tại màn hình này. Vui lòng dùng quy trình check-in hoặc checkout tài sản.' };
+        }
+
+        if (data.status !== undefined && data.status !== oldStatus) {
+            throw { status: 400, message: 'Không thể đổi trạng thái tại màn hình này. Trạng thái tài sản được cập nhật qua quy trình vận hành.' };
+        }
+
         await asset.update(data, { transaction });
 
-        if (data.status !== oldStatus || data.current_room_id !== oldRoom) {
+        if (buildingChanged) {
+            await AssetHistory.create({
+                asset_id: asset.id,
+                from_room_id: null,
+                to_room_id: null,
+                from_status: oldStatus,
+                to_status: oldStatus,
+                action: 'UPDATE_INFO',
+                performed_by: user?.id || null,
+                notes: data.notes || 'Chuyển tài sản sang kho của tòa nhà khác'
+            }, { transaction });
+        } else if (data.status !== oldStatus || data.current_room_id !== oldRoom) {
             await AssetHistory.create({
                 asset_id: asset.id,
                 from_room_id: oldRoom,
@@ -382,13 +426,13 @@ const updateAsset = async (id, data, performerId = null) => {
                 from_status: oldStatus,
                 to_status: data.status || oldStatus,
                 action: 'UPDATE_INFO',
-                performed_by: performerId,
+                performed_by: user?.id || null,
                 notes: data.notes || 'Cập nhật thông tin tài sản'
             }, { transaction });
         }
 
         await transaction.commit();
-        return getAssetById(id, { role: ROLES.ADMIN });
+        return getAssetById(id, user);
     } catch (error) {
         await transaction.rollback();
         throw error;
