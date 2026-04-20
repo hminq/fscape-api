@@ -40,4 +40,5 @@ app.use('/api/notifications', require('./routes/notification.routes'));
 app.use('/api/dashboard', require('./routes/dashboard.route'));
 app.use('/api/utils', require('./routes/utils.routes'));
 app.use('/api/chatbot', require('./routes/chatbot.routes'));
+app.use('/api/admin/jobs', require('./routes/adminJob.routes'));
 module.exports = app
