@@ -1,6 +1,7 @@
 const AssetService = require('../../../services/asset.service');
 const Asset = require('../../../models/asset.model');
 const { ROLES } = require('../../../constants/roles');
+const { Op } = require('sequelize');
 
 jest.mock('../../../models/asset.model');
 jest.mock('../../../models/building.model');
@@ -57,9 +58,9 @@ describe('AssetService - getAllAssets', () => {
         
         expect(Asset.findAndCountAll).toHaveBeenCalledWith(expect.objectContaining({
             where: expect.objectContaining({
-                [expect.any(Symbol)]: expect.arrayContaining([
-                    { name: { [expect.any(Symbol)]: '%ABC%' } },
-                    { qr_code: { [expect.any(Symbol)]: '%ABC%' } }
+                [Op.or]: expect.arrayContaining([
+                    { name: { [Op.iLike]: '%ABC%' } },
+                    { qr_code: { [Op.iLike]: '%ABC%' } }
                 ])
             })
         }));

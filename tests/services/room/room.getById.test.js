@@ -17,21 +17,28 @@ jest.mock('../../../models/user.model');
 describe('RoomService - getRoomById', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset trạng thái mặc định
+        Room.findByPk.mockResolvedValue(null);
+        Contract.findOne.mockResolvedValue(null);
+        Request.findAll.mockResolvedValue([]);
+        Booking.findAll.mockResolvedValue([]);
+        Contract.findAll.mockResolvedValue([]);
+        
         console.log('\n=========================================================================');
     });
 
-    it('Lấy thông tin phòng công khai (PUBLIC), không có internal data', async () => {
+    it('TC_ROOM_GT_01: Lấy thông tin phòng công khai (PUBLIC) - Ẩn thông tin nhạy cảm', async () => {
         const id = 1;
         const mockRoom = { 
             id, building_id: 1, room_number: '101',
-            created_at: '2023',
-            building: { id: 1, name: 'A' },
+            createdAt: '2023-01-01',
+            building: { id: 1, name: 'A', address: 'Add A' },
             room_type: { id: 1, name: 'B', base_price: 100 },
             toJSON: () => ({ 
                 id, building_id: 1, room_number: '101', 
-                created_at: '2023',
-                building: { id: 1, name: 'A', extra: 'hide' },
-                room_type: { id: 1, name: 'B', base_price: 100, extra: 'hide' }
+                createdAt: '2023-01-01',
+                building: { id: 1, name: 'A', address: 'Add A' },
+                room_type: { id: 1, name: 'B', base_price: 100 }
             })
         };
         Room.findByPk.mockResolvedValue(mockRoom);
@@ -39,21 +46,21 @@ describe('RoomService - getRoomById', () => {
         const result = await RoomService.getRoomById(id, { role: 'PUBLIC' });
 
         console.log(`[TEST]: PUBLIC xem phòng - Không internal data, stripping`);
-        console.log(`- Expected: stripped fields (no extra, no created_at)`);
         
-        expect(result.created_at).toBeUndefined();
-        expect(result.building.extra).toBeUndefined();
-        expect(result.current_resident).toBeUndefined();
+        expect(result.createdAt).toBeUndefined(); // Ẩn timestamps
+        expect(result.current_resident).toBeUndefined(); // Không thấy resident
+        expect(result.building).not.toHaveProperty('created_at');
     });
 
-    it('Lấy thông tin cho ADMIN - thấy đầy đủ dữ liệu resident, booking, request', async () => {
+    it('TC_ROOM_GT_02: Lấy thông tin cho ADMIN - Thấy đầy đủ dữ liệu cư dân và các yêu cầu liên quan', async () => {
         const id = 1;
         const mockRoom = { 
             id, building_id: 1, room_number: '101',
             toJSON: () => ({ id, building_id: 1, room_number: '101' })
         };
         const mockContract = {
-            id: 10, status: 'ACTIVE', customer: { id: 5, first_name: 'John' },
+            id: 10, status: 'ACTIVE', 
+            customer: { id: 5, first_name: 'John' },
             toJSON: () => ({ id: 10, status: 'ACTIVE', customer: { id: 5, first_name: 'John' } })
         };
         
@@ -66,9 +73,7 @@ describe('RoomService - getRoomById', () => {
         const result = await RoomService.getRoomById(id, { role: ROLES.ADMIN });
 
         console.log(`[TEST]: ADMIN xem chi tiết với dữ liệu bổ sung`);
-        console.log(`- Expected: resident_requests.length=1, current_resident name="John"`);
-        console.log(`- Actual  : ${result.resident_requests.length} request, name="${result.current_resident.first_name}"`);
-
+        
         expect(result.current_resident).toBeDefined();
         expect(result.current_resident.first_name).toBe('John');
         expect(result.resident_requests).toHaveLength(1);
@@ -76,7 +81,7 @@ describe('RoomService - getRoomById', () => {
         expect(result.resident_contracts).toHaveLength(1);
     });
 
-    it('BUILDING_MANAGER truy cập phòng tòa nhà khác sẽ bị cấm', async () => {
+    it('TC_ROOM_GT_03: BUILDING_MANAGER truy cập phòng tòa nhà khác sẽ bị cấm (403)', async () => {
         const id = 1;
         const mockRoom = { 
             id, building_id: 2, room_number: '101',
@@ -88,17 +93,19 @@ describe('RoomService - getRoomById', () => {
 
         try {
             await RoomService.getRoomById(id, { role: ROLES.BUILDING_MANAGER, building_id: 1 });
+            throw new Error('Should have thrown error');
         } catch (error) {
             expect(error.status).toBe(403);
             expect(error.message).toBe(expectedError);
         }
     });
 
-    it('ID phòng không tồn tại', async () => {
+    it('TC_ROOM_GT_04: ID phòng không tồn tại (404)', async () => {
         Room.findByPk.mockResolvedValue(null);
         
         try {
             await RoomService.getRoomById(999, { role: 'PUBLIC' });
+            throw new Error('Should have thrown error');
         } catch (error) {
             expect(error.status).toBe(404);
             expect(error.message).toBe('Không tìm thấy phòng');

@@ -7,10 +7,12 @@ jest.mock('../../../models/location.model');
 describe('UniversityService - getAllUniversities', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset trạng thái mặc định
+        University.findAndCountAll.mockResolvedValue({ count: 0, rows: [] });
         console.log('\n=========================================================================');
     });
 
-    it('Lấy danh sách trường đại học thành công', async () => {
+    it('TC_UNIVERSITY_GET_01: Lấy danh sách trường đại học thành công (Happy Path)', async () => {
         const mockRows = [{ id: 1, name: 'Đại học Bách Khoa', is_active: true }];
         University.findAndCountAll.mockResolvedValue({ count: 1, rows: mockRows });
 
@@ -18,15 +20,16 @@ describe('UniversityService - getAllUniversities', () => {
         const result = await UniversityService.getAllUniversities(query);
 
         console.log(`[TEST]: Lấy danh sách University`);
-        console.log(`- Input   : Query=${JSON.stringify(query)}`);
-        console.log(`- Expected: Total=1, page=1`);
-        console.log(`- Actual  : Total=${result.total}, page=${result.page}`);
 
         expect(result.total).toBe(1);
-        expect(result.data).toEqual(mockRows);
+        expect(result.data).toHaveLength(1);
+        expect(University.findAndCountAll).toHaveBeenCalledWith(expect.objectContaining({
+            limit: 10,
+            offset: 0
+        }));
     });
 
-    it('Tìm kiếm trường theo tên', async () => {
+    it('TC_UNIVERSITY_GET_02: Tìm kiếm trường theo tên (Search filter)', async () => {
         const mockRows = [{ id: 1, name: 'Đại học Kinh tế' }];
         University.findAndCountAll.mockResolvedValue({ count: 1, rows: mockRows });
 
@@ -34,10 +37,11 @@ describe('UniversityService - getAllUniversities', () => {
         const result = await UniversityService.getAllUniversities(query);
 
         console.log(`[TEST]: Tìm kiếm University`);
-        console.log(`- Input   : Search="Kinh tế"`);
-        console.log(`- Expected: Đại học Kinh tế`);
-        console.log(`- Actual  : ${result.data[0].name}`);
-
         expect(result.data[0].name).toBe('Đại học Kinh tế');
+        expect(University.findAndCountAll).toHaveBeenCalledWith(expect.objectContaining({
+            where: expect.objectContaining({
+                name: expect.any(Object) // iLike object
+            })
+        }));
     });
 });

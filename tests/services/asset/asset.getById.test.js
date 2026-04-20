@@ -36,7 +36,7 @@ describe('AssetService - getAssetById', () => {
         const mockAsset = { id: 'a1', building_id: 'b2' };
         Asset.findByPk.mockResolvedValue(mockAsset);
         const user = { role: ROLES.BUILDING_MANAGER, building_id: 'b1' };
-        const expectedError = 'You can only access assets in your assigned building';
+        const expectedError = 'Bạn chỉ có thể truy cập tài sản trong tòa nhà được phân công';
 
         console.log(`[TEST]: Chặn BM truy cập Asset tòa khác`);
         console.log(`- Input   : UserBuilding="b1", AssetBuilding="b2"`);
@@ -52,7 +52,7 @@ describe('AssetService - getAssetById', () => {
 
     it('Asset không tồn tại', async () => {
         Asset.findByPk.mockResolvedValue(null);
-        const expectedError = 'Asset not found';
+        const expectedError = 'Không tìm thấy tài sản';
 
         console.log(`[TEST]: Asset không tồn tại`);
         console.log(`- Input   : ID="999"`);
@@ -67,7 +67,7 @@ describe('AssetService - getAssetById', () => {
     });
 
     it('ID Asset bị null', async () => {
-        const expectedError = 'Asset not found';
+        const expectedError = 'Không tìm thấy tài sản';
 
         console.log(`[TEST]: Truy vấn Asset với ID=null`);
         console.log(`- Input   : ID=null`);

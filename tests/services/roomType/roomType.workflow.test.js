@@ -36,6 +36,12 @@ const { RoomType, Room, RoomTypeAsset, AssetType } = sequelize.models;
 describe('RoomTypeService - Unified & Abnormal Cases', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset trạng thái mặc định cho các Model
+        RoomType.findOne.mockResolvedValue(null);
+        RoomType.findByPk.mockResolvedValue(null);
+        Room.count.mockResolvedValue(0);
+        AssetType.findAll.mockResolvedValue([]);
+        
         console.log('\n=========================================================================');
     });
 
@@ -123,6 +129,28 @@ describe('RoomTypeService - Unified & Abnormal Cases', () => {
                 console.log(`- Actual Error: "${error.message}"`);
                 expect(error.status).toBe(400);
                 expect(error.message).toContain('không hợp lệ');
+            }
+        });
+
+        it('TC_ROOMTYPE_07: Lỗi hệ thống khi gán tài sản mẫu - Kiểm tra Rollback (Abnormal)', async () => {
+            const mockRoomType = { id: 'rt1' };
+            RoomType.findByPk.mockResolvedValue(mockRoomType);
+            AssetType.findAll.mockResolvedValue([{ id: 1 }]);
+            
+            // Giả lập destroy thành công nhưng bulkCreate bị lỗi hệ thống
+            RoomTypeAsset.destroy.mockResolvedValue(1);
+            RoomTypeAsset.bulkCreate.mockRejectedValue(new Error('Database crash'));
+
+            const { sequelize } = require('../../../config/db');
+            const mockTransaction = await sequelize.transaction();
+
+            console.log(`[TEST]: Lỗi hệ thống khi gán tài sản - Rollback check`);
+            try {
+                await RoomTypeService.replaceTemplateAssets('rt1', [{ asset_type_id: 1, quantity: 5 }]);
+                throw new Error('Should have thrown error');
+            } catch (error) {
+                expect(error.message).toBe('Database crash');
+                expect(mockTransaction.rollback).toHaveBeenCalled();
             }
         });
     });

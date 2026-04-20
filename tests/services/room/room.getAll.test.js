@@ -17,82 +17,90 @@ jest.mock('../../../models/user.model');
 describe('RoomService - getAllRooms', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Mặc định trả về danh sách trống
+        Room.findAndCountAll.mockResolvedValue({ count: 0, rows: [] });
         console.log('\n=========================================================================');
     });
 
-    it('Lấy danh sách cho ADMIN, không có filter, timestamps được giữ lại', async () => {
+    it('TC_ROOM_GET_01: ADMIN lấy danh sách các phòng (Full data & No filter)', async () => {
         const query = { page: 1, limit: 10 };
         const user = { role: ROLES.ADMIN };
         const mockRooms = [
-            { id: 1, room_number: '101', building_id: 1, created_at: '2023-01-01', toJSON: () => ({ id: 1, room_number: '101', building_id: 1, created_at: '2023-01-01' }) },
-            { id: 2, room_number: '102', building_id: 2, created_at: '2023-01-02', toJSON: () => ({ id: 2, room_number: '102', building_id: 2, created_at: '2023-01-02' }) }
+            { 
+                id: 1, room_number: '101', 
+                createdAt: '2023-01-01', 
+                toJSON: () => ({ id: 1, room_number: '101', createdAt: '2023-01-01' }) 
+            }
         ];
 
-        Room.findAndCountAll.mockResolvedValue({
-            count: 2,
-            rows: mockRooms
-        });
+        Room.findAndCountAll.mockResolvedValue({ count: 1, rows: mockRooms });
 
         const result = await RoomService.getAllRooms(query, user);
 
-        console.log(`[TEST]: ADMIN lấy danh sách các phòng`);
-        console.log(`- Expected: 2 records returned with created_at`);
-        console.log(`- Actual  : ${result.data.length} records returned`);
-
-        expect(result.total).toBe(2);
-        expect(result.data).toHaveLength(2);
-        // ADMIN nên thấy data gốc chứa timestamps, do data lấy từ rows không qua bước map xóa timestamps trong code nếu là ADMIN (nó trả rows, nhưng ở đây cần xem logic row.toJSON ko)
-        // Code thực tế: let data = rows; nếu k phải admin mới chạy .map() strip fields
-        expect(result.data[0]).toHaveProperty('id');
+        console.log(`[TEST]: ADMIN lấy danh sách - Check timestamps`);
+        // ADMIN trả về rows trực tiếp, nên result.data[0] chính là mockRooms[0]
+        expect(result.total).toBe(1);
+        expect(result.data[0]).toHaveProperty('createdAt'); // Admin phải thấy timestamps
+        expect(Room.findAndCountAll).toHaveBeenCalledWith(expect.objectContaining({
+            where: {}, // Không bị auto-filter building
+            limit: 10,
+            offset: 0
+        }));
     });
 
-    it('Lấy danh sách cho BUILDING_MANAGER, tự động filter theo building_id và xóa timestamps', async () => {
-        const query = { page: 1, limit: 5 };
-        const user = { role: ROLES.BUILDING_MANAGER, building_id: 1 };
+    it('TC_ROOM_GET_02: MANAGER lấy danh sách - Tự động lọc theo Building và ẩn thông tin nhạy cảm', async () => {
+        const query = { page: 1, limit: 10 };
+        const user = { role: ROLES.BUILDING_MANAGER, building_id: 88 };
         
         const mockRoom = { 
-            id: 1, 
-            room_number: '101', 
-            building_id: 1,
-            created_at: '2023-01-01',
+            id: 1, room_number: '101', 
             createdAt: '2023-01-01',
-            toJSON: () => ({ id: 1, room_number: '101', building_id: 1, created_at: '2023-01-01', createdAt: '2023-01-01' })
+            toJSON: () => ({ id: 1, room_number: '101', createdAt: '2023-01-01' })
         };
 
-        Room.findAndCountAll.mockResolvedValue({
-            count: 1,
-            rows: [mockRoom]
-        });
+        Room.findAndCountAll.mockResolvedValue({ count: 1, rows: [mockRoom] });
 
         const result = await RoomService.getAllRooms(query, user);
 
-        console.log(`[TEST]: BUILDING_MANAGER lấy danh sách, check filter building_id và stripping`);
-        console.log(`- Input   : building_id filter=${user.building_id}`);
-        console.log(`- Expected: stripped timestamps (no created_at)`);
+        console.log(`[TEST]: Manager lấy danh sách - Check auto-filter building_id và stripping`);
         
-        const hasCreatedAt = result.data[0].hasOwnProperty('created_at');
-        console.log(`- Actual  : contains created_at? ${hasCreatedAt}`);
-
+        // Kiểm tra filter tòa nhà
         expect(Room.findAndCountAll).toHaveBeenCalledWith(expect.objectContaining({
-            where: { building_id: 1 }
+            where: { building_id: 88 }
         }));
         
-        expect(hasCreatedAt).toBe(false);
+        // Kiểm tra việc ẩn createdAt
+        expect(result.data[0]).not.toHaveProperty('createdAt');
     });
 
-    it('Tìm kiếm (search) phòng bằng số phòng', async () => {
-        const query = { search: '101' };
+    it('TC_ROOM_GET_03: Tìm kiếm và lọc nâng cao (Search, Status, Floor)', async () => {
+        const query = { search: '101', status: 'AVAILABLE', floor: 2 };
         const user = { role: ROLES.ADMIN };
-
-        Room.findAndCountAll.mockResolvedValue({ count: 0, rows: [] });
 
         await RoomService.getAllRooms(query, user);
 
-        console.log(`[TEST]: Tìm kiếm phòng với query search`);
-        console.log(`- Input   : search='101'`);
+        console.log(`[TEST]: Lọc nâng cao kết hợp search`);
         
         expect(Room.findAndCountAll).toHaveBeenCalledWith(expect.objectContaining({
-            where: { room_number: { [Op.iLike]: '%101%' } }
+            where: expect.objectContaining({
+                room_number: { [Op.iLike]: '%101%' },
+                status: 'AVAILABLE',
+                floor: 2
+            })
+        }));
+    });
+
+    it('TC_ROOM_GET_04: Kiểm tra phân trang (Pagination logic)', async () => {
+        const query = { page: 3, limit: 5 };
+        const user = { role: ROLES.ADMIN };
+
+        await RoomService.getAllRooms(query, user);
+
+        console.log(`[TEST]: Kiểm tra offset phân trang`);
+        // Page 3, limit 5 -> Offset = (3-1)*5 = 10
+        expect(Room.findAndCountAll).toHaveBeenCalledWith(expect.objectContaining({
+            limit: 5,
+            offset: 10
         }));
     });
 });

@@ -11,10 +11,13 @@ jest.mock('../../../models/assetType.model');
 describe('RoomTypeService - getAllRoomTypes', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset trạng thái mặc định
+        RoomType.findAndCountAll.mockResolvedValue({ count: 0, rows: [] });
+        RoomType.count.mockResolvedValue(0);
         console.log('\n=========================================================================');
     });
 
-    it('Lấy danh sách tất cả room types cho ADMIN với đầy đủ timestamp', async () => {
+    it('TC_ROOMTYPE_GET_01: ADMIN lấy danh sách các loại phòng (Full data)', async () => {
         const query = { page: 1, limit: 10 };
         const user = { role: ROLES.ADMIN };
         
@@ -30,7 +33,6 @@ describe('RoomTypeService - getAllRoomTypes', () => {
         const result = await RoomTypeService.getAllRoomTypes(query, user);
 
         console.log(`[TEST]: ADMIN lấy danh sách RoomType`);
-        console.log(`- Expected: 2 records returned, NO timestamp stripped in attributes`);
         
         expect(RoomType.findAndCountAll).toHaveBeenCalledWith(expect.objectContaining({
             attributes: undefined
@@ -40,32 +42,28 @@ describe('RoomTypeService - getAllRoomTypes', () => {
         expect(result.active_count).toBe(1);
     });
 
-    it('Lấy danh sách room types cho PUBLIC và strip timestamp', async () => {
+    it('TC_ROOMTYPE_GET_02: PUBLIC lấy danh sách - Ẩn thông tin nhạy cảm', async () => {
         const query = { page: 1, limit: 10 };
         const user = { role: 'PUBLIC' };
         
         RoomType.findAndCountAll.mockResolvedValue({
-            count: 2,
+            count: 1,
             rows: [{ id: 1, name: 'Phòng Đơn' }]
         });
         RoomType.count.mockResolvedValue(1);
 
         await RoomTypeService.getAllRoomTypes(query, user);
 
-        console.log(`[TEST]: PUBLIC lấy danh sách RoomType`);
-        console.log(`- Expected: attributes có exclude ['createdAt', 'updatedAt']`);
+        console.log(`[TEST]: PUBLIC lấy danh sách RoomType - Kiểm tra stripping`);
 
         expect(RoomType.findAndCountAll).toHaveBeenCalledWith(expect.objectContaining({
             attributes: { exclude: ['createdAt', 'updatedAt'] }
         }));
     });
 
-    it('Filter danh sách theo is_active = true', async () => {
+    it('TC_ROOMTYPE_GET_03: Lọc theo trạng thái is_active', async () => {
         const query = { is_active: 'true' };
         
-        RoomType.findAndCountAll.mockResolvedValue({ count: 1, rows: [{}] });
-        RoomType.count.mockResolvedValue(1);
-
         await RoomTypeService.getAllRoomTypes(query, {});
 
         console.log(`[TEST]: Lọc RoomType theo is_active=true`);
@@ -74,12 +72,9 @@ describe('RoomTypeService - getAllRoomTypes', () => {
         }));
     });
 
-    it('Tìm kiếm RoomType bằng chuỗi', async () => {
+    it('TC_ROOMTYPE_GET_04: Tìm kiếm theo tên (Search)', async () => {
         const query = { search: 'VIP' };
         
-        RoomType.findAndCountAll.mockResolvedValue({ count: 1, rows: [{}] });
-        RoomType.count.mockResolvedValue(1);
-
         await RoomTypeService.getAllRoomTypes(query, {});
 
         console.log(`[TEST]: Lọc RoomType bằng search=VIP`);

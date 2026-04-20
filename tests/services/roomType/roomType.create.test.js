@@ -28,18 +28,22 @@ jest.mock('../../../config/db', () => {
 
 // Mock individual models
 jest.mock('../../../models/roomType.model', () => (require('../../../config/db').sequelize.models.RoomType));
+jest.mock('../../../models/room.model', () => (require('../../../config/db').sequelize.models.Room));
+jest.mock('../../../models/roomTypeAsset.model', () => (require('../../../config/db').sequelize.models.RoomTypeAsset));
+jest.mock('../../../models/assetType.model', () => (require('../../../config/db').sequelize.models.AssetType));
 
 const { RoomType } = sequelize.models;
 
 describe('RoomTypeService - createRoomType', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset trạng thái mặc định
+        RoomType.findOne.mockResolvedValue(null);
         console.log('\n=========================================================================');
     });
 
     it('TC_ROOMTYPE_01: Tạo loại phòng thành công (Happy Path)', async () => {
         const newData = { name: 'Phòng Mới', base_price: 1500000 };
-        RoomType.findOne.mockResolvedValue(null);
         RoomType.create.mockResolvedValue({ id: 1, ...newData, deposit_months: 1 });
 
         const result = await RoomTypeService.createRoomType(newData);
@@ -85,7 +89,6 @@ describe('RoomTypeService - createRoomType', () => {
 
     it('TC_ROOMTYPE_07: Lỗi sức chứa không hợp lệ (Abnormal)', async () => {
         const newData = { name: 'Phòng Lỗi', base_price: 100000, capacity_min: 5, capacity_max: 2 };
-        RoomType.findOne.mockResolvedValue(null);
 
         console.log(`[TEST]: Tạo phòng sức chứa tối thiểu > tối đa`);
         try {
@@ -100,7 +103,6 @@ describe('RoomTypeService - createRoomType', () => {
 
     it('TC_ROOMTYPE_08: Lỗi số lượng phòng ngủ vượt giới hạn (Abnormal)', async () => {
         const newData = { name: 'Phòng VIP', base_price: 100, bedrooms: 50 };
-        RoomType.findOne.mockResolvedValue(null);
 
         console.log(`[TEST]: Số phòng ngủ vượt quá tối đa (10)`);
         try {
@@ -115,7 +117,6 @@ describe('RoomTypeService - createRoomType', () => {
 
     it('TC_ROOMTYPE_09: Lỗi diện tích không hợp lệ (Abnormal)', async () => {
         const newData = { name: 'Phòng Nhỏ', base_price: 100, area_sqm: 2000 };
-        RoomType.findOne.mockResolvedValue(null);
 
         console.log(`[TEST]: Diện tích vượt quá giới hạn (1000 m²)`);
         try {

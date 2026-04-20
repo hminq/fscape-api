@@ -1,20 +1,34 @@
-const AssetService = require('../../../services/asset.service');
-const Asset = require('../../../models/asset.model');
-const Building = require('../../../models/building.model');
-const { sequelize } = require('../../../config/db');
+// 1. Mock Database & Models (Must be before requiring service)
+jest.mock('../../../config/db', () => {
+    const mockModels = {
+        Asset: { create: jest.fn() },
+        Building: { findByPk: jest.fn() },
+        AssetType: { findByPk: jest.fn() },
+        AssetHistory: { create: jest.fn() }
+    };
+    return {
+        sequelize: {
+            models: mockModels,
+            define: jest.fn().mockReturnValue({
+                associate: jest.fn(),
+                belongsTo: jest.fn(),
+                hasMany: jest.fn()
+            }),
+            transaction: jest.fn().mockResolvedValue({ 
+                commit: jest.fn(), 
+                rollback: jest.fn() 
+            })
+        }
+    };
+});
 
-jest.mock('../../../models/asset.model');
-jest.mock('../../../models/assetHistory.model');
-jest.mock('../../../models/building.model');
-jest.mock('../../../models/assetType.model');
-jest.mock('../../../config/db', () => ({
-    sequelize: {
-        transaction: jest.fn(() => ({
-            commit: jest.fn(),
-            rollback: jest.fn()
-        }))
-    }
-}));
+// 2. Mock individual models
+jest.mock('../../../models/asset.model', () => (require('../../../config/db').sequelize.models.Asset));
+jest.mock('../../../models/building.model', () => (require('../../../config/db').sequelize.models.Building));
+
+const AssetService = require('../../../services/asset.service');
+const { Asset, Building } = require('../../../config/db').sequelize.models;
+const { sequelize } = require('../../../config/db');
 
 describe('AssetService - createBatchAssets', () => {
     beforeEach(() => {

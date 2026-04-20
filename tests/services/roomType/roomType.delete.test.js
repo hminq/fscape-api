@@ -26,12 +26,16 @@ jest.mock('../../../config/db', () => {
 // Mock individual models
 jest.mock('../../../models/roomType.model', () => (require('../../../config/db').sequelize.models.RoomType));
 jest.mock('../../../models/room.model', () => (require('../../../config/db').sequelize.models.Room));
+jest.mock('../../../models/roomTypeAsset.model', () => (require('../../../config/db').sequelize.models.RoomTypeAsset));
+jest.mock('../../../models/assetType.model', () => (require('../../../config/db').sequelize.models.AssetType));
 
 const { RoomType, Room } = sequelize.models;
 
 describe('RoomTypeService - deleteRoomType', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset trạng thái mặc định
+        Room.count.mockResolvedValue(0);
         console.log('\n=========================================================================');
     });
 

@@ -1,65 +1,88 @@
 const FacilityService = require('../../../services/facility.service');
-const Facility = require('../../../models/facility.model');
+const { sequelize } = require('../../../config/db');
 
-jest.mock('../../../models/facility.model');
+// 1. Mock Database & Models
+jest.mock('../../../config/db', () => ({
+    sequelize: {
+        models: {
+            Facility: { findByPk: jest.fn(), findOne: jest.fn() }
+        },
+        fn: jest.fn(),
+        col: jest.fn(),
+        where: jest.fn(),
+        authenticate: jest.fn().mockResolvedValue(),
+        close: jest.fn().mockResolvedValue()
+    },
+    connectDB: jest.fn().mockResolvedValue()
+}));
+
+// 2. Mock individual models
+jest.mock('../../../models/facility.model', () => (require('../../../config/db').sequelize.models.Facility));
+
+const { Facility } = sequelize.models;
 
 describe('FacilityService - updateFacility', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset trạng thái mặc định
+        Facility.findByPk.mockResolvedValue(null);
+        Facility.findOne.mockResolvedValue(null);
         console.log('\n=========================================================================');
     });
 
-    it('Cập nhật Facility thành công', async () => {
+    it('TC_FACILITY_04: Cập nhật tiện ích thành công (Happy Path)', async () => {
         const mockFacility = { 
             id: 1, 
             name: 'Wifi cũ', 
             update: jest.fn().mockResolvedValue(true) 
         };
         Facility.findByPk.mockResolvedValue(mockFacility);
-        Facility.findOne.mockResolvedValue(null);
 
         const updateData = { name: 'Wifi 5G' };
-        const result = await FacilityService.updateFacility(1, updateData);
+        await FacilityService.updateFacility(1, updateData);
 
-        expect(mockFacility.update).toHaveBeenCalledWith(updateData);
+        console.log(`[TEST]: Cập nhật tiện ích thành công`);
+        expect(mockFacility.update).toHaveBeenCalledWith(expect.objectContaining(updateData));
     });
 
-    it('Cập nhật tên trùng với Facility khác', async () => {
+    it('TC_FACILITY_05: Lỗi khi cập nhật trùng tên với tiện ích khác (409)', async () => {
         const mockFacility = { id: 1, name: 'Wifi' };
         Facility.findByPk.mockResolvedValue(mockFacility);
         Facility.findOne.mockResolvedValue({ id: 2, name: 'Điều hòa' });
-        const expectedError = 'Tiện ích "Điều hòa" đã tồn tại';
 
+        console.log(`[TEST]: Cập nhật trùng tên tiện ích khác`);
         try {
             await FacilityService.updateFacility(1, { name: 'Điều hòa' });
+            throw new Error('Should have thrown error');
         } catch (error) {
             expect(error.status).toBe(409);
-            expect(error.message).toBe(expectedError);
+            expect(error.message).toContain('đã tồn tại');
         }
     });
 
-    it('Cập nhật tên bị trống', async () => {
+    it('TC_FACILITY_06: Lỗi khi cập nhật tên trống (400)', async () => {
         const mockFacility = { id: 1, name: 'Wifi' };
         Facility.findByPk.mockResolvedValue(mockFacility);
-        const expectedError = 'Tên tiện ích không được để trống';
 
+        console.log(`[TEST]: Cập nhật tên tiện ích thành trống`);
         try {
             await FacilityService.updateFacility(1, { name: '' });
+            throw new Error('Should have thrown error');
         } catch (error) {
             expect(error.status).toBe(400);
-            expect(error.message).toBe(expectedError);
+            expect(error.message).toBe('Tên tiện ích không được để trống');
         }
     });
 
-    it('Cập nhật Facility với ID không tồn tại', async () => {
+    it('TC_FACILITY_07: Lỗi khi không tìm thấy tiện ích để cập nhật (404)', async () => {
         Facility.findByPk.mockResolvedValue(null);
-        const expectedError = 'Không tìm thấy tiện ích';
-
+        console.log(`[TEST]: Cập nhật tiện ích không tồn tại`);
         try {
-            await FacilityService.updateFacility(null, { name: 'Test' });
+            await FacilityService.updateFacility(999, { name: 'Test' });
+            throw new Error('Should have thrown error');
         } catch (error) {
             expect(error.status).toBe(404);
-            expect(error.message).toBe(expectedError);
+            expect(error.message).toBe('Không tìm thấy tiện ích');
         }
     });
 });

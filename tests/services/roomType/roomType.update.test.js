@@ -28,12 +28,17 @@ jest.mock('../../../config/db', () => {
 
 // Mock individual models
 jest.mock('../../../models/roomType.model', () => (require('../../../config/db').sequelize.models.RoomType));
+jest.mock('../../../models/room.model', () => (require('../../../config/db').sequelize.models.Room));
+jest.mock('../../../models/roomTypeAsset.model', () => (require('../../../config/db').sequelize.models.RoomTypeAsset));
+jest.mock('../../../models/assetType.model', () => (require('../../../config/db').sequelize.models.AssetType));
 
 const { RoomType } = sequelize.models;
 
 describe('RoomTypeService - updateRoomType', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset trạng thái mặc định
+        RoomType.findOne.mockResolvedValue(null);
         console.log('\n=========================================================================');
     });
 
@@ -52,7 +57,6 @@ describe('RoomTypeService - updateRoomType', () => {
         };
 
         RoomType.findByPk.mockResolvedValue(mockRoomType);
-        RoomType.findOne.mockResolvedValue(null);
 
         const result = await RoomTypeService.updateRoomType(id, updateData);
 

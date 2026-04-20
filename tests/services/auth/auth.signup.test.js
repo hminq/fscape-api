@@ -1,128 +1,140 @@
+const { sequelize } = require('../../../config/db');
+
+// 1. Mock Database & Models MUST BE FIRST
+jest.mock('../../../config/db', () => {
+    const createMockModel = () => ({
+        associate: jest.fn(),
+        belongsTo: jest.fn(),
+        hasMany: jest.fn(),
+        hasOne: jest.fn(),
+        belongsToMany: jest.fn(),
+        findOne: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        save: jest.fn()
+    });
+    const mockModels = {
+        User: createMockModel(),
+        AuthProvider: createMockModel()
+    };
+    return {
+        sequelize: {
+            models: mockModels,
+            define: jest.fn().mockImplementation(createMockModel),
+            transaction: jest.fn().mockResolvedValue({ commit: jest.fn(), rollback: jest.fn() })
+        }
+    };
+});
+
+// Explicitly mock model files
+jest.mock('../../../models/user.model', () => (require('../../../config/db').sequelize.models.User));
+jest.mock('../../../models/authProvider.model', () => ({
+    AuthProvider: require('../../../config/db').sequelize.models.AuthProvider
+}));
+jest.mock('../../../models/otpCode.model', () => (require('../../../config/db').sequelize.define()));
+jest.mock('../../../models/auditLog.model', () => (require('../../../config/db').sequelize.define()));
+
+// Mock Utils
+jest.mock('../../../utils/otp.util', () => ({
+    generateOtp: jest.fn(),
+    verifyOtp: jest.fn(),
+    OTP_TYPES: { EMAIL_VERIFICATION: 'EMAIL_VERIFICATION', PASSWORD_RESET: 'PASSWORD_RESET' }
+}));
+jest.mock('../../../utils/mail.util', () => ({
+    sendOtpMail: jest.fn()
+}));
+jest.mock('../../../utils/password.util', () => ({
+    hashPassword: jest.fn(),
+    comparePassword: jest.fn()
+}));
+
 const AuthService = require('../../../services/auth.service');
-const User = require('../../../models/user.model');
-const { AuthProvider } = require('../../../models/authProvider.model');
 const otpUtil = require('../../../utils/otp.util');
 const mailUtil = require('../../../utils/mail.util');
 const passwordUtil = require('../../../utils/password.util');
 
-// Giả lập các phụ thuộc (Mocks)
-jest.mock('../../models/user.model');
-jest.mock('../../models/authProvider.model', () => ({
-    AuthProvider: {
-        create: jest.fn()
-    }
-}));
-jest.mock('../../utils/otp.util');
-jest.mock('../../utils/mail.util');
-jest.mock('../../utils/password.util');
+const { User, AuthProvider } = sequelize.models;
 
-describe('AuthService - Signup (Đăng ký tài khoản)', () => {
+describe('AuthService - Signup Workflow', () => {
     const validEmail = 'guest_123@fscape.vn';
     const validPassword = 'Password123!';
 
     beforeEach(() => {
         jest.clearAllMocks();
+        // Set default return values to prevent undefined
+        User.create.mockResolvedValue({ id: 'user-default', email: validEmail });
+        User.findOne.mockResolvedValue(null);
         console.log('\n=========================================================================');
     });
 
-    // =========================================================================
-    // HÀM SIGNUP (GỬI OTP)
-    // =========================================================================
-    describe('Hàm signup', () => {
-        
-        // --- Happy Case ---
-        it('Gửi OTP thành công', async () => {
-            User.findOne.mockResolvedValue(null);
+    describe('AuthService.signup', () => {
+        it('TC_AUTH_01: Gửi OTP thành công (Happy Path)', async () => {
             otpUtil.generateOtp.mockResolvedValue({ code: '123456' });
             mailUtil.sendOtpMail.mockResolvedValue(true);
 
-            const expectedResult = { message: 'OTP sent to email' };
             const result = await AuthService.signup(validEmail, validPassword);
 
-            console.log(`[TEST]: Gửi OTP thành công`);
-            console.log(`- Input   : Email="${validEmail}", Password="***"`);
-            console.log(`- Expected: ${JSON.stringify(expectedResult)}`);
-            console.log(`- Actual  : ${JSON.stringify(result)}`);
-            
-            expect(result).toEqual(expectedResult);
+            console.log(`[TEST]: Gửi OTP đăng ký thành công`);
+            expect(result.message).toBe('Đã gửi mã OTP đến email');
         });
 
-        // --- Edge Case: Email đã tồn tại ---
-        it('Email đã tồn tại', async () => {
-            const existingEmail = 'admin@fscape.vn';
-            User.findOne.mockResolvedValue({ id: '1', email: existingEmail });
-            const expectedError = 'Email already exists';
+        it('TC_AUTH_02: Lỗi khi email đã tồn tại (400)', async () => {
+            User.findOne.mockResolvedValue({ id: 1, email: validEmail });
 
-            console.log(`[TEST]: Email đã tồn tại`);
-            console.log(`- Input   : Email="${existingEmail}" (Đã có trong hệ thống)`);
-            console.log(`- Expected Error: "${expectedError}"`);
-
+            console.log(`[TEST]: Đăng ký với email đã tồn tại`);
             try {
-                await AuthService.signup(existingEmail, validPassword);
+                await AuthService.signup(validEmail, validPassword);
+                throw new Error('Should error');
             } catch (error) {
-                console.log(`- Actual Error  : "${error.message}"`);
-                expect(error.message).toBe(expectedError);
+                expect(error.message).toBe('Email đã được đăng ký');
             }
         });
 
-        // --- Edge Case: Vượt quá giới hạn OTP (5 lần/ngày) ---
-        it('Vượt quá giới hạn OTP (5 lần/ngày)', async () => {
-            const spamEmail = 'spammer@fscape.vn';
-            User.findOne.mockResolvedValue(null);
-            const expectedError = 'OTP request limit exceeded (5/day)';
-            otpUtil.generateOtp.mockRejectedValue(new Error(expectedError));
-
-            console.log(`[TEST]: Vượt quá giới hạn OTP`);
-            console.log(`- Input   : Email="${spamEmail}" (Lần thứ 6 trong ngày)`);
-            console.log(`- Expected Error: "${expectedError}"`);
-
+        it('TC_AUTH_05: Lỗi khi bỏ trống trường bắt buộc (SignUp)', async () => {
+            console.log(`[TEST]: SignUp với dữ liệu trống`);
             try {
-                await AuthService.signup(spamEmail, validPassword);
+                await AuthService.signup(null, '');
+                throw new Error('Should error');
             } catch (error) {
-                console.log(`- Actual Error  : "${error.message}"`);
-                expect(error.message).toBe(expectedError);
+                expect(error.message).toBe('Email và mật khẩu không được để trống');
             }
         });
     });
 
-    // =========================================================================
-    // HÀM VERIFY SIGNUP (XÁC THỰC VÀ TẠO USER)
-    // =========================================================================
-    describe('Hàm verifySignup', () => {
-        const validOtp = '123456';
-
-        // --- Happy Case ---
-        it('Tạo tài khoản thành công khi mã OTP chính xác', async () => {
+    describe('AuthService.verifySignup', () => {
+        it('TC_AUTH_03: Xác thực OTP và tạo User thành công (Happy Path)', async () => {
             otpUtil.verifyOtp.mockResolvedValue(true);
-            User.create.mockResolvedValue({ id: 'user-uuid', email: validEmail });
-            passwordUtil.hashPassword.mockResolvedValue('hash-pw');
+            User.create.mockResolvedValue({ id: 'user-1', email: validEmail });
+            passwordUtil.hashPassword.mockResolvedValue('hashed-pw');
             AuthProvider.create.mockResolvedValue({});
 
-            const result = await AuthService.verifySignup(validEmail, validPassword, validOtp);
+            const result = await AuthService.verifySignup(validEmail, validPassword, '123456');
 
-            console.log(`[TEST]: Tạo tài khoản thành công`);
-            console.log(`- Input   : Email="${validEmail}", OTP="${validOtp}"`);
-            console.log(`- Expected: User object with email "${validEmail}"`);
-            console.log(`- Actual  : User object with email "${result.email}"`);
-
-            expect(result.email).toBe(validEmail);
+            console.log(`[TEST]: Xác thực đăng ký thành công`);
+            expect(result.id).toBe('user-1');
+            expect(User.create).toHaveBeenCalled();
         });
 
-        // --- Edge Case: OTP sai hoặc hết hạn ---
-        it('Mã OTP không chính xác hoặc đã hết hạn', async () => {
-            const invalidOtp = '000000';
-            const expectedError = 'Invalid or expired OTP';
-            otpUtil.verifyOtp.mockRejectedValue(new Error(expectedError));
+        it('TC_AUTH_04: Lỗi khi OTP sai hoặc hết hạn', async () => {
+            const errorMsg = 'Mã OTP không chính xác hoặc đã hết hạn';
+            otpUtil.verifyOtp.mockRejectedValue(new Error(errorMsg));
 
-            console.log(`[TEST]: Mã OTP không chính xác`);
-            console.log(`- Input   : Email="${validEmail}", OTP="${invalidOtp}" (Sai mã)`);
-            console.log(`- Expected Error: "${expectedError}"`);
-
+            console.log(`[TEST]: Xác thực với OTP sai`);
             try {
-                await AuthService.verifySignup(validEmail, validPassword, invalidOtp);
+                await AuthService.verifySignup(validEmail, validPassword, '000000');
+                throw new Error('Should error');
             } catch (error) {
-                console.log(`- Actual Error  : "${error.message}"`);
-                expect(error.message).toBe(expectedError);
+                expect(error.message).toBe(errorMsg);
+            }
+        });
+
+        it('TC_AUTH_06: Lỗi khi thiếu OTP khi xác thực', async () => {
+            console.log(`[TEST]: Xác thực không có mã OTP`);
+            try {
+                await AuthService.verifySignup(validEmail, validPassword, '');
+                throw new Error('Should error');
+            } catch (error) {
+                expect(error.message).toBe('Thiếu thông tin xác thực');
             }
         });
     });

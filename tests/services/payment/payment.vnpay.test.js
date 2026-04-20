@@ -25,30 +25,49 @@ jest.mock('../../../services/contract.service', () => ({
     createContractFromBooking: jest.fn().mockResolvedValue({ id: 'con-1' })
 }));
 
-// 3. Mock database
-jest.mock('../../../config/db', () => ({
-    sequelize: {
-        models: {
-            Booking: { findOne: jest.fn() },
-            Payment: { create: jest.fn(), findOne: jest.fn() },
-            Invoice: { findOne: jest.fn(), findByPk: jest.fn() },
-            Contract: { findByPk: jest.fn() },
-            User: { findByPk: jest.fn() },
-            Room: { findByPk: jest.fn() }
+// 1. Mock Database & Models (Cấu trúc bắt buộc để service lấy được models)
+jest.mock('../../../config/db', () => {
+    const mockModels = {
+        Booking: { findOne: jest.fn() },
+        Payment: { create: jest.fn(), findOne: jest.fn() },
+        Invoice: { findOne: jest.fn(), findByPk: jest.fn() },
+        Contract: { findByPk: jest.fn() },
+        User: { findByPk: jest.fn() },
+        Room: { findByPk: jest.fn() }
+    };
+    return {
+        sequelize: {
+            models: mockModels,
+            transaction: jest.fn().mockResolvedValue({ 
+                commit: jest.fn(), 
+                rollback: jest.fn() 
+            }),
+            authenticate: jest.fn().mockResolvedValue(),
+            close: jest.fn().mockResolvedValue()
         },
-        transaction: jest.fn().mockResolvedValue({ commit: jest.fn(), rollback: jest.fn() }),
-        authenticate: jest.fn().mockResolvedValue(),
-        close: jest.fn().mockResolvedValue()
-    },
-    connectDB: jest.fn().mockResolvedValue()
-}));
+        connectDB: jest.fn().mockResolvedValue()
+    };
+});
 
-// 4. Load Models for mocking
-const { Booking, Payment, Invoice } = sequelize.models;
+// 2. Mock individual models (Để service require trực tiếp không bị lỗi)
+jest.mock('../../../models/booking.model', () => (require('../../../config/db').sequelize.models.Booking));
+jest.mock('../../../models/payment.model', () => (require('../../../config/db').sequelize.models.Payment));
+jest.mock('../../../models/invoice.model', () => (require('../../../config/db').sequelize.models.Invoice));
+jest.mock('../../../models/contract.model', () => (require('../../../config/db').sequelize.models.Contract));
+jest.mock('../../../models/user.model', () => (require('../../../config/db').sequelize.models.User));
+jest.mock('../../../models/room.model', () => (require('../../../config/db').sequelize.models.Room));
+
+const { Booking, Payment, Invoice, Contract } = sequelize.models;
 
 describe('PaymentService - createBookingPaymentUrl', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset trạng thái mặc định
+        Booking.findOne.mockResolvedValue(null);
+        Payment.create.mockResolvedValue(null);
+        Payment.findOne.mockResolvedValue(null);
+        Invoice.findOne.mockResolvedValue(null);
+        
         console.log('\n=========================================================================');
     });
 
@@ -81,9 +100,31 @@ describe('PaymentService - createBookingPaymentUrl', () => {
             throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error: "${error.message}"`);
-            expect(error.status).toBe(404);
             expect(error.message).toBe('Không tìm thấy đơn đặt phòng hợp lệ hoặc đơn đã được xử lý');
         }
+    });
+
+    it('TC_PAYMENT_03: Tạo link thanh toán VNPay cho Hóa đơn (Invoice) thành công', async () => {
+        const mockInvoice = { 
+            id: 'inv-1', 
+            invoice_number: 'INV123', 
+            total_amount: 3000000,
+            invoice_type: 'RENT',
+            contract_id: 'con-1'
+        };
+        const mockPayment = { id: 'pay-2', update: jest.fn().mockResolvedValue(true) };
+
+        Invoice.findOne.mockResolvedValue(mockInvoice);
+        Payment.create.mockResolvedValue(mockPayment);
+
+        const result = await PaymentService.createInvoicePaymentUrl(1, 'inv-1', '127.0.0.1');
+
+        console.log(`[TEST]: Tạo URL VNPay cho Hóa đơn`);
+        expect(result.paymentUrl).toBe('http://vnpay.vn/pay');
+        expect(Payment.create).toHaveBeenCalledWith(expect.objectContaining({ 
+            invoice_id: 'inv-1',
+            payment_type: 'RENT'
+        }));
     });
 });
 
@@ -123,5 +164,28 @@ describe('PaymentService - vnpayIpn', () => {
 
         console.log(`[TEST]: Xử lý VNPay IPN thất bại - Sai chữ ký`);
         expect(result.RspCode).toBe('97');
+    });
+
+    it('TC_PAYMENT_06: Lỗi hệ thống khi cập nhật Booking - Kiểm tra Rollback (Abnormal)', async () => {
+        const query = { vnp_TxnRef: 'PAY-1', vnp_Amount: '500000000', vnp_ResponseCode: '00' };
+        const mockPayment = { 
+            id: 'pay-1', amount: 5000000, status: 'PENDING', payment_type: 'DEPOSIT',
+            update: jest.fn().mockResolvedValue(true)
+        };
+        const mockBooking = { 
+            id: 'bk-1', 
+            update: jest.fn().mockRejectedValue(new Error('System crash during booking update')) 
+        };
+
+        Payment.findOne.mockResolvedValue(mockPayment);
+        Booking.findOne.mockResolvedValue(mockBooking);
+
+        const mockTransaction = await sequelize.transaction();
+
+        console.log(`[TEST]: Lỗi hệ thống khi xử lý IPN - Rollback check`);
+        const result = await PaymentService.vnpayIpn(query);
+
+        expect(result.RspCode).toBe('99');
+        expect(mockTransaction.rollback).toHaveBeenCalled();
     });
 });

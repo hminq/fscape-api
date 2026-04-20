@@ -26,6 +26,14 @@ jest.mock('../../../config/db', () => {
     };
 });
 
+// Mock individual models to ensure they point to the same mocked model objects
+jest.mock('../../../models/room.model', () => (require('../../../config/db').sequelize.models.Room));
+jest.mock('../../../models/roomImage.model', () => (require('../../../config/db').sequelize.models.RoomImage));
+jest.mock('../../../models/building.model', () => (require('../../../config/db').sequelize.models.Building));
+jest.mock('../../../models/roomType.model', () => (require('../../../config/db').sequelize.models.RoomType));
+jest.mock('../../../models/booking.model', () => (require('../../../config/db').sequelize.models.Booking));
+jest.mock('../../../models/contract.model', () => (require('../../../config/db').sequelize.models.Contract));
+
 const { Room, Booking, Contract } = sequelize.models;
 
 describe('RoomService - updateRoom', () => {
@@ -40,6 +48,11 @@ describe('RoomService - updateRoom', () => {
         sequelize.models.Building.findByPk.mockResolvedValue({ id: 1, name: 'Building A' });
         sequelize.models.RoomType.findByPk.mockResolvedValue({ id: 1, name: 'Type A' });
 
+        // Reset các mock có khả năng gây rò rỉ trạng thái
+        Room.findOne.mockResolvedValue(null);
+        Booking.findOne.mockResolvedValue(null);
+        Contract.findOne.mockResolvedValue(null);
+
         console.log('\n=========================================================================');
     });
 
@@ -47,8 +60,9 @@ describe('RoomService - updateRoom', () => {
         const id = 1;
         const updateData = { floor: 5 }; // Chỉ update tầng
         const mockRoom = { 
-            id, building_id: 1, room_number: '101', 
-            update: jest.fn().mockResolvedValue(true)
+            id, building_id: 1, room_number: '101', floor: 1,
+            update: jest.fn().mockResolvedValue(true),
+            toJSON: jest.fn().mockReturnValue({ id, building_id: 1, room_number: '101', floor: 5 })
         };
 
         Room.findByPk.mockResolvedValue(mockRoom);
@@ -63,7 +77,8 @@ describe('RoomService - updateRoom', () => {
         const updateData = { room_number: '102' };
         const mockRoom = { 
             id, building_id: 1, room_number: '101', 
-            update: jest.fn().mockResolvedValue(true)
+            update: jest.fn().mockResolvedValue(true),
+            toJSON: jest.fn().mockReturnValue({ id, building_id: 1, room_number: '102' })
         };
 
         Room.findByPk.mockResolvedValue(mockRoom);
@@ -79,9 +94,11 @@ describe('RoomService - updateRoom', () => {
         Room.findByPk.mockResolvedValue(null);
         try {
             await RoomService.updateRoom(999, {});
+            throw new Error('Should have thrown error');
         } catch (error) {
             expect(error.status).toBe(404);
             expect(error.message).toBe('Không tìm thấy phòng');
+            expect(mockTransaction.rollback).not.toHaveBeenCalled();
         }
     });
 
@@ -93,6 +110,7 @@ describe('RoomService - updateRoom', () => {
 
         try {
             await RoomService.updateRoom(id, { room_number: '102' });
+            throw new Error('Should have thrown error');
         } catch (error) {
             expect(error.status).toBe(409);
             expect(error.message).toBe('Số phòng 102 đã tồn tại trong tòa nhà này');
@@ -107,6 +125,7 @@ describe('RoomService - updateRoom', () => {
 
         try {
             await RoomService.updateRoom(id, { building_id: 999 });
+            throw new Error('Should have thrown error');
         } catch (error) {
             expect(error.status).toBe(404);
             expect(error.message).toBe('Không tìm thấy tòa nhà');
@@ -121,6 +140,7 @@ describe('RoomService - updateRoom', () => {
 
         try {
             await RoomService.updateRoom(id, { room_type_id: 999 });
+            throw new Error('Should have thrown error');
         } catch (error) {
             expect(error.status).toBe(404);
             expect(error.message).toBe('Không tìm thấy loại phòng');
@@ -134,6 +154,7 @@ describe('RoomService - updateRoom', () => {
 
         try {
             await RoomService.updateRoom(id, { room_number: '' });
+            throw new Error('Should have thrown error');
         } catch (error) {
             expect(error.status).toBe(400);
             expect(error.message).toBe('Số phòng không được để trống');
@@ -148,9 +169,27 @@ describe('RoomService - updateRoom', () => {
 
         try {
             await RoomService.updateRoom(id, { room_number: '102' });
+            throw new Error('Should have thrown error');
         } catch (error) {
             expect(error.status).toBe(409);
             expect(error.message).toContain('đang hoạt động');
+        }
+    });
+
+    it('TC_ROOM_09: Lỗi hệ thống - Transaction rollback (Abnormal)', async () => {
+        const id = 1;
+        const mockRoom = { 
+            id, building_id: 1, room_number: '101',
+            update: jest.fn().mockRejectedValue(new Error('Database error'))
+        };
+        Room.findByPk.mockResolvedValue(mockRoom);
+
+        try {
+            await RoomService.updateRoom(id, { floor: 10 });
+            throw new Error('Should have thrown error');
+        } catch (error) {
+            expect(error.message).toBe('Database error');
+            expect(mockTransaction.rollback).toHaveBeenCalled();
         }
     });
 });

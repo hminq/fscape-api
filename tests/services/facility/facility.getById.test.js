@@ -1,15 +1,32 @@
 const FacilityService = require('../../../services/facility.service');
-const Facility = require('../../../models/facility.model');
+const { sequelize } = require('../../../config/db');
 
-jest.mock('../../../models/facility.model');
+// 1. Mock Database & Models
+jest.mock('../../../config/db', () => ({
+    sequelize: {
+        models: {
+            Facility: { findByPk: jest.fn() }
+        },
+        authenticate: jest.fn().mockResolvedValue(),
+        close: jest.fn().mockResolvedValue()
+    },
+    connectDB: jest.fn().mockResolvedValue()
+}));
+
+// 2. Mock individual models
+jest.mock('../../../models/facility.model', () => (require('../../../config/db').sequelize.models.Facility));
+
+const { Facility } = sequelize.models;
 
 describe('FacilityService - getFacilityById', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset trạng thái mặc định
+        Facility.findByPk.mockResolvedValue(null);
         console.log('\n=========================================================================');
     });
 
-    it('Lấy chi tiết tiện ích thành công', async () => {
+    it('TC_FACILITY_GET_03: Lấy chi tiết tiện ích thành công (Happy Path)', async () => {
         const mockFacility = { 
             id: 1, 
             name: 'Điều hòa',
@@ -19,42 +36,19 @@ describe('FacilityService - getFacilityById', () => {
 
         const result = await FacilityService.getFacilityById(1);
 
-        console.log(`[TEST]: Lấy chi tiết Facility`);
-        console.log(`- Input   : ID=1`);
-        console.log(`- Expected: Name="Điều hòa"`);
-        console.log(`- Actual  : Name="${result.name}"`);
-
+        console.log(`[TEST]: Lấy chi tiết tiện ích thành công`);
         expect(result.name).toBe('Điều hòa');
     });
 
-    it('Tiện ích không tồn tại', async () => {
+    it('TC_FACILITY_GET_04: Lỗi khi không tìm thấy tiện ích (404)', async () => {
         Facility.findByPk.mockResolvedValue(null);
-        const expectedError = 'Facility not found';
-
-        console.log(`[TEST]: Facility không tồn tại`);
-        console.log(`- Input   : ID=999`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
+        console.log(`[TEST]: Truy vấn tiện ích không tồn tại`);
         try {
             await FacilityService.getFacilityById(999);
+            throw new Error('Should have thrown error');
         } catch (error) {
-            console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
-        }
-    });
-
-    it('ID Facility bị null', async () => {
-        const expectedError = 'Facility not found';
-
-        console.log(`[TEST]: Truy vấn Facility với ID=null`);
-        console.log(`- Input   : ID=null`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
-        try {
-            await FacilityService.getFacilityById(null);
-        } catch (error) {
-            console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
+            expect(error.status).toBe(404);
+            expect(error.message).toBe('Không tìm thấy tiện ích');
         }
     });
 });

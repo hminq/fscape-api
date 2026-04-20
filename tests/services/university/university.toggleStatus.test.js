@@ -6,10 +6,12 @@ jest.mock('../../../models/university.model');
 describe('UniversityService - toggleUniversityStatus', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset trạng thái mặc định
+        University.findByPk.mockResolvedValue(null);
         console.log('\n=========================================================================');
     });
 
-    it('Kích hoạt University thành công', async () => {
+    it('TC_UNIVERSITY_TG_01: Kích hoạt University thành công (Happy Path)', async () => {
         const mockUni = { 
             id: 1, 
             is_active: false, 
@@ -20,15 +22,11 @@ describe('UniversityService - toggleUniversityStatus', () => {
         const result = await UniversityService.toggleUniversityStatus(1, true);
 
         console.log(`[TEST]: Kích hoạt University (Active)`);
-        console.log(`- Input   : ID=1, isActive=true`);
-        console.log(`- Expected: is_active=true`);
-        console.log(`- Actual  : is_active=${result.is_active}`);
-
         expect(result.is_active).toBe(true);
         expect(mockUni.save).toHaveBeenCalled();
     });
 
-    it('Vô hiệu hóa University thành công', async () => {
+    it('TC_UNIVERSITY_TG_02: Vô hiệu hóa University thành công (Happy Path)', async () => {
         const mockUni = { 
             id: 1, 
             is_active: true, 
@@ -39,25 +37,19 @@ describe('UniversityService - toggleUniversityStatus', () => {
         const result = await UniversityService.toggleUniversityStatus(1, false);
 
         console.log(`[TEST]: Vô hiệu hóa University (Inactive)`);
-        console.log(`- Input   : ID=1, isActive=false`);
-        console.log(`- Expected: is_active=false`);
-        console.log(`- Actual  : is_active=${result.is_active}`);
-
         expect(result.is_active).toBe(false);
         expect(mockUni.save).toHaveBeenCalled();
     });
 
-    it('Lỗi khi trạng thái mới trùng với trạng thái hiện tại (University)', async () => {
+    it('TC_UNIVERSITY_TG_03: Lỗi khi trạng thái mới trùng với trạng thái hiện tại (400)', async () => {
         const mockUni = { id: 1, is_active: true };
         University.findByPk.mockResolvedValue(mockUni);
-        const expectedError = 'University is already active';
+        const expectedError = 'Trường đại học đã ở trạng thái hoạt động';
 
         console.log(`[TEST]: Trùng trạng thái hiện tại (University)`);
-        console.log(`- Input   : ID=1, isActive=true`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
         try {
             await UniversityService.toggleUniversityStatus(1, true);
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
             expect(error.status).toBe(400);
@@ -65,18 +57,17 @@ describe('UniversityService - toggleUniversityStatus', () => {
         }
     });
 
-    it('ID University bị null khi đổi trạng thái', async () => {
+    it('TC_UNIVERSITY_TG_04: Lỗi khi ID không tồn tại (404)', async () => {
         University.findByPk.mockResolvedValue(null);
-        const expectedError = 'University not found';
+        const expectedError = 'Không tìm thấy trường đại học';
 
-        console.log(`[TEST]: Đổi trạng thái với ID=null`);
-        console.log(`- Input   : ID=null`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
+        console.log(`[TEST]: Đổi trạng thái với ID không tồn tại`);
         try {
-            await UniversityService.toggleUniversityStatus(null, true);
+            await UniversityService.toggleUniversityStatus(999, true);
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
+            expect(error.status).toBe(404);
             expect(error.message).toBe(expectedError);
         }
     });

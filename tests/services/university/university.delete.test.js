@@ -27,6 +27,8 @@ jest.mock('../../../config/db', () => {
 
 // Mock individual models
 jest.mock('../../../models/university.model', () => (require('../../../config/db').sequelize.models.University));
+jest.mock('../../../models/location.model', () => (require('../../../config/db').sequelize.models.Location));
+jest.mock('../../../models/building.model', () => (require('../../../config/db').sequelize.models.Building));
 
 const { University } = sequelize.models;
 

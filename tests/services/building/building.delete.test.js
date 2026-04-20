@@ -1,17 +1,41 @@
 const BuildingService = require('../../../services/building.service');
-const Building = require('../../../models/building.model');
-const Room = require('../../../models/room.model');
+const { sequelize } = require('../../../config/db');
 
-jest.mock('../../../models/building.model');
-jest.mock('../../../models/room.model');
+// 1. Mock Database & Models
+jest.mock('../../../config/db', () => {
+    const mockModels = {
+        Building: { findByPk: jest.fn() },
+        Room: { count: jest.fn() },
+        User: { update: jest.fn() }
+    };
+    return {
+        sequelize: {
+            models: mockModels,
+            authenticate: jest.fn().mockResolvedValue(),
+            close: jest.fn().mockResolvedValue()
+        },
+        connectDB: jest.fn().mockResolvedValue()
+    };
+});
+
+// 2. Mock individual models
+jest.mock('../../../models/building.model', () => (require('../../../config/db').sequelize.models.Building));
+jest.mock('../../../models/room.model', () => (require('../../../config/db').sequelize.models.Room));
+jest.mock('../../../models/user.model', () => (require('../../../config/db').sequelize.models.User));
+
+const { Building, Room, User } = sequelize.models;
 
 describe('BuildingService - deleteBuilding', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset trạng thái mặc định
+        Building.findByPk.mockResolvedValue(null);
+        Room.count.mockResolvedValue(0);
+        User.update.mockResolvedValue([1]); // success
         console.log('\n=========================================================================');
     });
 
-    it('Xóa tòa nhà thành công', async () => {
+    it('TC_BUILDING_09: Xóa tòa nhà thành công (Happy Path)', async () => {
         const mockBuilding = { 
             id: 1, 
             name: 'Building A', 
@@ -23,45 +47,35 @@ describe('BuildingService - deleteBuilding', () => {
         const result = await BuildingService.deleteBuilding(1);
 
         console.log(`[TEST]: Xóa tòa nhà thành công`);
-        console.log(`- Input   : ID=1`);
-        console.log(`- Expected: "Building \"Building A\" deleted successfully"`);
-        console.log(`- Actual  : "${result.message}"`);
-
-        expect(result.message).toContain('deleted successfully');
+        expect(result.message).toContain('thành công');
+        expect(mockBuilding.destroy).toHaveBeenCalled();
+        expect(User.update).toHaveBeenCalledWith({ building_id: null }, { where: { building_id: 1 } });
     });
 
-    it('Không thể xóa tòa nhà vì có phòng liên kết', async () => {
+    it('TC_BUILDING_10: Lỗi không thể xóa vì có phòng liên kết (400)', async () => {
         const mockBuilding = { id: 1, name: 'Building A' };
         Building.findByPk.mockResolvedValue(mockBuilding);
         Room.count.mockResolvedValue(5);
-        const expectedError = 'Building cannot be deleted because it contains 5 associated room(s). Delete the rooms first.';
 
-        console.log(`[TEST]: Lỗi xóa tòa nhà có phòng`);
-        console.log(`- Input   : ID=1 (Có 5 phòng liên kết)`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
+        console.log(`[TEST]: Lỗi xóa tòa nhà chứa phòng`);
         try {
             await BuildingService.deleteBuilding(1);
+            throw new Error('Should have thrown error');
         } catch (error) {
-            console.log(`- Actual Error  : "${error.message}"`);
             expect(error.status).toBe(400);
-            expect(error.message).toBe(expectedError);
+            expect(error.message).toContain('đang chứa 5 phòng');
         }
     });
 
-    it('Xóa tòa nhà với ID bị null', async () => {
+    it('TC_BUILDING_11: Lỗi khi không tìm thấy tòa nhà để xóa (404)', async () => {
         Building.findByPk.mockResolvedValue(null);
-        const expectedError = 'Building not found';
-
-        console.log(`[TEST]: Xóa tòa nhà với ID=null`);
-        console.log(`- Input   : ID=null`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
+        console.log(`[TEST]: Xóa tòa nhà không tồn tại`);
         try {
-            await BuildingService.deleteBuilding(null);
+            await BuildingService.deleteBuilding(999);
+            throw new Error('Should have thrown error');
         } catch (error) {
-            console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
+            expect(error.status).toBe(404);
+            expect(error.message).toBe('Không tìm thấy tòa nhà');
         }
     });
 });

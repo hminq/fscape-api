@@ -43,6 +43,12 @@ const { Contract, Invoice, Request } = sequelize.models;
 describe('InvoiceService - Periodic Generation & Abnormal Cases', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset trạng thái mặc định cho các Model
+        Contract.findAll.mockResolvedValue([]);
+        Invoice.create.mockResolvedValue({ id: 'inv-gen' });
+        Invoice.findOne.mockResolvedValue(null);
+        Request.findAll.mockResolvedValue([]);
+        
         console.log('\n=========================================================================');
     });
 
@@ -76,33 +82,85 @@ describe('InvoiceService - Periodic Generation & Abnormal Cases', () => {
             expect(Invoice.create).not.toHaveBeenCalled();
         });
 
-        it('TC_INVOICE_04: Lỗi Database khi tạo hóa đơn (Abnormal/Rollback)', async () => {
+        it('TC_INVOICE_04: Lỗi tại một hợp đồng không làm dừng toàn bộ tiến trình (Abnormal)', async () => {
             const today = moment().format('YYYY-MM-DD');
-            const mockContract = {
-                id: 'con-3', status: 'ACTIVE', next_billing_date: today, billing_cycle: 'CYCLE_1M',
-                base_rent: 5000000, update: jest.fn()
-            };
-            Contract.findAll.mockResolvedValue([mockContract]);
-            Invoice.create.mockRejectedValue(new Error('DB Crash'));
+            const mockContracts = [
+                { id: 'con-fail', status: 'ACTIVE', next_billing_date: today, billing_cycle: 'CYCLE_1M', base_rent: 5000000, update: jest.fn() },
+                { id: 'con-success', status: 'ACTIVE', next_billing_date: today, billing_cycle: 'CYCLE_1M', base_rent: 4000000, update: jest.fn(), contract_number: 'CON_SUCCESS' }
+            ];
+            Contract.findAll.mockResolvedValue(mockContracts);
+            
+            // Giả lập hợp đồng đầu tiên lỗi khi tạo hóa đơn
+            Invoice.create
+                .mockRejectedValueOnce(new Error('First contract failed'))
+                .mockResolvedValueOnce({ id: 'inv-success', invoice_number: 'INV-001' });
 
-            console.log(`[TEST]: Sinh hóa đơn thất bại - Lỗi Database (Rollback)`);
             const count = await InvoiceService.generateRentInvoices();
-            expect(count).toBe(0);
+            
+            console.log(`[TEST]: Sinh hóa đơn hàng loạt - Một cái lỗi, một cái thành công`);
+            expect(count).toBe(1); // Chỉ thành công 1 cái
+            expect(Invoice.create).toHaveBeenCalledTimes(2);
         });
     });
 
     describe('generateServiceInvoices', () => {
         it('TC_INVOICE_03: Tự động tạo hóa đơn phí dịch vụ (Happy Path)', async () => {
-            const mockContract = { id: 'con-1', room_id: 10, customer_id: 1, update: jest.fn() };
+            const mockContract = { id: 'con-1', room_id: 10, customer_id: 1, update: jest.fn(), contract_number: 'CON_SVC_01' };
             const mockRequest = { id: 'req-1', title: 'Sửa điện', service_price: 200000, status: 'COMPLETED' };
 
             Contract.findAll.mockResolvedValue([mockContract]);
             Request.findAll.mockResolvedValue([mockRequest]);
-            Invoice.create.mockResolvedValue({ id: 'inv-svc-1' });
+            Invoice.create.mockResolvedValue({ id: 'inv-svc-1', invoice_number: 'INV-SVC-001' });
 
             const count = await InvoiceService.generateServiceInvoices();
             expect(count).toBe(1);
             expect(Invoice.create).toHaveBeenCalled();
+        });
+    });
+
+    describe('getInvoiceById - Access Control', () => {
+        it('TC_INVOICE_05: Resident xem hóa đơn của chính mình thành công', async () => {
+            const caller = { id: 1, role: 'RESIDENT' };
+            const mockInvoice = { 
+                id: 'inv-1', 
+                contract: { customer_id: 1, room: { building_id: 10 } } 
+            };
+            Invoice.findOne.mockResolvedValue(mockInvoice);
+
+            const result = await InvoiceService.getInvoiceById(caller, 'inv-1');
+            expect(result.id).toBe('inv-1');
+        });
+
+        it('TC_INVOICE_06: Resident xem hóa đơn người khác bị chặn (Abnormal)', async () => {
+            const caller = { id: 1, role: 'RESIDENT' };
+            Invoice.findOne.mockResolvedValue(null); // Service query where customer_id: caller.id
+
+            console.log(`[TEST]: Resident xem hóa đơn người khác`);
+            try {
+                await InvoiceService.getInvoiceById(caller, 'inv-99');
+                throw new Error('Should have thrown error');
+            } catch (error) {
+                expect(error.status).toBe(404);
+                expect(error.message).toBe('Không tìm thấy hóa đơn');
+            }
+        });
+
+        it('TC_INVOICE_07: Building Manager xem hóa đơn sai tòa nhà bị chặn (Abnormal)', async () => {
+            const caller = { id: 2, role: 'BUILDING_MANAGER', building_id: 20 };
+            const mockInvoice = { 
+                id: 'inv-1', 
+                contract: { customer_id: 5, room: { building_id: 30 } } // Hóa đơn thuộc tòa nhà 30
+            };
+            Invoice.findOne.mockResolvedValue(mockInvoice);
+
+            console.log(`[TEST]: Building Manager xem hóa đơn khác tòa nhà`);
+            try {
+                await InvoiceService.getInvoiceById(caller, 'inv-1');
+                throw new Error('Should have thrown error');
+            } catch (error) {
+                expect(error.status).toBe(403);
+                expect(error.message).toContain('không có quyền truy cập hóa đơn này');
+            }
         });
     });
 });

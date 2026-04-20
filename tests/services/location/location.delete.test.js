@@ -1,78 +1,79 @@
 const LocationService = require('../../../services/location.service');
 const { sequelize } = require('../../../config/db');
 
+// 1. Mock Database & Models
 jest.mock('../../../config/db', () => ({
     sequelize: {
         models: {
-            Location: {
-                findByPk: jest.fn()
-            },
+            Location: { findByPk: jest.fn() },
             Building: { count: jest.fn() },
             University: { count: jest.fn() }
-        }
-    }
+        },
+        authenticate: jest.fn().mockResolvedValue(),
+        close: jest.fn().mockResolvedValue()
+    },
+    connectDB: jest.fn().mockResolvedValue()
 }));
 
-describe('LocationService - deleteLocation', () => {
-    const { Location, Building, University } = sequelize.models;
+// 2. Mock individual models
+jest.mock('../../../models/location.model', () => (require('../../../config/db').sequelize.models.Location));
+jest.mock('../../../models/building.model', () => (require('../../../config/db').sequelize.models.Building));
+jest.mock('../../../models/university.model', () => (require('../../../config/db').sequelize.models.University));
 
+const { Location, Building, University } = sequelize.models;
+
+describe('LocationService - deleteLocation', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset trạng thái mặc định
+        Location.findByPk.mockResolvedValue(null);
+        Building.count.mockResolvedValue(0);
+        University.count.mockResolvedValue(0);
         console.log('\n=========================================================================');
     });
 
-    it('Xóa địa điểm thành công', async () => {
+    it('TC_LOCATION_08: Xóa địa điểm thành công (Happy Path)', async () => {
         const mockLocation = { 
             id: 1, 
             name: 'Hà Nội', 
             destroy: jest.fn().mockResolvedValue(true) 
         };
         Location.findByPk.mockResolvedValue(mockLocation);
-        Building.count.mockResolvedValue(0);
-        University.count.mockResolvedValue(0);
 
         const result = await LocationService.deleteLocation(1);
 
         console.log(`[TEST]: Xóa địa điểm thành công`);
-        console.log(`- Input   : ID=1`);
-        console.log(`- Expected: "Đã xóa khu vực \"Hà Nội\" thành công"`);
-        console.log(`- Actual  : "${result.message}"`);
-
         expect(result.message).toContain('thành công');
+        expect(mockLocation.destroy).toHaveBeenCalled();
     });
 
-    it('ID bị null', async () => {
+    it('TC_LOCATION_09: Lỗi khi địa điểm không tồn tại (404)', async () => {
         Location.findByPk.mockResolvedValue(null);
-        const expectedError = 'Không tìm thấy khu vực';
-
-        console.log(`[TEST]: Xóa địa điểm với ID bị null`);
-        console.log(`- Input   : ID=null`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
+        console.log(`[TEST]: Xóa địa điểm không tồn tại`);
         try {
-            await LocationService.deleteLocation(null);
+            await LocationService.deleteLocation(999);
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
+            expect(error.status).toBe(404);
+            expect(error.message).toBe('Không tìm thấy khu vực');
         }
     });
 
-    it('Không thể xóa địa điểm vì có dữ liệu liên kết', async () => {
+    it('TC_LOCATION_10: Lỗi không thể xóa do có dữ liệu liên kết (400)', async () => {
         const mockLocation = { id: 1, name: 'Hà Nội' };
         Location.findByPk.mockResolvedValue(mockLocation);
         Building.count.mockResolvedValue(1); 
         University.count.mockResolvedValue(0);
-        const expectedError = 'Không thể xóa khu vực: Vẫn còn dữ liệu liên kết.';
 
-        console.log(`[TEST]: Lỗi xóa do có dữ liệu liên kết`);
-        console.log(`- Input   : ID=1 (Có 1 tòa nhà liên kết)`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
+        console.log(`[TEST]: Lỗi xóa do có tòa nhà liên kết`);
         try {
             await LocationService.deleteLocation(1);
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
+            expect(error.status).toBe(400);
+            expect(error.message).toContain('Vẫn còn dữ liệu liên kết');
         }
     });
 });

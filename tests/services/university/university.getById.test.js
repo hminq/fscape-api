@@ -9,55 +9,55 @@ jest.mock('../../../models/building.model');
 describe('UniversityService - getUniversityById', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset trạng thái mặc định
+        University.findByPk.mockResolvedValue(null);
+        Building.findAll.mockResolvedValue([]);
         console.log('\n=========================================================================');
     });
 
-    it('Lấy chi tiết trường đại học thành công', async () => {
+    it('TC_UNIVERSITY_GT_01: Lấy chi tiết trường đại học thành công (Happy Path)', async () => {
         const mockUni = { 
             id: 1, 
             name: 'Đại học Bách Khoa', 
             location_id: 10,
             toJSON: () => ({ id: 1, name: 'Đại học Bách Khoa', location_id: 10 })
         };
-         University.findByPk.mockResolvedValue(mockUni);
-         Building.findAll.mockResolvedValue([{ id: 'b1', name: 'Building A' }]);
+        University.findByPk.mockResolvedValue(mockUni);
+        Building.findAll.mockResolvedValue([{ id: 'b1', name: 'Building A' }]);
 
         const result = await UniversityService.getUniversityById(1);
 
-        console.log(`[TEST]: Lấy chi tiết University`);
-        console.log(`- Input   : ID=1`);
-        console.log(`- Expected: Name="Đại học Bách Khoa", Has nearby buildings`);
-        console.log(`- Actual  : Name="${result.name}", BuildingsCount=${result.nearby_buildings.length}`);
+        console.log(`[TEST]: Lấy chi tiết University thành công`);
 
         expect(result.name).toBe('Đại học Bách Khoa');
-        expect(result.nearby_buildings.length).toBe(1);
+        expect(result.nearby_buildings).toHaveLength(1);
+        expect(Building.findAll).toHaveBeenCalledWith(expect.objectContaining({
+            where: expect.objectContaining({ location_id: 10 })
+        }));
     });
 
-    it('Trường đại học không tồn tại', async () => {
+    it('TC_UNIVERSITY_GT_02: Lỗi khi trường đại học không tồn tại (404)', async () => {
         University.findByPk.mockResolvedValue(null);
-        const expectedError = 'University not found';
+        const expectedError = 'Không tìm thấy trường đại học';
 
         console.log(`[TEST]: University không tồn tại`);
-        console.log(`- Input   : ID=999`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
         try {
             await UniversityService.getUniversityById(999);
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
+            expect(error.status).toBe(404);
             expect(error.message).toBe(expectedError);
         }
     });
 
-    it('ID University bị null', async () => {
-        const expectedError = 'University not found';
+    it('TC_UNIVERSITY_GT_03: Truy vấn với ID không hợp lệ (Abnormal)', async () => {
+        const expectedError = 'Không tìm thấy trường đại học';
 
         console.log(`[TEST]: Truy vấn University với ID=null`);
-        console.log(`- Input   : ID=null`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
         try {
             await UniversityService.getUniversityById(null);
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
             expect(error.message).toBe(expectedError);

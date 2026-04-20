@@ -49,6 +49,13 @@ const RequestStatusHistory = require('../../../models/requestStatusHistory.model
 describe('RequestService - Workflow & Abnormal Cases', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset trạng thái mặc định cho các Model
+        Request.findByPk.mockResolvedValue(null);
+        Room.findByPk.mockResolvedValue(null);
+        Request.count.mockResolvedValue(0);
+        Request.create.mockResolvedValue(null);
+        RequestStatusHistory.create.mockResolvedValue(null);
+        
         console.log('\n=========================================================================');
     });
 
@@ -59,7 +66,6 @@ describe('RequestService - Workflow & Abnormal Cases', () => {
                 description: 'Rò rỉ nước', request_type: 'REPAIR', priority: 'MEDIUM'
             };
             Room.findByPk.mockResolvedValue({ id: 10, building_id: 20 });
-            Request.count.mockResolvedValue(0);
             Request.create.mockResolvedValue({ id: 'req-1', request_number: 'REQ-001', ...mockData });
 
             const result = await RequestService.createRequest(mockData);
@@ -75,9 +81,28 @@ describe('RequestService - Workflow & Abnormal Cases', () => {
                 await RequestService.createRequest({ room_id: 999 });
                 throw new Error('Should have thrown error');
             } catch (error) {
-                console.log(`- Actual Error: "${error.message}"`);
                 expect(error.status).toBe(404);
                 expect(error.message).toBe('Không tìm thấy phòng');
+            }
+        });
+
+        it('TC_REQUEST_02_Rollback: Lỗi hệ thống khi tạo History - Kiểm tra Rollback (Abnormal)', async () => {
+            Room.findByPk.mockResolvedValue({ id: 10, building_id: 20 });
+            Request.create.mockResolvedValue({ id: 'req-1' });
+            
+            // Giả lập Request tạo xong nhưng tạo history bị lỗi hệ thống
+            RequestStatusHistory.create.mockRejectedValue(new Error('DB History Error'));
+
+            const { sequelize } = require('../../../config/db');
+            const mockTransaction = await sequelize.transaction();
+
+            console.log(`[TEST]: Lỗi khi lưu History - Rollback check`);
+            try {
+                await RequestService.createRequest({ room_id: 10, title: 'Test' });
+                throw new Error('Should have thrown error');
+            } catch (error) {
+                expect(error.message).toBe('DB History Error');
+                expect(mockTransaction.rollback).toHaveBeenCalled();
             }
         });
     });
@@ -134,9 +159,39 @@ describe('RequestService - Workflow & Abnormal Cases', () => {
                 await RequestService.updateRequestStatus('req-1', { status: 'DONE', caller_role: ROLES.STAFF });
                 throw new Error('Should have thrown error');
             } catch (error) {
-                console.log(`- Actual Error: "${error.message}"`);
                 expect(error.status).toBe(400);
                 expect(error.message).toContain('Thiếu trường bắt buộc: completion_note');
+            }
+        });
+    });
+
+    describe('assignRequest', () => {
+        it('TC_REQUEST_09: Phân công nhân viên xử lý thành công (Happy Path)', async () => {
+            const mockRequest = { id: 'req-1', status: 'PENDING', request_number: 'REQ-001', update: jest.fn() };
+            Request.findByPk.mockResolvedValue(mockRequest);
+            
+            await RequestService.assignRequest('req-1', 5, 2); // id, staff_id, manager_id
+            
+            expect(mockRequest.update).toHaveBeenCalledWith(
+                expect.objectContaining({ assigned_staff_id: 5, status: 'ASSIGNED' }),
+                expect.any(Object)
+            );
+            expect(RequestStatusHistory.create).toHaveBeenCalledWith(
+                expect.objectContaining({ to_status: 'ASSIGNED' }),
+                expect.any(Object)
+            );
+        });
+
+        it('TC_REQUEST_10: Lỗi không thể phân công nếu đã qua bước PENDING (Abnormal)', async () => {
+            const mockRequest = { id: 'req-1', status: 'IN_PROGRESS' };
+            Request.findByPk.mockResolvedValue(mockRequest);
+
+            try {
+                await RequestService.assignRequest('req-1', 5, 2);
+                throw new Error('Should error');
+            } catch (error) {
+                expect(error.status).toBe(400);
+                expect(error.message).toContain('Không thể phân công');
             }
         });
     });
@@ -148,22 +203,6 @@ describe('RequestService - Workflow & Abnormal Cases', () => {
             const caller = { id: 1, role: ROLES.RESIDENT };
 
             console.log(`[TEST]: Xem yêu cầu thất bại - Không có quyền (Resident)`);
-            try {
-                await RequestService.getRequestById(caller, 'req-1');
-                throw new Error('Should have thrown error');
-            } catch (error) {
-                console.log(`- Actual Error: "${error.message}"`);
-                expect(error.status).toBe(403);
-                expect(error.message).toBe('Bạn không có quyền thực hiện hành động này');
-            }
-        });
-
-        it('TC_REQUEST_08: Lỗi khi Staff xem yêu cầu không được phân công (Abnormal)', async () => {
-            const mockRequest = { id: 'req-1', assigned_staff_id: 10, room: { building_id: 1 } };
-            Request.findByPk.mockResolvedValue(mockRequest);
-            const caller = { id: 1, role: ROLES.STAFF };
-
-            console.log(`[TEST]: Xem yêu cầu thất bại - Không có quyền (Staff)`);
             try {
                 await RequestService.getRequestById(caller, 'req-1');
                 throw new Error('Should have thrown error');

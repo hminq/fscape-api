@@ -271,99 +271,99 @@ const getBookingById = async (id, caller) => {
   return booking;
 };
 const getAllBookings = async (filters = {}) => {
-    const { Booking, Room, Building, RoomType, User, CustomerProfile } = sequelize.models;
-    
-    // Pagination
-    const page = parseInt(filters.page) || 1;
-    const limit = parseInt(filters.limit) || 10;
-    const offset = (page - 1) * limit;
-    
-    // Build where clause
-    const where = {};
-    if (filters.status) {
-        where.status = filters.status;
-    }
-    if (filters.bookingNumber) {
-        where.booking_number = { [Op.like]: `%${filters.bookingNumber}%` };
-    }
-    
-    // Build includes with nested where for related models
-    const include = [
+  const { Booking, Room, Building, RoomType, User, CustomerProfile } = sequelize.models;
+
+  // Pagination
+  const page = parseInt(filters.page) || 1;
+  const limit = parseInt(filters.limit) || 10;
+  const offset = (page - 1) * limit;
+
+  // Build where clause
+  const where = {};
+  if (filters.status) {
+    where.status = filters.status;
+  }
+  if (filters.bookingNumber) {
+    where.booking_number = { [Op.like]: `%${filters.bookingNumber}%` };
+  }
+
+  // Build includes with nested where for related models
+  const include = [
+    {
+      model: Room,
+      as: 'room',
+      attributes: ['id', 'room_number', 'floor', 'thumbnail_url'],
+      where: filters.roomNumber ? { room_number: { [Op.like]: `%${filters.roomNumber}%` } } : undefined,
+      include: [
         {
-            model: Room,
-            as: 'room',
-            attributes: ['id', 'room_number', 'floor', 'thumbnail_url'],
-            where: filters.roomNumber ? { room_number: { [Op.like]: `%${filters.roomNumber}%` } } : undefined,
-            include: [
-                {
-                    model: Building,
-                    as: 'building',
-                    attributes: ['id', 'name', 'address'],
-                    where: filters.buildingName ? { name: { [Op.like]: `%${filters.buildingName}%` } } : undefined,
-                },
-                {
-                    model: RoomType,
-                    as: 'room_type',
-                    attributes: ['id', 'name', 'area_sqm', 'bedrooms', 'bathrooms']
-                }
-            ]
+          model: Building,
+          as: 'building',
+          attributes: ['id', 'name', 'address'],
+          where: filters.buildingName ? { name: { [Op.like]: `%${filters.buildingName}%` } } : undefined,
         },
         {
-            model: User,
-            as: 'customer',
-            attributes: ['id', 'first_name', 'last_name', 'email', 'phone'],
-            where: filters.customerName ? {
-                [Op.or]: [
-                    { first_name: { [Op.like]: `%${filters.customerName}%` } },
-                    { last_name: { [Op.like]: `%${filters.customerName}%` } },
-                    { email: { [Op.like]: `%${filters.customerName}%` } }
-                ]
-            } : undefined,
-            include: [
-                {
-                    model: CustomerProfile,
-                    as: 'profile',
-                    attributes: ['gender', 'date_of_birth', 'permanent_address']
-                }
-            ]
+          model: RoomType,
+          as: 'room_type',
+          attributes: ['id', 'name', 'area_sqm', 'bedrooms', 'bathrooms']
         }
-    ];
-    
-    // Remove undefined where clauses
-    include.forEach(inc => {
-        if (inc.where === undefined) delete inc.where;
-        if (inc.include) {
-            inc.include.forEach(nested => {
-                if (nested.where === undefined) delete nested.where;
-            });
+      ]
+    },
+    {
+      model: User,
+      as: 'customer',
+      attributes: ['id', 'first_name', 'last_name', 'email', 'phone'],
+      where: filters.customerName ? {
+        [Op.or]: [
+          { first_name: { [Op.like]: `%${filters.customerName}%` } },
+          { last_name: { [Op.like]: `%${filters.customerName}%` } },
+          { email: { [Op.like]: `%${filters.customerName}%` } }
+        ]
+      } : undefined,
+      include: [
+        {
+          model: CustomerProfile,
+          as: 'profile',
+          attributes: ['gender', 'date_of_birth', 'permanent_address']
         }
-    });
-    
-    const { count, rows } = await Booking.findAndCountAll({
-        attributes: [
-            'id', 'booking_number', 'status', 'check_in_date', 'duration_months',
-            'room_price_snapshot', 'deposit_amount', 'deposit_paid_at',
-            'expires_at', 'cancelled_at', 'cancellation_reason', 'createdAt'
-        ],
-        include,
-        where,
-        order: [['createdAt', 'DESC']],
-        limit,
-        offset,
-        distinct: true,
-    });
-    
-    return {
-        data: rows,
-        pagination: {
-            total: count,
-            page,
-            limit,
-            totalPages: Math.ceil(count / limit),
-            hasNextPage: page < Math.ceil(count / limit),
-            hasPrevPage: page > 1
-        }
-    };
+      ]
+    }
+  ];
+
+  // Remove undefined where clauses
+  include.forEach(inc => {
+    if (inc.where === undefined) delete inc.where;
+    if (inc.include) {
+      inc.include.forEach(nested => {
+        if (nested.where === undefined) delete nested.where;
+      });
+    }
+  });
+
+  const { count, rows } = await Booking.findAndCountAll({
+    attributes: [
+      'id', 'booking_number', 'status', 'check_in_date', 'duration_months',
+      'room_price_snapshot', 'deposit_amount', 'deposit_paid_at',
+      'expires_at', 'cancelled_at', 'cancellation_reason', 'createdAt'
+    ],
+    include,
+    where,
+    order: [['createdAt', 'DESC']],
+    limit,
+    offset,
+    distinct: true,
+  });
+
+  return {
+    data: rows,
+    pagination: {
+      total: count,
+      page,
+      limit,
+      totalPages: Math.ceil(count / limit),
+      hasNextPage: page < Math.ceil(count / limit),
+      hasPrevPage: page > 1
+    }
+  };
 };
 module.exports = {
   createBooking,

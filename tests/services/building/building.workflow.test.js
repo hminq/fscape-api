@@ -5,7 +5,7 @@ const { ROLES } = require('../../../constants/roles');
 // 1. Mock Database & Models (Standard manual pattern)
 jest.mock('../../../config/db', () => {
     const mockModels = {
-        Building: { count: jest.fn(), create: jest.fn(), findByPk: jest.fn(), findAndCountAll: jest.fn(), findOne: jest.fn() },
+        Building: { count: jest.fn(), create: jest.fn(), findByPk: jest.fn(), findAndCountAll: jest.fn(), findOne: jest.fn(), findAll: jest.fn() },
         BuildingImage: { bulkCreate: jest.fn(), destroy: jest.fn() },
         BuildingFacility: { bulkCreate: jest.fn(), destroy: jest.fn() },
         Room: { count: jest.fn(), findAll: jest.fn() },
@@ -147,6 +147,37 @@ describe('BuildingService - Unified & Abnormal Cases', () => {
                 expect(error.status).toBe(400);
                 expect(error.message).toContain('đang chứa 10 phòng');
             }
+        });
+    });
+
+    describe('getStaffsByBuilding', () => {
+        it('TC_BUILDING_07: Lấy danh sách nhân viên của tòa nhà thành công', async () => {
+            const mockStaffs = [{ id: 1, email: 'staff1@fscape.com', role: 'STAFF' }];
+            User.findAll.mockResolvedValue(mockStaffs);
+
+            const result = await BuildingService.getStaffsByBuilding('b1');
+            expect(result).toHaveLength(1);
+            expect(User.findAll).toHaveBeenCalledWith(expect.objectContaining({
+                where: { building_id: 'b1', role: 'STAFF', is_active: true }
+            }));
+        });
+    });
+
+    describe('getBuildingStats', () => {
+        it('TC_BUILDING_08: Lấy thống kê tòa nhà thành công', async () => {
+            const mockBuildings = [
+                { location_id: 1, is_active: true, location: { name: 'Thủ Đức' } },
+                { location_id: 1, is_active: false, location: { name: 'Thủ Đức' } },
+                { location_id: 2, is_active: true, location: { name: 'Quận 1' } }
+            ];
+            Building.findAll.mockResolvedValue(mockBuildings);
+
+            const stats = await BuildingService.getBuildingStats();
+            expect(stats.total).toBe(3);
+            expect(stats.active).toBe(2);
+            expect(stats.inactive).toBe(1);
+            expect(stats.by_location).toHaveLength(2);
+            expect(stats.by_location[0].name).toBe('Thủ Đức');
         });
     });
 });

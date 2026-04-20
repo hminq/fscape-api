@@ -1,17 +1,35 @@
 const FacilityService = require('../../../services/facility.service');
-const Facility = require('../../../models/facility.model');
-const BuildingFacility = require('../../../models/buildingFacility.model');
+const { sequelize } = require('../../../config/db');
 
-jest.mock('../../../models/facility.model');
-jest.mock('../../../models/buildingFacility.model');
+// 1. Mock Database & Models
+jest.mock('../../../config/db', () => ({
+    sequelize: {
+        models: {
+            Facility: { findByPk: jest.fn() },
+            BuildingFacility: { count: jest.fn() }
+        },
+        authenticate: jest.fn().mockResolvedValue(),
+        close: jest.fn().mockResolvedValue()
+    },
+    connectDB: jest.fn().mockResolvedValue()
+}));
+
+// 2. Mock individual models
+jest.mock('../../../models/facility.model', () => (require('../../../config/db').sequelize.models.Facility));
+jest.mock('../../../models/buildingFacility.model', () => (require('../../../config/db').sequelize.models.BuildingFacility));
+
+const { Facility, BuildingFacility } = sequelize.models;
 
 describe('FacilityService - deleteFacility', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset trạng thái mặc định
+        Facility.findByPk.mockResolvedValue(null);
+        BuildingFacility.count.mockResolvedValue(0);
         console.log('\n=========================================================================');
     });
 
-    it('Xóa Facility thành công', async () => {
+    it('TC_FACILITY_08: Xóa tiện ích thành công (Happy Path)', async () => {
         const mockFacility = { 
             id: 1, 
             name: 'Gym', 
@@ -22,33 +40,35 @@ describe('FacilityService - deleteFacility', () => {
 
         const result = await FacilityService.deleteFacility(1);
 
+        console.log(`[TEST]: Xóa tiện ích thành công`);
         expect(result.message).toContain('thành công');
         expect(mockFacility.destroy).toHaveBeenCalled();
     });
 
-    it('Chặn xóa Facility vì có tòa nhà đang gán tiện ích này', async () => {
+    it('TC_FACILITY_09: Lỗi không thể xóa vì có tòa nhà đang sử dụng (400)', async () => {
         const mockFacility = { id: 1, name: 'Bể bơi' };
         Facility.findByPk.mockResolvedValue(mockFacility);
         BuildingFacility.count.mockResolvedValue(3); 
-        const expectedError = 'Không thể xóa tiện ích vì đang được gán cho 3 tòa nhà.';
 
+        console.log(`[TEST]: Chặn xóa tiện ích đang được gán cho tòa nhà`);
         try {
             await FacilityService.deleteFacility(1);
+            throw new Error('Should have thrown error');
         } catch (error) {
             expect(error.status).toBe(400);
-            expect(error.message).toBe(expectedError);
+            expect(error.message).toContain('đang được gán cho 3 tòa nhà');
         }
     });
 
-    it('Xóa Facility với ID không tồn tại', async () => {
+    it('TC_FACILITY_10: Lỗi khi không tìm thấy tiện ích để xóa (404)', async () => {
         Facility.findByPk.mockResolvedValue(null);
-        const expectedError = 'Không tìm thấy tiện ích';
-
+        console.log(`[TEST]: Xóa tiện ích không tồn tại`);
         try {
-            await FacilityService.deleteFacility(null);
+            await FacilityService.deleteFacility(999);
+            throw new Error('Should have thrown error');
         } catch (error) {
             expect(error.status).toBe(404);
-            expect(error.message).toBe(expectedError);
+            expect(error.message).toBe('Không tìm thấy tiện ích');
         }
     });
 });

@@ -1,19 +1,34 @@
-const AssetService = require('../../../services/asset.service');
-const Asset = require('../../../models/asset.model');
-const Room = require('../../../models/room.model');
-const { sequelize } = require('../../../config/db');
+// 1. Mock Database & Models (Must be before requiring service)
+jest.mock('../../../config/db', () => {
+    const mockModels = {
+        Asset: { findByPk: jest.fn(), update: jest.fn() },
+        Room: { findByPk: jest.fn() },
+        AssetHistory: { create: jest.fn() }
+    };
+    return {
+        sequelize: {
+            models: mockModels,
+            define: jest.fn().mockReturnValue({
+                associate: jest.fn(),
+                belongsTo: jest.fn(),
+                hasMany: jest.fn()
+            }),
+            transaction: jest.fn().mockResolvedValue({ 
+                commit: jest.fn(), 
+                rollback: jest.fn() 
+            })
+        }
+    };
+});
 
-jest.mock('../../../models/asset.model');
-jest.mock('../../../models/assetHistory.model');
-jest.mock('../../../models/room.model');
-jest.mock('../../../config/db', () => ({
-    sequelize: {
-        transaction: jest.fn(() => ({
-            commit: jest.fn(),
-            rollback: jest.fn()
-        }))
-    }
-}));
+// 2. Mock individual models
+jest.mock('../../../models/asset.model', () => (require('../../../config/db').sequelize.models.Asset));
+jest.mock('../../../models/room.model', () => (require('../../../config/db').sequelize.models.Room));
+jest.mock('../../../models/assetHistory.model', () => (require('../../../config/db').sequelize.models.AssetHistory));
+
+const AssetService = require('../../../services/asset.service');
+const { Asset, Room } = require('../../../config/db').sequelize.models;
+const { sequelize } = require('../../../config/db');
 
 describe('AssetService - updateAsset', () => {
     beforeEach(() => {
@@ -28,10 +43,12 @@ describe('AssetService - updateAsset', () => {
             status: 'AVAILABLE',
             update: jest.fn().mockResolvedValue(true) 
         };
-        Asset.findByPk.mockResolvedValue(mockAsset);
+        // Lần 1: findByPk để lấy asset gốc
+        // Lần 2: findByPk (trong getAssetById) để lấy asset sau cập nhật
+        Asset.findByPk
+            .mockResolvedValueOnce(mockAsset)
+            .mockResolvedValueOnce({ ...mockAsset, name: 'Updated Name' });
         
-        jest.spyOn(AssetService, 'getAssetById').mockResolvedValue({ id: 'a1', name: 'Updated Name' });
-
         const updateData = { name: 'Updated Name' };
         const result = await AssetService.updateAsset('a1', updateData);
 

@@ -198,5 +198,27 @@ describe('AuthService - Signin', () => {
             console.log(`- Input   : Password Length="${longPassword.length}"`);
             expect(result).toHaveProperty('access_token');
         });
+
+        it('TC_AUTH_08: Lỗi khi bỏ trống Email (Abnormal)', async () => {
+            const expectedError = 'Thông tin đăng nhập không hợp lệ';
+            console.log(`[TEST]: Login failed (Empty Email)`);
+            try {
+                await AuthService.signin('', password);
+                throw new Error('Should have thrown error');
+            } catch (error) {
+                expect(error.message).toBe(expectedError);
+            }
+        });
+
+        it('TC_AUTH_09: Lỗi khi bỏ trống Mật khẩu (Abnormal)', async () => {
+            const expectedError = 'Thông tin đăng nhập không hợp lệ';
+            console.log(`[TEST]: Login failed (Empty Password)`);
+            try {
+                await AuthService.signin(email, null);
+                throw new Error('Should have thrown error');
+            } catch (error) {
+                expect(error.message).toBe(expectedError);
+            }
+        });
     });
 });

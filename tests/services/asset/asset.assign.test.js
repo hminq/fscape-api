@@ -1,20 +1,35 @@
+// 1. Mock Database & Models (Must be before requiring service)
+jest.mock('../../../config/db', () => {
+    const mockModels = {
+        Asset: { findByPk: jest.fn(), update: jest.fn() },
+        Room: { findByPk: jest.fn() },
+        AssetHistory: { create: jest.fn() }
+    };
+    return {
+        sequelize: {
+            models: mockModels,
+            define: jest.fn().mockReturnValue({
+                associate: jest.fn(),
+                belongsTo: jest.fn(),
+                hasMany: jest.fn()
+            }),
+            transaction: jest.fn().mockResolvedValue({ 
+                commit: jest.fn(), 
+                rollback: jest.fn() 
+            })
+        }
+    };
+});
+
+// 2. Mock individual models
+jest.mock('../../../models/asset.model', () => (require('../../../config/db').sequelize.models.Asset));
+jest.mock('../../../models/room.model', () => (require('../../../config/db').sequelize.models.Room));
+jest.mock('../../../models/assetHistory.model', () => (require('../../../config/db').sequelize.models.AssetHistory));
+
 const AssetService = require('../../../services/asset.service');
-const Asset = require('../../../models/asset.model');
-const Room = require('../../../models/room.model');
+const { Asset, Room } = require('../../../config/db').sequelize.models;
 const { sequelize } = require('../../../config/db');
 const { ROLES } = require('../../../constants/roles');
-
-jest.mock('../../../models/asset.model');
-jest.mock('../../../models/assetHistory.model');
-jest.mock('../../../models/room.model');
-jest.mock('../../../config/db', () => ({
-    sequelize: {
-        transaction: jest.fn(() => ({
-            commit: jest.fn(),
-            rollback: jest.fn()
-        }))
-    }
-}));
 
 describe('AssetService - assignAsset', () => {
     beforeEach(() => {
@@ -30,12 +45,15 @@ describe('AssetService - assignAsset', () => {
             status: 'AVAILABLE',
             update: jest.fn().mockResolvedValue(true)
         };
-        Asset.findByPk.mockResolvedValue(mockAsset);
+        // Lần 1: findByPk trả về asset trống
+        // Lần 2: findByPk (trong getAssetById) trả về asset đã gán
+        Asset.findByPk
+            .mockResolvedValueOnce(mockAsset)
+            .mockResolvedValueOnce({ ...mockAsset, current_room_id: 'r1', status: 'IN_USE' });
+        
         Room.findByPk.mockResolvedValue({ id: 'r1', building_id: 'b1' });
         
         const user = { id: 'u1', role: ROLES.ADMIN };
-        jest.spyOn(AssetService, 'getAssetById').mockResolvedValue({ id: 'a1', current_room_id: 'r1', status: 'IN_USE' });
-
         const result = await AssetService.assignAsset('a1', { room_id: 'r1' }, user);
 
         console.log(`[TEST]: Gán Asset vào phòng (Check-in)`);
@@ -44,6 +62,7 @@ describe('AssetService - assignAsset', () => {
         console.log(`- Actual  : RoomID="${result.current_room_id}", Status="${result.status}"`);
 
         expect(result.status).toBe('IN_USE');
+        expect(result.current_room_id).toBe('r1');
     });
 
     it('Hoàn trả Asset từ phòng (CHECK_OUT)', async () => {
@@ -54,11 +73,13 @@ describe('AssetService - assignAsset', () => {
             status: 'IN_USE',
             update: jest.fn().mockResolvedValue(true)
         };
-        Asset.findByPk.mockResolvedValue(mockAsset);
-        
+        // Lần 1: findByPk trả về asset đang dùng
+        // Lần 2: findByPk (trong getAssetById) trả về asset đã trống
+        Asset.findByPk
+            .mockResolvedValueOnce(mockAsset)
+            .mockResolvedValueOnce({ ...mockAsset, current_room_id: null, status: 'AVAILABLE' });
+            
         const user = { id: 'u1', role: ROLES.ADMIN };
-        jest.spyOn(AssetService, 'getAssetById').mockResolvedValue({ id: 'a1', current_room_id: null, status: 'AVAILABLE' });
-
         const result = await AssetService.assignAsset('a1', { room_id: null }, user);
 
         console.log(`[TEST]: Hoàn trả Asset (Check-out)`);

@@ -1,82 +1,65 @@
 const LocationService = require('../../../services/location.service');
 const { sequelize } = require('../../../config/db');
 
+// 1. Mock Database & Models
 jest.mock('../../../config/db', () => ({
     sequelize: {
         models: {
-            Location: {
-                findByPk: jest.fn()
-            },
+            Location: { findByPk: jest.fn() },
             Building: { count: jest.fn() },
             University: { count: jest.fn() }
-        }
-    }
+        },
+        authenticate: jest.fn().mockResolvedValue(),
+        close: jest.fn().mockResolvedValue()
+    },
+    connectDB: jest.fn().mockResolvedValue()
 }));
 
-describe('LocationService - getLocationById', () => {
-    const { Location } = sequelize.models;
+// 2. Mock individual models
+jest.mock('../../../models/location.model', () => (require('../../../config/db').sequelize.models.Location));
 
+const { Location } = sequelize.models;
+
+describe('LocationService - getLocationById', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset trạng thái mặc định
+        Location.findByPk.mockResolvedValue(null);
         console.log('\n=========================================================================');
     });
 
-    it('Lấy chi tiết địa điểm thành công', async () => {
+    it('TC_LOCATION_GET_04: Lấy chi tiết địa điểm thành công (Happy Path)', async () => {
         const mockLocation = { id: 1, name: 'Hà Nội' };
         Location.findByPk.mockResolvedValue(mockLocation);
 
         const result = await LocationService.getLocationById(1);
 
-        console.log(`[TEST]: Lấy chi tiết địa điểm`);
-        console.log(`- Input   : ID=1`);
-        console.log(`- Expected: Name="Hà Nội"`);
-        console.log(`- Actual  : Name="${result.name}"`);
-
+        console.log(`[TEST]: Lấy chi tiết địa điểm thành công`);
         expect(result.name).toBe('Hà Nội');
+        expect(Location.findByPk).toHaveBeenCalledWith(1, expect.any(Object));
     });
 
-    it('ID bị null', async () => {
+    it('TC_LOCATION_GET_05: Lỗi khi ID không tồn tại (404)', async () => {
         Location.findByPk.mockResolvedValue(null);
-        const expectedError = 'Không tìm thấy khu vực';
-
-        console.log(`[TEST]: Truy vấn với ID bị null`);
-        console.log(`- Input   : ID=null`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
-        try {
-            await LocationService.getLocationById(null);
-        } catch (error) {
-            console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
-        }
-    });
-
-    it('Địa điểm không tồn tại', async () => {
-        Location.findByPk.mockResolvedValue(null);
-        const expectedError = 'Không tìm thấy khu vực';
-
         console.log(`[TEST]: Địa điểm không tồn tại`);
-        console.log(`- Input   : ID=999`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
         try {
             await LocationService.getLocationById(999);
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
+            expect(error.status).toBe(404);
+            expect(error.message).toBe('Không tìm thấy khu vực');
         }
     });
 
-    it('Gặp lỗi Database Exception khi truy vấn ID sai định dạng', async () => {
+    it('TC_LOCATION_GET_06: Lỗi Database Exception khi truy vấn ID sai định dạng (Abnormal)', async () => {
         const expectedError = 'SequelizeDatabaseError: invalid input syntax for type integer: "abc"';
         Location.findByPk.mockRejectedValue(new Error(expectedError));
         
         console.log(`[TEST]: Truy vấn với ID sai định dạng`);
-        console.log(`- Input   : ID="abc"`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
         try {
             await LocationService.getLocationById('abc');
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
             expect(error.message).toBe(expectedError);

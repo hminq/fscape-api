@@ -27,12 +27,16 @@ jest.mock('../../../config/db', () => {
 
 // Mock individual models
 jest.mock('../../../models/university.model', () => (require('../../../config/db').sequelize.models.University));
+jest.mock('../../../models/location.model', () => (require('../../../config/db').sequelize.models.Location));
+jest.mock('../../../models/building.model', () => (require('../../../config/db').sequelize.models.Building));
 
 const { University } = sequelize.models;
 
 describe('UniversityService - updateUniversity', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset trạng thái mặc định
+        University.findOne.mockResolvedValue(null);
         console.log('\n=========================================================================');
     });
 
@@ -45,7 +49,6 @@ describe('UniversityService - updateUniversity', () => {
             }) 
         };
         University.findByPk.mockResolvedValue(mockUni);
-        University.findOne.mockResolvedValue(null);
 
         const updateData = { name: 'Đại học A Updated' };
         const result = await UniversityService.updateUniversity(1, updateData);

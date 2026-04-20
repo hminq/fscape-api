@@ -1,147 +1,144 @@
 const BookingService = require('../../../services/booking.service');
 const { sequelize } = require('../../../config/db');
 
-// 1. Mock DB and Models (Individual class-level mocks are more reliable in this environment)
-jest.mock('../../../models/booking.model', () => ({ create: jest.fn(), findByPk: jest.fn(), findAndCountAll: jest.fn(), findOne: jest.fn() }));
-jest.mock('../../../models/room.model', () => ({ findByPk: jest.fn() }));
-jest.mock('../../../models/roomType.model', () => ({ findByPk: jest.fn() }));
-jest.mock('../../../models/customerProfile.model', () => ({ findOrCreate: jest.fn() }));
-jest.mock('../../../models/auditLog.model', () => ({ create: jest.fn() }));
-
-const Booking = require('../../../models/booking.model');
-const Room = require('../../../models/room.model');
-const RoomType = require('../../../models/roomType.model');
-const CustomerProfile = require('../../../models/customerProfile.model');
-
-// 2. Mock DB config and use the already-mocked models
-jest.mock('../../../config/db', () => ({
-    sequelize: {
-        models: {
-            Booking: require('../../../models/booking.model'),
-            Room: require('../../../models/room.model'),
-            RoomType: require('../../../models/roomType.model'),
-            CustomerProfile: require('../../../models/customerProfile.model'),
-            User: { findByPk: jest.fn() }
+// 1. Mock DB and Models
+jest.mock('../../../config/db', () => {
+    const mockModels = {
+        Booking: { create: jest.fn(), findByPk: jest.fn(), findAndCountAll: jest.fn(), findOne: jest.fn() },
+        Room: { findByPk: jest.fn() },
+        RoomType: { findByPk: jest.fn() },
+        User: { findByPk: jest.fn() },
+        CustomerProfile: { findOrCreate: jest.fn() },
+        Contract: { findByPk: jest.fn() }
+    };
+    return {
+        sequelize: {
+            models: mockModels,
+            fn: jest.fn(),
+            col: jest.fn(),
+            where: jest.fn(),
+            transaction: jest.fn().mockResolvedValue({ 
+                commit: jest.fn(), 
+                rollback: jest.fn(), 
+                LOCK: { UPDATE: 'UPDATE' } 
+            }),
+            authenticate: jest.fn().mockResolvedValue(),
+            close: jest.fn().mockResolvedValue()
         },
-        transaction: jest.fn().mockResolvedValue({ 
-            commit: jest.fn(), 
-            rollback: jest.fn(), 
-            LOCK: { UPDATE: 'UPDATE' } 
-        }),
-        authenticate: jest.fn().mockResolvedValue(),
-        close: jest.fn().mockResolvedValue()
-    },
-    connectDB: jest.fn().mockResolvedValue()
-}));
+        connectDB: jest.fn().mockResolvedValue()
+    };
+});
 
-describe('BookingService - unified', () => {
-    let mockTransaction;
+// Explicitly mock model files
+jest.mock('../../../models/booking.model', () => (require('../../../config/db').sequelize.models.Booking));
+jest.mock('../../../models/room.model', () => (require('../../../config/db').sequelize.models.Room));
+jest.mock('../../../models/roomType.model', () => (require('../../../config/db').sequelize.models.RoomType));
+jest.mock('../../../models/customerProfile.model', () => (require('../../../config/db').sequelize.models.CustomerProfile));
 
+const { Booking, Room, RoomType, CustomerProfile } = sequelize.models;
+
+describe('BookingService - createBooking', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        mockTransaction = { commit: jest.fn(), rollback: jest.fn(), LOCK: { UPDATE: 'UPDATE' } };
-        sequelize.transaction.mockResolvedValue(mockTransaction);
         
-        // Default Mock for ROOM - MUST include room_type and update
-        const mockRoom = { 
-            id: 'room-1', status: 'AVAILABLE', room_type_id: 'rt-1',
-            room_type: { id: 'rt-1', base_price: 5000000 },
-            update: jest.fn().mockResolvedValue(true)
-        };
-        Room.findByPk.mockResolvedValue(mockRoom);
-        RoomType.findByPk.mockResolvedValue(mockRoom.room_type);
-        
-        // Default Mock for Profile
-        CustomerProfile.findOrCreate.mockResolvedValue([{ id: 123 }, true]);
+        // Helper for valid check-in date
+        const validDate = new Date();
+        validDate.setDate(validDate.getDate() + 7);
+        this.validDateStr = validDate.toISOString().split('T')[0];
 
+        // Reset default mock states
+        Room.findByPk.mockResolvedValue({ id: 10, status: 'AVAILABLE', room_type_id: 1, update: jest.fn() });
+        RoomType.findByPk.mockResolvedValue({ id: 1, base_price: 5000000 });
+        CustomerProfile.findOrCreate.mockResolvedValue([{ update: jest.fn() }, true]);
+        Booking.create.mockResolvedValue({ id: 'bk-123' });
+        
         console.log('\n=========================================================================');
     });
 
-    const getValidCheckInStr = (offset = 7) => {
-        const d = new Date();
-        d.setDate(d.getDate() + offset);
-        return d.toISOString().split('T')[0];
-    };
-
-    it('TC_BOOKING_01: Tạo booking thành công', async () => {
-        const checkInStr = getValidCheckInStr();
+    it('TC_BOOKING_01: Tạo đơn đặt phòng thành công (Happy Path)', async () => {
+        const userId = 1;
         const bookingData = {
-            roomId: 'room-1', durationMonths: 6, billingCycle: 'CYCLE_1M', checkInDate: checkInStr,
-            customerInfo: { gender: 'MALE' }
+            roomId: 10,
+            checkInDate: this.validDateStr,
+            durationMonths: 6,
+            billingCycle: 'CYCLE_1M',
+            customerInfo: { gender: 'Male' }
         };
 
-        Booking.findOne.mockResolvedValue(null);
-        Booking.create.mockResolvedValue({ id: 100 });
+        const mockRoom = { 
+            id: 10, status: 'AVAILABLE', room_type_id: 1, 
+            update: jest.fn().mockResolvedValue(true) 
+        };
+        Room.findByPk.mockResolvedValue(mockRoom);
+        RoomType.findByPk.mockResolvedValue({ id: 1, base_price: 5000000 });
+        CustomerProfile.findOrCreate.mockResolvedValue([{ update: jest.fn() }, true]);
+        Booking.create.mockResolvedValue({ id: 'bk-123', booking_number: 'BK-001' });
 
-        const result = await BookingService.createBooking(1, bookingData);
-        expect(result.id).toBe(100);
+        const result = await BookingService.createBooking(userId, bookingData);
+
+        console.log(`[TEST]: Tạo đơn đặt phòng thành công`);
+        expect(result.id).toBe('bk-123');
+        expect(mockRoom.update).toHaveBeenCalledWith({ status: 'LOCKED' }, expect.any(Object));
     });
 
-    it('TC_BOOKING_02: Lỗi thời hạn hợp đồng không hợp lệ', async () => {
-        const bookingData = { durationMonths: 5 };
-        console.log(`[TEST]: Tạo booking thất bại - Sai thời hạn`);
-        try {
-            await BookingService.createBooking(1, bookingData);
-        } catch (error) {
-            console.log(`- Actual Error: "${error.message}"`);
-            expect(error.status).toBe(400);
-            expect(error.message).toBe('Thời hạn hợp đồng chỉ hỗ trợ 6 hoặc 12 tháng.');
-        }
-    });
+    it('TC_BOOKING_02: Lỗi khi phòng hiện không trống (400)', async () => {
+        const bookingData = { roomId: 10, checkInDate: this.validDateStr, durationMonths: 6, billingCycle: 'CYCLE_1M' };
+        Room.findByPk.mockResolvedValue({ id: 10, status: 'OCCUPIED' });
 
-    it('TC_BOOKING_03: Lỗi ngày check-in không hợp lệ', async () => {
-        const d = new Date(); d.setDate(d.getDate() + 1);
-        const bookingData = { durationMonths: 6, checkInDate: d.toISOString().split('T')[0] };
-        console.log(`[TEST]: Tạo booking thất bại - Sai ngày check-in`);
+        console.log(`[TEST]: Đặt phòng đã có người ở`);
         try {
             await BookingService.createBooking(1, bookingData);
+            throw new Error('Should error');
         } catch (error) {
-            console.log(`- Actual Error: "${error.message}"`);
-            expect(error.status).toBe(400);
-            expect(error.message).toContain('Ngày nhận phòng phải trong khoảng');
-        }
-    });
-
-    it('TC_BOOKING_04: Lỗi phòng đã được thuê', async () => {
-        const checkInStr = getValidCheckInStr();
-        const bookingData = { roomId: 'room-1', durationMonths: 6, checkInDate: checkInStr, customerInfo: { gender: 'MALE' } };
-        Booking.findOne.mockResolvedValue(null);
-        Room.findByPk.mockResolvedValue({ id: 'room-1', status: 'OCCUPIED' });
-        console.log(`[TEST]: Tạo booking thất bại - Phòng không trống`);
-        try {
-            await BookingService.createBooking(1, bookingData);
-        } catch (error) {
-            console.log(`- Actual Error: "${error.message}"`);
             expect(error.status).toBe(400);
             expect(error.message).toBe('Phòng này hiện không còn trống.');
         }
     });
 
-    it('TC_BOOKING_05: Lỗi khi người dùng đã có đơn đặt phòng chưa hoàn tất', async () => {
-        const checkInStr = getValidCheckInStr();
-        const bookingData = { roomId: 'room-1', durationMonths: 6, checkInDate: checkInStr, customerInfo: { gender: 'MALE' } };
-        Booking.findOne.mockResolvedValue({ id: 99, status: 'PENDING' });
-        console.log(`[TEST]: Tạo booking thất bại - Đã có đơn chưa hoàn tất`);
+    it('TC_BOOKING_03: Lỗi ngày nhận phòng quá sớm (400)', async () => {
+        const date = new Date(); // Today
+        const bookingData = { roomId: 10, checkInDate: date.toISOString().split('T')[0], durationMonths: 6 };
+        
+        console.log(`[TEST]: Ngày nhận phòng không hợp lệ (quá sớm)`);
         try {
             await BookingService.createBooking(1, bookingData);
+            throw new Error('Should error');
         } catch (error) {
-            console.log(`- Actual Error: "${error.message}"`);
             expect(error.status).toBe(400);
-            expect(error.message).toBe('Bạn đang có một đơn đặt phòng chưa hoàn thành. Vui lòng hoàn tất hoặc hủy đơn cũ trước.');
+            expect(error.message).toContain('Ngày nhận phòng phải trong khoảng');
         }
     });
 
-    it('TC_BOOKING_06: Lỗi khi chu kỳ thanh toán không hợp lệ', async () => {
-        const checkInStr = getValidCheckInStr();
-        const bookingData = { roomId: 'room-1', durationMonths: 6, checkInDate: checkInStr, billingCycle: 'INVALID', customerInfo: { gender: 'MALE' } };
-        Booking.findOne.mockResolvedValue(null);
-        console.log(`[TEST]: Tạo booking thất bại - Chu kỳ thanh toán không hợp lệ`);
+    it('TC_BOOKING_04: Lỗi khi thời hạn hợp đồng không hợp lệ (400)', async () => {
+        const bookingData = { roomId: 10, checkInDate: this.validDateStr, durationMonths: 5 };
+        
+        console.log(`[TEST]: Thời hạn hợp đồng không hợp lệ`);
         try {
             await BookingService.createBooking(1, bookingData);
+            throw new Error('Should error');
         } catch (error) {
-            console.log(`- Actual Error: "${error.message}"`);
             expect(error.status).toBe(400);
-            expect(error.message).toContain('Chu kỳ thanh toán không hợp lệ');
+            expect(error.message).toBe('Thời hạn hợp đồng chỉ hỗ trợ 6 hoặc 12 tháng.');
         }
+    });
+
+    it('TC_BOOKING_05: Chu kỳ thanh toán tự động chuẩn hóa về mặc định nếu không hợp lệ (Happy Path)', async () => {
+        const bookingData = { 
+            roomId: 10, 
+            checkInDate: this.validDateStr, 
+            durationMonths: 6, 
+            billingCycle: 'INVALID',
+            customerInfo: { gender: 'Male' } 
+        };
+        
+        console.log(`[TEST]: Chu kỳ thanh toán không hợp lệ -> Tự động chuẩn hóa`);
+        
+        const result = await BookingService.createBooking(1, bookingData);
+
+        expect(result.id).toBe('bk-123');
+        // Check if Booking.create was called with 'CYCLE_1M' (the default)
+        expect(Booking.create).toHaveBeenCalledWith(expect.objectContaining({
+            billing_cycle: 'CYCLE_1M'
+        }), expect.any(Object));
     });
 });

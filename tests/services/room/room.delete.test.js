@@ -35,6 +35,11 @@ const { Room, Booking, Contract } = sequelize.models;
 describe('RoomService - deleteRoom', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        
+        // Reset trạng thái các model liên quan
+        Booking.findOne.mockResolvedValue(null);
+        Contract.findOne.mockResolvedValue(null);
+
         console.log('\n=========================================================================');
     });
 
@@ -56,6 +61,7 @@ describe('RoomService - deleteRoom', () => {
 
         try {
             await RoomService.deleteRoom(roomId);
+            throw new Error('Should have thrown error');
         } catch (error) {
             expect(error.status).toBe(404);
             expect(error.message).toBe('Không tìm thấy phòng');
@@ -66,10 +72,11 @@ describe('RoomService - deleteRoom', () => {
         const roomId = 1;
         const mockRoom = { id: roomId, room_number: '101', destroy: jest.fn() };
         Room.findByPk.mockResolvedValue(mockRoom);
-        Booking.findOne.mockResolvedValue({ id: 10, status: 'PENDING' }); // Chỉ cần mock 1 cái là đủ trigger lỗi
+        Booking.findOne.mockResolvedValue({ id: 10, status: 'PENDING' }); 
 
         try {
             await RoomService.deleteRoom(roomId);
+            throw new Error('Should have thrown error');
         } catch (error) {
             expect(error.status).toBe(409);
             expect(error.message).toContain('đang hoạt động');

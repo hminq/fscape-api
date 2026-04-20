@@ -1,21 +1,48 @@
 const BuildingService = require('../../../services/building.service');
-const Building = require('../../../models/building.model');
-const Room = require('../../../models/room.model');
-const University = require('../../../models/university.model');
+const { sequelize } = require('../../../config/db');
 
-jest.mock('../../../models/building.model');
-jest.mock('../../../models/room.model');
-jest.mock('../../../models/roomType.model');
-jest.mock('../../../models/university.model');
-jest.mock('../../../models/user.model');
+// 1. Mock Database & Models
+jest.mock('../../../config/db', () => {
+    const mockModels = {
+        Building: { findByPk: jest.fn() },
+        Location: { findByPk: jest.fn() },
+        BuildingImage: { bulkCreate: jest.fn() },
+        Facility: { findAll: jest.fn() },
+        Room: { findAll: jest.fn() },
+        RoomType: { findAll: jest.fn() },
+        University: { findAll: jest.fn() },
+        User: { findByPk: jest.fn() }
+    };
+    return {
+        sequelize: {
+            models: mockModels,
+            authenticate: jest.fn().mockResolvedValue(),
+            close: jest.fn().mockResolvedValue()
+        },
+        connectDB: jest.fn().mockResolvedValue()
+    };
+});
+
+// 2. Mock individual models
+jest.mock('../../../models/building.model', () => (require('../../../config/db').sequelize.models.Building));
+jest.mock('../../../models/room.model', () => (require('../../../config/db').sequelize.models.Room));
+jest.mock('../../../models/roomType.model', () => (require('../../../config/db').sequelize.models.RoomType));
+jest.mock('../../../models/university.model', () => (require('../../../config/db').sequelize.models.University));
+
+const { Building, Room, RoomType, University } = sequelize.models;
 
 describe('BuildingService - getBuildingById', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset trạng thái mặc định
+        Building.findByPk.mockResolvedValue(null);
+        Room.findAll.mockResolvedValue([]);
+        RoomType.findAll.mockResolvedValue([]);
+        University.findAll.mockResolvedValue([]);
         console.log('\n=========================================================================');
     });
 
-    it('Lấy chi tiết tòa nhà thành công', async () => {
+    it('TC_BUILDING_GET_04: Lấy chi tiết tòa nhà thành công (Happy Path)', async () => {
         const mockBuilding = { 
             id: 1, 
             name: 'Building A', 
@@ -23,47 +50,35 @@ describe('BuildingService - getBuildingById', () => {
             toJSON: () => ({ id: 1, name: 'Building A', location_id: 1 })
         };
         Building.findByPk.mockResolvedValue(mockBuilding);
-        Room.findAll.mockResolvedValue([]);
-        University.findAll.mockResolvedValue([]);
 
         const result = await BuildingService.getBuildingById(1, { role: 'ADMIN' });
 
-        console.log(`[TEST]: Lấy chi tiết tòa nhà`);
-        console.log(`- Input   : ID=1`);
-        console.log(`- Expected: Name="Building A"`);
-        console.log(`- Actual  : Name="${result.name}"`);
-
+        console.log(`[TEST]: Lấy chi tiết tòa nhà thành công`);
         expect(result.name).toBe('Building A');
+        expect(Room.findAll).toHaveBeenCalledWith(expect.objectContaining({ where: { building_id: 1 } }));
     });
 
-    it('Tòa nhà không tồn tại', async () => {
+    it('TC_BUILDING_GET_05: Lỗi khi không tìm thấy tòa nhà (404)', async () => {
         Building.findByPk.mockResolvedValue(null);
-        const expectedError = 'Building not found';
-
-        console.log(`[TEST]: Tòa nhà không tồn tại`);
-        console.log(`- Input   : ID=999`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
+        console.log(`[TEST]: Truy vấn tòa nhà không tồn tại`);
         try {
-            await BuildingService.getBuildingById(999);
+            await BuildingService.getBuildingById(999, { role: 'ADMIN' });
+            throw new Error('Should have thrown error');
         } catch (error) {
-            console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
+            expect(error.status).toBe(404);
+            expect(error.message).toBe('Không tìm thấy tòa nhà');
         }
     });
 
-    it('ID tòa nhà bị null', async () => {
-        const expectedError = 'Building not found';
-
-        console.log(`[TEST]: Truy vấn tòa nhà với ID=null`);
-        console.log(`- Input   : ID=null`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
+    it('TC_BUILDING_GET_06: Lỗi khi Quản lý truy cập tòa nhà sai phân quyền (403)', async () => {
+        const user = { role: 'BUILDING_MANAGER', building_id: 10 };
+        console.log(`[TEST]: Manager truy cập tòa nhà qua endpoint chung`);
         try {
-            await BuildingService.getBuildingById(null);
+            await BuildingService.getBuildingById(10, user);
+            throw new Error('Should have thrown error');
         } catch (error) {
-            console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
+            expect(error.status).toBe(403);
+            expect(error.message).toContain('sử dụng endpoint tòa nhà được phân công');
         }
     });
 });

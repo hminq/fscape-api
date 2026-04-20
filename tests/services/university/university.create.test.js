@@ -27,18 +27,21 @@ jest.mock('../../../config/db', () => {
 
 // Mock individual models
 jest.mock('../../../models/university.model', () => (require('../../../config/db').sequelize.models.University));
+jest.mock('../../../models/location.model', () => (require('../../../config/db').sequelize.models.Location));
+jest.mock('../../../models/building.model', () => (require('../../../config/db').sequelize.models.Building));
 
 const { University } = sequelize.models;
 
 describe('UniversityService - createUniversity', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset trạng thái mặc định
+        University.findOne.mockResolvedValue(null);
         console.log('\n=========================================================================');
     });
 
     it('TC_UNIVERSITY_01: Tạo University mới thành công (Happy Path)', async () => {
         const newData = { name: 'Đại học FPT', location_id: 1, address: 'Khu công nghệ cao' };
-        University.findOne.mockResolvedValue(null);
         University.create.mockResolvedValue({ id: 5, ...newData });
 
         const result = await UniversityService.createUniversity(newData);

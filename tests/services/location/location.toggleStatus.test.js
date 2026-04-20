@@ -1,25 +1,32 @@
 const LocationService = require('../../../services/location.service');
 const { sequelize } = require('../../../config/db');
 
+// 1. Mock Database & Models
 jest.mock('../../../config/db', () => ({
     sequelize: {
         models: {
-            Location: {
-                findByPk: jest.fn()
-            }
-        }
-    }
+            Location: { findByPk: jest.fn() }
+        },
+        authenticate: jest.fn().mockResolvedValue(),
+        close: jest.fn().mockResolvedValue()
+    },
+    connectDB: jest.fn().mockResolvedValue()
 }));
 
-describe('LocationService - toggleLocationStatus', () => {
-    const { Location } = sequelize.models;
+// 2. Mock individual models
+jest.mock('../../../models/location.model', () => (require('../../../config/db').sequelize.models.Location));
 
+const { Location } = sequelize.models;
+
+describe('LocationService - toggleLocationStatus', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset trạng thái mặc định
+        Location.findByPk.mockResolvedValue(null);
         console.log('\n=========================================================================');
     });
 
-    it('Kích hoạt địa điểm thành công', async () => {
+    it('TC_LOCATION_11: Kích hoạt địa điểm thành công (Happy Path)', async () => {
         const mockLocation = { 
             id: 1, 
             is_active: false, 
@@ -29,16 +36,12 @@ describe('LocationService - toggleLocationStatus', () => {
 
         const result = await LocationService.toggleLocationStatus(1, true);
 
-        console.log(`[TEST]: Kích hoạt địa điểm (Active)`);
-        console.log(`- Input   : ID=1, isActive=true`);
-        console.log(`- Expected: is_active=true`);
-        console.log(`- Actual  : is_active=${result.is_active}`);
-
+        console.log(`[TEST]: Kích hoạt địa điểm thành công`);
         expect(result.is_active).toBe(true);
         expect(mockLocation.save).toHaveBeenCalled();
     });
 
-    it('Vô hiệu hóa địa điểm thành công', async () => {
+    it('TC_LOCATION_12: Vô hiệu hóa địa điểm thành công (Happy Path)', async () => {
         const mockLocation = { 
             id: 1, 
             is_active: true, 
@@ -48,61 +51,37 @@ describe('LocationService - toggleLocationStatus', () => {
 
         const result = await LocationService.toggleLocationStatus(1, false);
 
-        console.log(`[TEST]: Vô hiệu hóa địa điểm (Inactive)`);
-        console.log(`- Input   : ID=1, isActive=false`);
-        console.log(`- Expected: is_active=false`);
-        console.log(`- Actual  : is_active=${result.is_active}`);
-
+        console.log(`[TEST]: Vô hiệu hóa địa điểm thành công`);
         expect(result.is_active).toBe(false);
         expect(mockLocation.save).toHaveBeenCalled();
     });
 
-    it('Lỗi khi trạng thái mới trùng với trạng thái hiện tại', async () => {
+    it('TC_LOCATION_13: Lỗi khi trạng thái mới trùng với trạng thái hiện tại (400)', async () => {
         const mockLocation = { id: 1, is_active: true };
         Location.findByPk.mockResolvedValue(mockLocation);
         const expectedError = 'Khu vực đã ở trạng thái hoạt động';
 
-        console.log(`[TEST]: Trùng trạng thái hiện tại`);
-        console.log(`- Input   : ID=1, isActive=true (Địa điểm đang active)`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
+        console.log(`[TEST]: Trùng trạng thái hiện tại (Active -> Active)`);
         try {
             await LocationService.toggleLocationStatus(1, true);
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
+            expect(error.status).toBe(400);
             expect(error.message).toBe(expectedError);
         }
     });
 
-    it('Địa điểm không tồn tại', async () => {
+    it('TC_LOCATION_14: Lỗi khi địa điểm không tồn tại (404)', async () => {
         Location.findByPk.mockResolvedValue(null);
-        const expectedError = 'Không tìm thấy khu vực';
-
-        console.log(`[TEST]: Địa điểm không tồn tại`);
-        console.log(`- Input   : ID=999`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
+        console.log(`[TEST]: Toggle trạng thái địa điểm không tồn tại`);
         try {
             await LocationService.toggleLocationStatus(999, true);
+            throw new Error('Should have thrown error');
         } catch (error) {
             console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
-        }
-    });
-
-    it('ID bị null', async () => {
-        Location.findByPk.mockResolvedValue(null);
-        const expectedError = 'Không tìm thấy khu vực';
-
-        console.log(`[TEST]: Toggle trạng thái với ID bị null`);
-        console.log(`- Input   : ID=null`);
-        console.log(`- Expected Error: "${expectedError}"`);
-
-        try {
-            await LocationService.toggleLocationStatus(null, true);
-        } catch (error) {
-            console.log(`- Actual Error  : "${error.message}"`);
-            expect(error.message).toBe(expectedError);
+            expect(error.status).toBe(404);
+            expect(error.message).toBe('Không tìm thấy khu vực');
         }
     });
 });

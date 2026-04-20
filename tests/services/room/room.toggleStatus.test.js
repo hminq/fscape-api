@@ -36,6 +36,10 @@ const { Room, Booking, Contract } = sequelize.models;
 describe('RoomService - toggleRoomStatus', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset trạng thái các model liên quan
+        Booking.findOne.mockResolvedValue(null);
+        Contract.findOne.mockResolvedValue(null);
+        
         console.log('\n=========================================================================');
     });
 
