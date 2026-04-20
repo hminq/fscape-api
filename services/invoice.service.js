@@ -4,6 +4,7 @@ const moment = require('moment');
 const { generateNumberedId } = require('../utils/generateId');
 const { billingCycleToMonths } = require('../utils/billingCycle.util');
 const { createNotification } = require('./notification.service');
+const { INVOICE_PAYMENT_DEADLINE_DAYS } = require('../constants/jobTimeRules');
 
 // Rent invoice generation by billing cycle.
 
@@ -14,13 +15,13 @@ const generateRentInvoices = async () => {
 
     const dueContracts = await Contract.findAll({
         where: {
-            status: 'ACTIVE',
+            status: { [Op.in]: ['ACTIVE', 'EXPIRING_SOON'] },
             next_billing_date: { [Op.lte]: today }
         },
         include: [{ model: Room, as: 'room' }]
     });
 
-    console.log(`[RentInvoiceJob] Tìm thấy ${dueContracts.length} hợp đồng đến hạn thu tiền phòng.`);
+    console.log(`[RentInvoiceJob] Found ${dueContracts.length} contract(s) due for rent billing.`);
     let generatedCount = 0;
 
     for (const contract of dueContracts) {
@@ -40,7 +41,7 @@ const generateRentInvoices = async () => {
 
             const roomRent = Number(contract.base_rent) * monthsToAdd;
 
-            const dueDate = moment(billingPeriodStart).add(5, 'days').format('YYYY-MM-DD');
+            const dueDate = moment(billingPeriodStart).add(INVOICE_PAYMENT_DEADLINE_DAYS, 'days').format('YYYY-MM-DD');
 
             const newInvoice = await Invoice.create({
                 invoice_number: generateNumberedId('INV'),
@@ -106,13 +107,13 @@ const generateServiceInvoices = async () => {
 
     const dueContracts = await Contract.findAll({
         where: {
-            status: 'ACTIVE',
+            status: { [Op.in]: ['ACTIVE', 'EXPIRING_SOON'] },
             next_service_billing_at: { [Op.lte]: now }
         },
         include: [{ model: Room, as: 'room' }]
     });
 
-    console.log(`[ServiceInvoiceJob] Tìm thấy ${dueContracts.length} hợp đồng đến hạn thu phí dịch vụ.`);
+    console.log(`[ServiceInvoiceJob] Found ${dueContracts.length} contract(s) due for service billing.`);
     let generatedCount = 0;
 
     for (const contract of dueContracts) {
@@ -145,7 +146,7 @@ const generateServiceInvoices = async () => {
 
             const billingPeriodEnd = moment(now).format('YYYY-MM-DD');
             const billingPeriodStart = moment(now).subtract(30, 'days').format('YYYY-MM-DD');
-            const dueDate = moment(now).add(5, 'days').format('YYYY-MM-DD');
+            const dueDate = moment(now).add(INVOICE_PAYMENT_DEADLINE_DAYS, 'days').format('YYYY-MM-DD');
 
             const newInvoice = await Invoice.create({
                 invoice_number: generateNumberedId('INV-SVC'),

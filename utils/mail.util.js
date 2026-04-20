@@ -562,6 +562,69 @@ exports.sendContractExpiringSoonEmail = async (
   await logEmailSent(email, subject, "CONTRACT_EXPIRING_SOON", contractId);
 };
 
+/**
+ * Gửi email thông báo hợp đồng đã hết hạn cho resident.
+ */
+exports.sendContractFinishedEmail = async (
+  email,
+  {
+    customerName,
+    contractNumber,
+    contractId,
+    roomNumber,
+    buildingName,
+    endDate,
+  },
+) => {
+  if (await wasEmailSent("CONTRACT_FINISHED", contractId)) return;
+  const subject = `Hợp đồng ${contractNumber} - Đã kết thúc`;
+  await sendMailWithAudit({
+    to: email,
+    subject,
+    templateKey: "CONTRACT_FINISHED",
+    context: { contractNumber, roomNumber, buildingName, endDate },
+    html: wrapEmailTemplate(`
+      <h2 style="margin:0 0 8px; color:#011936;">Xin chào ${customerName},</h2>
+      <p style="margin:0 0 16px; color:#52525b;">
+        Hợp đồng thuê phòng của bạn đã <strong style="color:#dc2626;">kết thúc</strong> vào ngày <strong>${endDate}</strong>.
+      </p>
+
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#fef2f2; border:1px solid #fca5a5; border-radius:8px; margin:0 0 24px;">
+        <tr>
+          <td style="padding:16px;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Số hợp đồng</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${contractNumber}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Phòng</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${roomNumber}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Tòa nhà</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${buildingName}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Ngày kết thúc</td>
+                <td style="padding:4px 0; text-align:right; font-weight:700; color:#dc2626; font-size:15px;">${endDate}</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <p style="margin:0 0 8px; color:#52525b;">
+        Nếu bạn chưa hoàn tất thủ tục trả phòng, vui lòng liên hệ quản lý tòa nhà để được hướng dẫn.
+      </p>
+      <p style="margin:0; color:#71717a; font-size:13px;">
+        Nếu cần hỗ trợ, vui lòng liên hệ quản lý tòa nhà qua website FScape.
+      </p>
+    `),
+  });
+  await logEmailSent(email, subject, "CONTRACT_FINISHED", contractId);
+};
+
 // Signing reminder and cancellation emails.
 
 exports.sendSigningReminderEmail = async (
@@ -1275,4 +1338,203 @@ exports.sendManualExpiringReminderEmail = async (
     `),
   });
   await logEmailSent(email, subject, "MANUAL_EXPIRING_REMINDER", contractId);
+};
+
+exports.sendInvoiceOverdueResidentEmail = async (
+  email,
+  {
+    customerName,
+    invoiceNumber,
+    invoiceId,
+    roomNumber,
+    buildingName,
+    totalAmount,
+    dueDate,
+  },
+) => {
+  if (await wasEmailSent("INVOICE_OVERDUE_RESIDENT", invoiceId)) return;
+  const invoiceUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/my-invoices?invoiceId=${invoiceId}`;
+  const subject = `Hóa đơn ${invoiceNumber} đã quá hạn thanh toán`;
+  await sendMailWithAudit({
+    to: email,
+    subject,
+    templateKey: "INVOICE_OVERDUE_RESIDENT",
+    context: { invoiceNumber, roomNumber, buildingName },
+    html: wrapEmailTemplate(`
+      <h2 style="margin:0 0 8px; color:#011936;">Xin chào ${customerName},</h2>
+      <p style="margin:0 0 16px; color:#52525b;">
+        Hóa đơn của bạn đã quá hạn thanh toán. Vui lòng thanh toán sớm nhất có thể để tránh ảnh hưởng đến hợp đồng thuê phòng.
+      </p>
+
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#fef2f2; border:1px solid #fca5a5; border-radius:8px; margin:0 0 24px;">
+        <tr>
+          <td style="padding:16px;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Số hóa đơn</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${invoiceNumber}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Phòng</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${roomNumber} - ${buildingName}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Tổng tiền</td>
+                <td style="padding:4px 0; text-align:right; font-weight:700; color:#dc2626; font-size:16px;">${totalAmount}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Hạn thanh toán</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#dc2626;">${dueDate} (đã quá hạn)</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td align="center">
+            <a href="${invoiceUrl}" style="display:inline-block; background-color:#dc2626; color:#ffffff; text-decoration:none; padding:12px 32px; border-radius:6px; font-weight:600; font-size:15px;">
+              Thanh toán ngay
+            </a>
+          </td>
+        </tr>
+      </table>
+
+      <p style="margin:24px 0 0; color:#71717a; font-size:13px;">
+        Nếu không thanh toán, quản lý tòa nhà có thể chấm dứt hợp đồng của bạn.
+      </p>
+      <p style="margin:8px 0 0; color:#71717a; font-size:13px;">
+        Nếu nút không hoạt động, hãy sao chép đường dẫn sau vào trình duyệt:<br/>
+        <a href="${invoiceUrl}" style="color:#2563eb; word-break:break-all;">${invoiceUrl}</a>
+      </p>
+    `),
+  });
+  await logEmailSent(email, subject, "INVOICE_OVERDUE_RESIDENT", invoiceId);
+};
+
+exports.sendInvoiceOverdueManagerEmail = async (
+  email,
+  {
+    managerName,
+    invoiceNumber,
+    invoiceId,
+    customerName,
+    roomNumber,
+    buildingName,
+    totalAmount,
+    dueDate,
+  },
+) => {
+  if (await wasEmailSent("INVOICE_OVERDUE_MANAGER", invoiceId)) return;
+  const subject = `Hóa đơn ${invoiceNumber} quá hạn - Cư dân ${customerName}`;
+  await sendMailWithAudit({
+    to: email,
+    subject,
+    templateKey: "INVOICE_OVERDUE_MANAGER",
+    context: { invoiceNumber, roomNumber, buildingName, customerName },
+    html: wrapEmailTemplate(`
+      <h2 style="margin:0 0 8px; color:#011936;">Xin chào ${managerName},</h2>
+      <p style="margin:0 0 16px; color:#52525b;">
+        Cư dân có hóa đơn quá hạn thanh toán. Vui lòng liên hệ để xử lý.
+      </p>
+
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#fef2f2; border:1px solid #fca5a5; border-radius:8px; margin:0 0 24px;">
+        <tr>
+          <td style="padding:16px;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Số hóa đơn</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${invoiceNumber}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Cư dân</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${customerName}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Phòng</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${roomNumber} - ${buildingName}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Tổng tiền</td>
+                <td style="padding:4px 0; text-align:right; font-weight:700; color:#dc2626; font-size:16px;">${totalAmount}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Hạn thanh toán</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#dc2626;">${dueDate} (đã quá hạn)</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <p style="margin:0; color:#71717a; font-size:13px;">
+        Bạn có thể liên hệ cư dân hoặc chấm dứt hợp đồng nếu cần thiết.
+      </p>
+    `),
+  });
+  await logEmailSent(email, subject, "INVOICE_OVERDUE_MANAGER", invoiceId);
+};
+
+/**
+ * Email thong bao booking het han dat coc.
+ */
+exports.sendBookingExpiredEmail = async (
+  email,
+  {
+    customerName,
+    bookingNumber,
+    bookingId,
+    roomNumber,
+    buildingName,
+    depositAmount,
+  },
+) => {
+  if (await wasEmailSent("BOOKING_EXPIRED", bookingId)) return;
+  const subject = `Đặt phòng ${bookingNumber} - Đã bị hủy do hết hạn thanh toán`;
+  await sendMailWithAudit({
+    to: email,
+    subject,
+    templateKey: "BOOKING_EXPIRED",
+    context: { bookingNumber, roomNumber, buildingName },
+    html: wrapEmailTemplate(`
+      <h2 style="margin:0 0 8px; color:#011936;">Xin chào ${customerName},</h2>
+      <p style="margin:0 0 16px; color:#52525b;">
+        Đơn đặt phòng của bạn đã bị <strong style="color:#dc2626;">hủy tự động</strong> do không thanh toán đặt cọc trong thời hạn quy định.
+      </p>
+
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#fef2f2; border:1px solid #fca5a5; border-radius:8px; margin:0 0 24px;">
+        <tr>
+          <td style="padding:16px;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Mã đặt phòng</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${bookingNumber}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Phòng</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${roomNumber}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Tòa nhà</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${buildingName}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Tiền đặt cọc</td>
+                <td style="padding:4px 0; text-align:right; font-weight:700; color:#dc2626; font-size:16px;">${depositAmount}</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <p style="margin:0 0 8px; color:#52525b;">
+        Nếu bạn vẫn muốn đặt phòng, vui lòng thực hiện lại quy trình đặt phòng trên website FScape.
+      </p>
+      <p style="margin:0; color:#71717a; font-size:13px;">
+        Nếu có bất kỳ thắc mắc nào, vui lòng liên hệ quản lý tòa nhà qua hệ thống FScape.
+      </p>
+    `),
+  });
+  await logEmailSent(email, subject, "BOOKING_EXPIRED", bookingId);
 };
