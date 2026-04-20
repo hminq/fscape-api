@@ -14,11 +14,11 @@ const run = async () => {
     });
 
     try {
-        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const todayStr = new Date().toISOString().split('T')[0];
+        const todayUTC = new Date(todayStr + 'T00:00:00Z');
 
-        // Calculate deadline: start_date + CHECK_IN_EXPIRY_DAYS must be < today
-        const deadlineDate = new Date();
-        deadlineDate.setDate(deadlineDate.getDate() - CHECK_IN_EXPIRY_DAYS);
+        const deadlineDate = new Date(todayUTC);
+        deadlineDate.setUTCDate(deadlineDate.getUTCDate() - CHECK_IN_EXPIRY_DAYS);
         const deadlineStr = deadlineDate.toISOString().split('T')[0];
 
         // Find contracts in PENDING_CHECK_IN where start_date + 3 days has passed

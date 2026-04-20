@@ -23,7 +23,7 @@ const { sendContractSigningEmail, sendManagerSigningEmail, sendInvoiceCreatedEma
 const Invoice = require('../models/invoice.model');
 const { generateContractPdf } = require('../utils/pdf.util');
 const auditService = require('./audit.service');
-const { parseLocalDate } = require('../utils/date.util');
+const { parseUTCDate } = require('../utils/date.util');
 const Request = require('../models/request.model');
 const RequestStatusHistory = require('../models/requestStatusHistory.model');
 const { createNotification } = require('./notification.service');
@@ -46,10 +46,10 @@ const formatCurrency = (amount) => {
 
 const formatDate = (date) => {
     if (!date) return '';
-    const d = parseLocalDate(date);
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const yyyy = d.getFullYear();
+    const d = parseUTCDate(date);
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const yyyy = d.getUTCFullYear();
     return `${dd}/${mm}/${yyyy}`;
 };
 
@@ -67,11 +67,11 @@ const formatGender = (gender) => {
 };
 
 const addMonths = (dateStr, months) => {
-    const d = parseLocalDate(dateStr);
-    d.setMonth(d.getMonth() + months);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
+    const d = parseUTCDate(dateStr);
+    d.setUTCMonth(d.getUTCMonth() + months);
+    const yyyy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(d.getUTCDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
 };
 
@@ -525,13 +525,13 @@ const renewContract = async (contractId, body, user) => {
         }
 
         // 7. Validate start_date: must be within [old.end_date, old.end_date + RENEWAL_MAX_GAP_DAYS]
-        const oldEndDate = parseLocalDate(oldContract.end_date);
+        const oldEndDate = parseUTCDate(oldContract.end_date);
         const maxStartDate = new Date(oldEndDate);
-        maxStartDate.setDate(maxStartDate.getDate() + RENEWAL_MAX_GAP_DAYS);
+        maxStartDate.setUTCDate(maxStartDate.getUTCDate() + RENEWAL_MAX_GAP_DAYS);
 
         let startDate = oldContract.end_date;
         if (start_date) {
-            const requested = parseLocalDate(start_date);
+            const requested = parseUTCDate(start_date);
             if (requested < oldEndDate || requested > maxStartDate) {
                 throw {
                     status: 400,
@@ -800,10 +800,10 @@ const managerSign = async (contractId, signatureUrl, user, req) => {
         // Compute new billing timestamp fields
         const nextRentBillingAt = billingMonths == null
             ? null
-            : parseLocalDate(addMonths(contract.start_date, billingMonths));
-        const startLocal = parseLocalDate(contract.start_date);
+            : parseUTCDate(addMonths(contract.start_date, billingMonths));
+        const startUTC = parseUTCDate(contract.start_date);
         const nextServiceBillingAt = new Date(
-            startLocal.getTime() + 30 * 24 * 60 * 60 * 1000
+            startUTC.getTime() + 30 * 24 * 60 * 60 * 1000
         );
 
         // 1. Update contract → PENDING_FIRST_PAYMENT (awaiting 1st rent payment)
@@ -865,8 +865,8 @@ const managerSign = async (contractId, signatureUrl, user, req) => {
             rentMonths = Number(contract.duration_months);
         } else {
             // Subtract 1 day from end: e.g. Jan 1 + 3 months = Apr 1, end = Mar 31
-            const endDate = new Date(addMonths(billingPeriodStart, billingMonths));
-            endDate.setDate(endDate.getDate() - 1);
+            const endDate = parseUTCDate(addMonths(billingPeriodStart, billingMonths));
+            endDate.setUTCDate(endDate.getUTCDate() - 1);
             billingPeriodEnd = endDate.toISOString().split('T')[0];
             rentMonths = billingMonths;
         }

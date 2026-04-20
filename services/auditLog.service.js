@@ -2,7 +2,7 @@ const { Op } = require('sequelize');
 const AuditLog = require('../models/auditLog.model');
 const User = require('../models/user.model');
 const { ROLES } = require('../constants/roles');
-const { parseLocalDate } = require('../utils/date.util');
+const { parseUTCDate } = require('../utils/date.util');
 
 class AuditLogService {
   /**
@@ -38,10 +38,10 @@ class AuditLogService {
     // Date range
     if (from || to) {
       where.created_at = {};
-      if (from) where.created_at[Op.gte] = parseLocalDate(from);
+      if (from) where.created_at[Op.gte] = parseUTCDate(from);
       if (to) {
-        const end = parseLocalDate(to);
-        end.setHours(23, 59, 59, 999);
+        const end = parseUTCDate(to);
+        end.setUTCHours(23, 59, 59, 999);
         where.created_at[Op.lte] = end;
       }
     }

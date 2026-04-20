@@ -12,7 +12,7 @@ const {
 } = require("../constants/bookingEnums");
 const { normalizeBillingCycle } = require("../utils/billingCycle.util");
 const { generateNumberedId } = require("../utils/generateId");
-const { parseLocalDate } = require("../utils/date.util");
+const { parseUTCDate } = require("../utils/date.util");
 
 const createBooking = async (userId, bookingData) => {
   const { Booking, Room, RoomType, User, CustomerProfile } = sequelize.models;
@@ -33,13 +33,13 @@ const createBooking = async (userId, bookingData) => {
   }
 
   // Validate check-in date within [today + MIN, today + MAX].
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const todayStr = new Date().toISOString().split('T')[0];
+  const today = parseUTCDate(todayStr);
   const minCheckIn = new Date(today);
-  minCheckIn.setDate(minCheckIn.getDate() + MIN_CHECKIN_DAYS);
+  minCheckIn.setUTCDate(minCheckIn.getUTCDate() + MIN_CHECKIN_DAYS);
   const maxCheckIn = new Date(today);
-  maxCheckIn.setDate(maxCheckIn.getDate() + MAX_CHECKIN_DAYS);
-  const checkIn = parseLocalDate(check_in_date);
+  maxCheckIn.setUTCDate(maxCheckIn.getUTCDate() + MAX_CHECKIN_DAYS);
+  const checkIn = parseUTCDate(check_in_date);
   if (checkIn < minCheckIn || checkIn > maxCheckIn) {
     throw {
       status: 400,
