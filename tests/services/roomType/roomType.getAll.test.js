@@ -17,7 +17,7 @@ describe('RoomTypeService - getAllRoomTypes', () => {
         console.log('\n=========================================================================');
     });
 
-    it('TC_ROOMTYPE_GET_01: ADMIN lấy danh sách các loại phòng (Full data)', async () => {
+    it('TC_ROOM_TYPE_01: ADMIN lấy danh sách các loại phòng (Full data)', async () => {
         const query = { page: 1, limit: 10 };
         const user = { role: ROLES.ADMIN };
         
@@ -42,7 +42,7 @@ describe('RoomTypeService - getAllRoomTypes', () => {
         expect(result.active_count).toBe(1);
     });
 
-    it('TC_ROOMTYPE_GET_02: PUBLIC lấy danh sách - Ẩn thông tin nhạy cảm', async () => {
+    it('TC_ROOM_TYPE_02: PUBLIC lấy danh sách - Ẩn thông tin nhạy cảm', async () => {
         const query = { page: 1, limit: 10 };
         const user = { role: 'PUBLIC' };
         
@@ -61,7 +61,7 @@ describe('RoomTypeService - getAllRoomTypes', () => {
         }));
     });
 
-    it('TC_ROOMTYPE_GET_03: Lọc theo trạng thái is_active', async () => {
+    it('TC_ROOM_TYPE_03: Lọc theo trạng thái is_active', async () => {
         const query = { is_active: 'true' };
         
         await RoomTypeService.getAllRoomTypes(query, {});
@@ -72,7 +72,7 @@ describe('RoomTypeService - getAllRoomTypes', () => {
         }));
     });
 
-    it('TC_ROOMTYPE_GET_04: Tìm kiếm theo tên (Search)', async () => {
+    it('TC_ROOM_TYPE_04: Tìm kiếm theo tên (Search)', async () => {
         const query = { search: 'VIP' };
         
         await RoomTypeService.getAllRoomTypes(query, {});

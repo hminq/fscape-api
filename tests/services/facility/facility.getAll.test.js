@@ -26,7 +26,7 @@ describe('FacilityService - getAllFacilities', () => {
         console.log('\n=========================================================================');
     });
 
-    it('TC_FACILITY_GET_01: Lấy danh sách tiện ích thành công (Happy Path)', async () => {
+    it('TC_FACILITY_01: Lấy danh sách tiện ích thành công (Happy Path)', async () => {
         const mockRows = [{ id: 1, name: 'Wifi', is_active: true }];
         Facility.findAndCountAll.mockResolvedValue({ count: 1, rows: mockRows });
 
@@ -38,7 +38,7 @@ describe('FacilityService - getAllFacilities', () => {
         expect(result.data).toHaveLength(1);
     });
 
-    it('TC_FACILITY_GET_02: Tìm kiếm tiện ích theo tên (Search Filter)', async () => {
+    it('TC_FACILITY_02: Tìm kiếm tiện ích theo tên (Search Filter)', async () => {
         const mockRows = [{ id: 2, name: 'Thang máy' }];
         Facility.findAndCountAll.mockResolvedValue({ count: 1, rows: mockRows });
 

@@ -153,5 +153,24 @@ describe('RoomTypeService - Unified & Abnormal Cases', () => {
                 expect(mockTransaction.rollback).toHaveBeenCalled();
             }
         });
+
+        it('TC_ROOM_TYPE_08: Gán tài sản mẫu thành công (Happy Path)', async () => {
+            const mockRoomType = { id: 'rt1', name: 'Standard' };
+            RoomType.findByPk.mockResolvedValue(mockRoomType);
+            AssetType.findAll.mockResolvedValue([{ id: 1 }, { id: 2 }]);
+            
+            RoomTypeAsset.destroy.mockResolvedValue(2);
+            RoomTypeAsset.bulkCreate.mockResolvedValue([]);
+
+            const result = await RoomTypeService.replaceTemplateAssets('rt1', [
+                { asset_type_id: 1, quantity: 2 },
+                { asset_type_id: 2, quantity: 1 }
+            ]);
+
+            console.log(`[TEST]: Gán tài sản mẫu thành công`);
+            expect(result.message).toContain('thành công');
+            expect(RoomTypeAsset.destroy).toHaveBeenCalled();
+            expect(RoomTypeAsset.bulkCreate).toHaveBeenCalled();
+        });
     });
 });

@@ -13,7 +13,7 @@ describe('AssetService - getAllAssets', () => {
         console.log('\n=========================================================================');
     });
 
-    it('Lấy danh sách Asset thành công (Admin)', async () => {
+    it('TC_ASSET_01: Lấy danh sách Asset thành công (Admin)', async () => {
         const mockRows = [{ id: 1, name: 'Asset 1', status: 'AVAILABLE', toJSON: () => ({ id: 1, name: 'Asset 1' }) }];
         Asset.findAndCountAll.mockResolvedValue({ count: 1, rows: mockRows });
 
@@ -29,7 +29,7 @@ describe('AssetService - getAllAssets', () => {
         expect(result.data).toEqual(mockRows);
     });
 
-    it('Lấy danh sách Asset (BM/Staff) - Bị giới hạn theo tòa nhà', async () => {
+    it('TC_ASSET_02: Lấy danh sách Asset (BM/Staff) - Bị giới hạn theo tòa nhà', async () => {
         const mockRows = [{ id: 1, name: 'Asset B', building_id: 'b1', toJSON: () => ({ id: 1, name: 'Asset B' }) }];
         Asset.findAndCountAll.mockResolvedValue({ count: 1, rows: mockRows });
 
@@ -46,7 +46,7 @@ describe('AssetService - getAllAssets', () => {
         }));
     });
 
-    it('Tìm kiếm Asset theo tên hoặc mã QR', async () => {
+    it('TC_ASSET_03: Tìm kiếm Asset theo tên hoặc mã QR', async () => {
         Asset.findAndCountAll.mockResolvedValue({ count: 0, rows: [] });
 
         const query = { search: 'ABC' };
@@ -63,6 +63,22 @@ describe('AssetService - getAllAssets', () => {
                     { qr_code: { [Op.iLike]: '%ABC%' } }
                 ])
             })
+        }));
+    });
+ 
+    it('TC_ASSET_04: Bảo mật - BM tòa b1 cố gắng lọc theo tòa b2 (Phải bị ghi đè thành b1)', async () => {
+        Asset.findAndCountAll.mockResolvedValue({ count: 0, rows: [] });
+
+        const user = { role: ROLES.BUILDING_MANAGER, building_id: 'b1' };
+        const query = { building_id: 'b2' }; // Cố tình truyền tòa nhà khác
+        
+        await AssetService.getAllAssets(query, user);
+
+        console.log(`[SECURITY TEST]: BM(b1) try to query building_id="b2"`);
+        console.log(`- Expected: WHERE clause must contain building_id="b1"`);
+
+        expect(Asset.findAndCountAll).toHaveBeenCalledWith(expect.objectContaining({
+            where: expect.objectContaining({ building_id: 'b1' })
         }));
     });
 });

@@ -30,7 +30,7 @@ describe('FacilityService - updateFacility', () => {
         console.log('\n=========================================================================');
     });
 
-    it('TC_FACILITY_04: Cập nhật tiện ích thành công (Happy Path)', async () => {
+    it('TC_FACILITY_01: Cập nhật tiện ích thành công (Happy Path)', async () => {
         const mockFacility = { 
             id: 1, 
             name: 'Wifi cũ', 
@@ -45,7 +45,7 @@ describe('FacilityService - updateFacility', () => {
         expect(mockFacility.update).toHaveBeenCalledWith(expect.objectContaining(updateData));
     });
 
-    it('TC_FACILITY_05: Lỗi khi cập nhật trùng tên với tiện ích khác (409)', async () => {
+    it('TC_FACILITY_02: Lỗi khi cập nhật trùng tên với tiện ích khác (409)', async () => {
         const mockFacility = { id: 1, name: 'Wifi' };
         Facility.findByPk.mockResolvedValue(mockFacility);
         Facility.findOne.mockResolvedValue({ id: 2, name: 'Điều hòa' });
@@ -60,7 +60,7 @@ describe('FacilityService - updateFacility', () => {
         }
     });
 
-    it('TC_FACILITY_06: Lỗi khi cập nhật tên trống (400)', async () => {
+    it('TC_FACILITY_03: Lỗi khi cập nhật tên trống (400)', async () => {
         const mockFacility = { id: 1, name: 'Wifi' };
         Facility.findByPk.mockResolvedValue(mockFacility);
 
@@ -74,7 +74,7 @@ describe('FacilityService - updateFacility', () => {
         }
     });
 
-    it('TC_FACILITY_07: Lỗi khi không tìm thấy tiện ích để cập nhật (404)', async () => {
+    it('TC_FACILITY_04: Lỗi khi không tìm thấy tiện ích để cập nhật (404)', async () => {
         Facility.findByPk.mockResolvedValue(null);
         console.log(`[TEST]: Cập nhật tiện ích không tồn tại`);
         try {

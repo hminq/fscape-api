@@ -43,7 +43,7 @@ describe('RoomService - toggleRoomStatus', () => {
         console.log('\n=========================================================================');
     });
 
-    it('TC_ROOM_14: Đổi trạng thái thành công (AVAILABLE -> LOCKED) (Happy Path)', async () => {
+    it('TC_ROOM_01: Đổi trạng thái thành công (AVAILABLE -> LOCKED) (Happy Path)', async () => {
         const id = 1;
         const mockRoom = { id, room_number: '101', status: 'AVAILABLE', building_id: 1, save: jest.fn() };
         Room.findByPk.mockResolvedValue(mockRoom);
@@ -60,7 +60,7 @@ describe('RoomService - toggleRoomStatus', () => {
         expect(mockRoom.save).toHaveBeenCalled();
     });
 
-    it('TC_ROOM_15: Đổi trạng thái thành công (LOCKED -> AVAILABLE) (Happy Path)', async () => {
+    it('TC_ROOM_02: Đổi trạng thái thành công (LOCKED -> AVAILABLE) (Happy Path)', async () => {
         const id = 1;
         const mockRoom = { id, room_number: '101', status: 'LOCKED', building_id: 1, save: jest.fn() };
         Room.findByPk.mockResolvedValue(mockRoom);
@@ -75,7 +75,7 @@ describe('RoomService - toggleRoomStatus', () => {
         expect(mockRoom.save).toHaveBeenCalled();
     });
 
-    it('TC_ROOM_16: Lỗi trạng thái không hợp lệ (Abnormal)', async () => {
+    it('TC_ROOM_03: Lỗi trạng thái không hợp lệ (Abnormal)', async () => {
         const id = 1;
         console.log(`[TEST]: Trạng thái không hợp lệ "INVALID"`);
         try {
@@ -88,7 +88,7 @@ describe('RoomService - toggleRoomStatus', () => {
         }
     });
 
-    it('TC_ROOM_17: Lỗi phòng không tồn tại (Abnormal)', async () => {
+    it('TC_ROOM_04: Lỗi phòng không tồn tại (Abnormal)', async () => {
         const id = 999;
         Room.findByPk.mockResolvedValue(null);
         console.log(`[TEST]: Phòng không tồn tại`);
@@ -102,7 +102,7 @@ describe('RoomService - toggleRoomStatus', () => {
         }
     });
 
-    it('TC_ROOM_18: BUILDING_MANAGER không có quyền trên tòa nhà khác (Abnormal)', async () => {
+    it('TC_ROOM_05: BUILDING_MANAGER không có quyền trên tòa nhà khác (Abnormal)', async () => {
         const id = 1;
         const mockRoom = { id, status: 'AVAILABLE', building_id: 2, save: jest.fn() };
         Room.findByPk.mockResolvedValue(mockRoom);
@@ -118,7 +118,7 @@ describe('RoomService - toggleRoomStatus', () => {
         }
     });
 
-    it('TC_ROOM_19: Lỗi phòng đã ở trạng thái mục tiêu (Abnormal)', async () => {
+    it('TC_ROOM_06: Lỗi phòng đã ở trạng thái mục tiêu (Abnormal)', async () => {
         const id = 1;
         const mockRoom = { id, status: 'LOCKED', building_id: 1, save: jest.fn() };
         Room.findByPk.mockResolvedValue(mockRoom);
@@ -134,7 +134,7 @@ describe('RoomService - toggleRoomStatus', () => {
         }
     });
 
-    it('TC_ROOM_20: Lỗi không thể khóa khi đang có đặt chỗ/hợp đồng (Abnormal)', async () => {
+    it('TC_ROOM_07: Lỗi không thể khóa khi đang có đặt chỗ/hợp đồng (Abnormal)', async () => {
         const id = 1;
         const mockRoom = { id, status: 'AVAILABLE', building_id: 1, save: jest.fn() };
         Room.findByPk.mockResolvedValue(mockRoom);

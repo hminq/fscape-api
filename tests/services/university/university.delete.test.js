@@ -38,7 +38,7 @@ describe('UniversityService - deleteUniversity', () => {
         console.log('\n=========================================================================');
     });
 
-    it('TC_UNIVERSITY_12: Xóa University thành công (Happy Path)', async () => {
+    it('TC_UNIVERSITY_01: Xóa University thành công (Happy Path)', async () => {
         const mockUni = { 
             id: 1, 
             name: 'Đại học Bách Khoa', 
@@ -57,7 +57,7 @@ describe('UniversityService - deleteUniversity', () => {
         expect(mockUni.destroy).toHaveBeenCalled();
     });
 
-    it('TC_UNIVERSITY_13: Lỗi khi xóa University không tồn tại (Abnormal)', async () => {
+    it('TC_UNIVERSITY_02: Lỗi khi xóa University không tồn tại (Abnormal)', async () => {
         University.findByPk.mockResolvedValue(null);
         console.log(`[TEST]: Xóa University không tồn tại`);
         try {

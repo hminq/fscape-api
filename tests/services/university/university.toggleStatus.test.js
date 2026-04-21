@@ -11,7 +11,7 @@ describe('UniversityService - toggleUniversityStatus', () => {
         console.log('\n=========================================================================');
     });
 
-    it('TC_UNIVERSITY_TG_01: Kích hoạt University thành công (Happy Path)', async () => {
+    it('TC_UNIVERSITY_01: Kích hoạt University thành công (Happy Path)', async () => {
         const mockUni = { 
             id: 1, 
             is_active: false, 
@@ -26,7 +26,7 @@ describe('UniversityService - toggleUniversityStatus', () => {
         expect(mockUni.save).toHaveBeenCalled();
     });
 
-    it('TC_UNIVERSITY_TG_02: Vô hiệu hóa University thành công (Happy Path)', async () => {
+    it('TC_UNIVERSITY_02: Vô hiệu hóa University thành công (Happy Path)', async () => {
         const mockUni = { 
             id: 1, 
             is_active: true, 
@@ -41,7 +41,7 @@ describe('UniversityService - toggleUniversityStatus', () => {
         expect(mockUni.save).toHaveBeenCalled();
     });
 
-    it('TC_UNIVERSITY_TG_03: Lỗi khi trạng thái mới trùng với trạng thái hiện tại (400)', async () => {
+    it('TC_UNIVERSITY_03: Lỗi khi trạng thái mới trùng với trạng thái hiện tại (400)', async () => {
         const mockUni = { id: 1, is_active: true };
         University.findByPk.mockResolvedValue(mockUni);
         const expectedError = 'Trường đại học đã ở trạng thái hoạt động';
@@ -57,7 +57,7 @@ describe('UniversityService - toggleUniversityStatus', () => {
         }
     });
 
-    it('TC_UNIVERSITY_TG_04: Lỗi khi ID không tồn tại (404)', async () => {
+    it('TC_UNIVERSITY_04: Lỗi khi ID không tồn tại (404)', async () => {
         University.findByPk.mockResolvedValue(null);
         const expectedError = 'Không tìm thấy trường đại học';
 

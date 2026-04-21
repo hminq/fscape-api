@@ -15,7 +15,7 @@ describe('RoomTypeService - getRoomTypeById', () => {
         console.log('\n=========================================================================');
     });
 
-    it('TC_ROOMTYPE_GT_01: PUBLIC lấy chi tiết loại phòng (Ẩn Timestamp)', async () => {
+    it('TC_ROOM_TYPE_01: PUBLIC lấy chi tiết loại phòng (Ẩn Timestamp)', async () => {
         const id = 1;
         RoomType.findByPk.mockResolvedValue({ id, name: 'Phòng Đơn' });
 
@@ -27,7 +27,7 @@ describe('RoomTypeService - getRoomTypeById', () => {
         }));
     });
 
-    it('TC_ROOMTYPE_GT_02: ADMIN lấy chi tiết loại phòng (Full data)', async () => {
+    it('TC_ROOM_TYPE_02: ADMIN lấy chi tiết loại phòng (Full data)', async () => {
         const id = 1;
         RoomType.findByPk.mockResolvedValue({ id, name: 'Phòng Đơn' });
 
@@ -40,7 +40,7 @@ describe('RoomTypeService - getRoomTypeById', () => {
         expect(result.name).toBe('Phòng Đơn');
     });
 
-    it('TC_ROOMTYPE_GT_03: Lỗi khi loại phòng không tồn tại (404)', async () => {
+    it('TC_ROOM_TYPE_03: Lỗi khi loại phòng không tồn tại (404)', async () => {
         const id = 999;
         RoomType.findByPk.mockResolvedValue(null);
 

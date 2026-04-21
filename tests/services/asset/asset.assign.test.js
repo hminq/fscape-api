@@ -37,7 +37,7 @@ describe('AssetService - assignAsset', () => {
         console.log('\n=========================================================================');
     });
 
-    it('Gán Asset vào phòng thành công (CHECK_IN)', async () => {
+    it('TC_ASSET_01: Gán Asset vào phòng thành công (CHECK_IN)', async () => {
         const mockAsset = { 
             id: 'a1', 
             building_id: 'b1', 
@@ -65,7 +65,7 @@ describe('AssetService - assignAsset', () => {
         expect(result.current_room_id).toBe('r1');
     });
 
-    it('Hoàn trả Asset từ phòng (CHECK_OUT)', async () => {
+    it('TC_ASSET_02: Hoàn trả Asset từ phòng (CHECK_OUT)', async () => {
         const mockAsset = { 
             id: 'a1', 
             building_id: 'b1', 
@@ -91,7 +91,7 @@ describe('AssetService - assignAsset', () => {
         expect(result.current_room_id).toBeNull();
     });
 
-    it('Chặn gán Asset đang bảo trì', async () => {
+    it('TC_ASSET_03: Chặn gán Asset đang bảo trì', async () => {
         const mockAsset = { id: 'a1', status: 'MAINTENANCE', building_id: 'b1' };
         Asset.findByPk.mockResolvedValue(mockAsset);
         const expectedError = 'Không thể gán tài sản đang bảo trì';
@@ -109,7 +109,7 @@ describe('AssetService - assignAsset', () => {
         }
     });
 
-    it('Lỗi khi target room không cùng tòa nhà', async () => {
+    it('TC_ASSET_04: Lỗi khi target room không cùng tòa nhà', async () => {
         const mockAsset = { id: 'a1', building_id: 'b1', status: 'AVAILABLE' };
         Asset.findByPk.mockResolvedValue(mockAsset);
         Room.findByPk.mockResolvedValue({ id: 'r2', building_id: 'b2' }); // Khác b1

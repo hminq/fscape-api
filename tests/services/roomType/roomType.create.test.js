@@ -42,7 +42,7 @@ describe('RoomTypeService - createRoomType', () => {
         console.log('\n=========================================================================');
     });
 
-    it('TC_ROOMTYPE_01: Tạo loại phòng thành công (Happy Path)', async () => {
+    it('TC_ROOM_TYPE_01: Tạo loại phòng thành công (Happy Path)', async () => {
         const newData = { name: 'Phòng Mới', base_price: 1500000 };
         RoomType.create.mockResolvedValue({ id: 1, ...newData, deposit_months: 1 });
 
@@ -60,7 +60,7 @@ describe('RoomTypeService - createRoomType', () => {
         expect(result.id).toBe(1);
     });
 
-    it('TC_ROOMTYPE_02: Lỗi thiếu tên gọi (Abnormal)', async () => {
+    it('TC_ROOM_TYPE_02: Lỗi thiếu tên gọi (Abnormal)', async () => {
         console.log(`[TEST]: Tạo loại phòng thiếu tên`);
         try {
             await RoomTypeService.createRoomType({ base_price: 1000000 });
@@ -72,7 +72,7 @@ describe('RoomTypeService - createRoomType', () => {
         }
     });
 
-    it('TC_ROOMTYPE_03: Lỗi trùng tên loại phòng (Abnormal)', async () => {
+    it('TC_ROOM_TYPE_03: Lỗi trùng tên loại phòng (Abnormal)', async () => {
         const newData = { name: 'Phòng Cũ', base_price: 1000000 };
         RoomType.findOne.mockResolvedValue({ id: 2, name: 'Phòng Cũ' });
 
@@ -87,7 +87,7 @@ describe('RoomTypeService - createRoomType', () => {
         }
     });
 
-    it('TC_ROOMTYPE_07: Lỗi sức chứa không hợp lệ (Abnormal)', async () => {
+    it('TC_ROOM_TYPE_04: Lỗi sức chứa không hợp lệ (Abnormal)', async () => {
         const newData = { name: 'Phòng Lỗi', base_price: 100000, capacity_min: 5, capacity_max: 2 };
 
         console.log(`[TEST]: Tạo phòng sức chứa tối thiểu > tối đa`);
@@ -101,7 +101,7 @@ describe('RoomTypeService - createRoomType', () => {
         }
     });
 
-    it('TC_ROOMTYPE_08: Lỗi số lượng phòng ngủ vượt giới hạn (Abnormal)', async () => {
+    it('TC_ROOM_TYPE_05: Lỗi số lượng phòng ngủ vượt giới hạn (Abnormal)', async () => {
         const newData = { name: 'Phòng VIP', base_price: 100, bedrooms: 50 };
 
         console.log(`[TEST]: Số phòng ngủ vượt quá tối đa (10)`);
@@ -115,7 +115,7 @@ describe('RoomTypeService - createRoomType', () => {
         }
     });
 
-    it('TC_ROOMTYPE_09: Lỗi diện tích không hợp lệ (Abnormal)', async () => {
+    it('TC_ROOM_TYPE_06: Lỗi diện tích không hợp lệ (Abnormal)', async () => {
         const newData = { name: 'Phòng Nhỏ', base_price: 100, area_sqm: 2000 };
 
         console.log(`[TEST]: Diện tích vượt quá giới hạn (1000 m²)`);

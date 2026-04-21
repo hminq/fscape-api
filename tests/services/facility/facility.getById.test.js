@@ -26,7 +26,7 @@ describe('FacilityService - getFacilityById', () => {
         console.log('\n=========================================================================');
     });
 
-    it('TC_FACILITY_GET_03: Lấy chi tiết tiện ích thành công (Happy Path)', async () => {
+    it('TC_FACILITY_01: Lấy chi tiết tiện ích thành công (Happy Path)', async () => {
         const mockFacility = { 
             id: 1, 
             name: 'Điều hòa',
@@ -40,7 +40,7 @@ describe('FacilityService - getFacilityById', () => {
         expect(result.name).toBe('Điều hòa');
     });
 
-    it('TC_FACILITY_GET_04: Lỗi khi không tìm thấy tiện ích (404)', async () => {
+    it('TC_FACILITY_02: Lỗi khi không tìm thấy tiện ích (404)', async () => {
         Facility.findByPk.mockResolvedValue(null);
         console.log(`[TEST]: Truy vấn tiện ích không tồn tại`);
         try {

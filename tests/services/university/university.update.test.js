@@ -40,7 +40,7 @@ describe('UniversityService - updateUniversity', () => {
         console.log('\n=========================================================================');
     });
 
-    it('TC_UNIVERSITY_06: Cập nhật University thành công (Happy Path)', async () => {
+    it('TC_UNIVERSITY_01: Cập nhật University thành công (Happy Path)', async () => {
         const mockUni = { 
             id: 1, 
             name: 'Đại học A', 
@@ -62,7 +62,7 @@ describe('UniversityService - updateUniversity', () => {
         expect(mockUni.update).toHaveBeenCalled();
     });
 
-    it('TC_UNIVERSITY_07: Lỗi cập nhật tên University trống (Abnormal)', async () => {
+    it('TC_UNIVERSITY_02: Lỗi cập nhật tên University trống (Abnormal)', async () => {
         const mockUni = { id: 1, name: 'Đại học A' };
         University.findByPk.mockResolvedValue(mockUni);
 
@@ -77,7 +77,7 @@ describe('UniversityService - updateUniversity', () => {
         }
     });
 
-    it('TC_UNIVERSITY_08: Lỗi cập nhật mã khu vực trống (Abnormal)', async () => {
+    it('TC_UNIVERSITY_03: Lỗi cập nhật mã khu vực trống (Abnormal)', async () => {
         const mockUni = { id: 1, name: 'Đại học A' };
         University.findByPk.mockResolvedValue(mockUni);
 
@@ -92,7 +92,7 @@ describe('UniversityService - updateUniversity', () => {
         }
     });
 
-    it('TC_UNIVERSITY_09: Lỗi cập nhật địa chỉ trống (Abnormal)', async () => {
+    it('TC_UNIVERSITY_04: Lỗi cập nhật địa chỉ trống (Abnormal)', async () => {
         const mockUni = { id: 1, name: 'Đại học A' };
         University.findByPk.mockResolvedValue(mockUni);
 
@@ -107,7 +107,7 @@ describe('UniversityService - updateUniversity', () => {
         }
     });
 
-    it('TC_UNIVERSITY_10: Lỗi cập nhật trùng tên với University khác (Abnormal)', async () => {
+    it('TC_UNIVERSITY_05: Lỗi cập nhật trùng tên với University khác (Abnormal)', async () => {
         const mockUni = { id: 1, name: 'Đại học A' };
         University.findByPk.mockResolvedValue(mockUni);
         University.findOne.mockResolvedValue({ id: 2, name: 'Đại học B' });
@@ -123,7 +123,7 @@ describe('UniversityService - updateUniversity', () => {
         }
     });
 
-    it('TC_UNIVERSITY_11: Lỗi cập nhật trường không tồn tại (Abnormal)', async () => {
+    it('TC_UNIVERSITY_06: Lỗi cập nhật trường không tồn tại (Abnormal)', async () => {
         University.findByPk.mockResolvedValue(null);
         console.log(`[TEST]: Cập nhật ID không tồn tại`);
         try {

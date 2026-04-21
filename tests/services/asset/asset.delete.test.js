@@ -11,7 +11,7 @@ describe('AssetService - deleteAsset', () => {
         console.log('\n=========================================================================');
     });
 
-    it('Xóa Asset thành công', async () => {
+    it('TC_ASSET_01: Xóa Asset thành công', async () => {
         const mockAsset = { 
             id: 'a1', 
             name: 'Asset X', 
@@ -31,7 +31,7 @@ describe('AssetService - deleteAsset', () => {
         expect(result.message).toContain('thành công');
     });
 
-    it('Chặn xóa Asset đang được sử dụng (IN_USE)', async () => {
+    it('TC_ASSET_02: Chặn xóa Asset đang được sử dụng (IN_USE)', async () => {
         const mockAsset = { id: 'a1', status: 'IN_USE' };
         Asset.findByPk.mockResolvedValue(mockAsset);
         const expectedError = 'Không thể xóa tài sản đang sử dụng. Vui lòng thu hồi trước.';
@@ -49,7 +49,7 @@ describe('AssetService - deleteAsset', () => {
         }
     });
 
-    it('Chặn xóa Asset đang có yêu cầu sửa chữa chưa hoàn tất', async () => {
+    it('TC_ASSET_03: Chặn xóa Asset đang có yêu cầu sửa chữa chưa hoàn tất', async () => {
         const mockAsset = { id: 'a1', status: 'BROKEN' };
         Asset.findByPk.mockResolvedValue(mockAsset);
         Request.findOne.mockResolvedValue({ id: 'req1', status: 'PENDING' });
@@ -68,7 +68,7 @@ describe('AssetService - deleteAsset', () => {
         }
     });
 
-    it('ID Asset bị null khi xóa', async () => {
+    it('TC_ASSET_04: ID Asset bị null khi xóa', async () => {
         Asset.findByPk.mockResolvedValue(null);
         const expectedError = 'Không tìm thấy tài sản';
 

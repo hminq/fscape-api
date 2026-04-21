@@ -29,7 +29,7 @@ describe('FacilityService - deleteFacility', () => {
         console.log('\n=========================================================================');
     });
 
-    it('TC_FACILITY_08: Xóa tiện ích thành công (Happy Path)', async () => {
+    it('TC_FACILITY_01: Xóa tiện ích thành công (Happy Path)', async () => {
         const mockFacility = { 
             id: 1, 
             name: 'Gym', 
@@ -45,7 +45,7 @@ describe('FacilityService - deleteFacility', () => {
         expect(mockFacility.destroy).toHaveBeenCalled();
     });
 
-    it('TC_FACILITY_09: Lỗi không thể xóa vì có tòa nhà đang sử dụng (400)', async () => {
+    it('TC_FACILITY_02: Lỗi không thể xóa vì có tòa nhà đang sử dụng (400)', async () => {
         const mockFacility = { id: 1, name: 'Bể bơi' };
         Facility.findByPk.mockResolvedValue(mockFacility);
         BuildingFacility.count.mockResolvedValue(3); 
@@ -60,7 +60,7 @@ describe('FacilityService - deleteFacility', () => {
         }
     });
 
-    it('TC_FACILITY_10: Lỗi khi không tìm thấy tiện ích để xóa (404)', async () => {
+    it('TC_FACILITY_03: Lỗi khi không tìm thấy tiện ích để xóa (404)', async () => {
         Facility.findByPk.mockResolvedValue(null);
         console.log(`[TEST]: Xóa tiện ích không tồn tại`);
         try {

@@ -36,7 +36,7 @@ describe('AssetService - createBatchAssets', () => {
         console.log('\n=========================================================================');
     });
 
-    it('Tạo hàng loạt Asset thành công', async () => {
+    it('TC_ASSET_01: Tạo hàng loạt Asset thành công', async () => {
         const batchData = { 
             name: 'Table', 
             building_id: 'b1', 
@@ -56,7 +56,7 @@ describe('AssetService - createBatchAssets', () => {
         expect(Asset.create).toHaveBeenCalledTimes(5);
     });
 
-    it('Lỗi khi số lượng vượt quá 100', async () => {
+    it('TC_ASSET_02: Lỗi khi số lượng vượt quá 100', async () => {
         const batchData = { name: 'Chair', building_id: 'b1', quantity: 150 };
         const expectedError = 'Số lượng phải từ 1 đến 100';
 
@@ -73,7 +73,7 @@ describe('AssetService - createBatchAssets', () => {
         }
     });
 
-    it('Lỗi khi thiếu thông tin bắt buộc', async () => {
+    it('TC_ASSET_03: Lỗi khi thiếu thông tin bắt buộc', async () => {
         const batchData = { quantity: 10 }; // Thiếu name và building_id
         const expectedError = 'Tên và mã tòa nhà là bắt buộc';
 

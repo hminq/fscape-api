@@ -13,7 +13,7 @@ describe('AssetService - getAssetById', () => {
         console.log('\n=========================================================================');
     });
 
-    it('Lấy chi tiết Asset thành công', async () => {
+    it('TC_ASSET_01: Lấy chi tiết Asset thành công', async () => {
         const mockAsset = { 
             id: 'a1', 
             name: 'Asset 1', 
@@ -32,7 +32,7 @@ describe('AssetService - getAssetById', () => {
         expect(result.id).toBe('a1');
     });
 
-    it('Lỗi khi BM truy cập Asset của tòa nhà khác', async () => {
+    it('TC_ASSET_02: Lỗi khi BM truy cập Asset của tòa nhà khác', async () => {
         const mockAsset = { id: 'a1', building_id: 'b2' };
         Asset.findByPk.mockResolvedValue(mockAsset);
         const user = { role: ROLES.BUILDING_MANAGER, building_id: 'b1' };
@@ -50,7 +50,7 @@ describe('AssetService - getAssetById', () => {
         }
     });
 
-    it('Asset không tồn tại', async () => {
+    it('TC_ASSET_03: Asset không tồn tại', async () => {
         Asset.findByPk.mockResolvedValue(null);
         const expectedError = 'Không tìm thấy tài sản';
 
@@ -66,7 +66,7 @@ describe('AssetService - getAssetById', () => {
         }
     });
 
-    it('ID Asset bị null', async () => {
+    it('TC_ASSET_04: ID Asset bị null', async () => {
         const expectedError = 'Không tìm thấy tài sản';
 
         console.log(`[TEST]: Truy vấn Asset với ID=null`);

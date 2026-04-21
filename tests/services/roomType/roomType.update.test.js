@@ -42,7 +42,7 @@ describe('RoomTypeService - updateRoomType', () => {
         console.log('\n=========================================================================');
     });
 
-    it('TC_ROOMTYPE_10: Cập nhật loại phòng thành công (Happy Path)', async () => {
+    it('TC_ROOM_TYPE_01: Cập nhật loại phòng thành công (Happy Path)', async () => {
         const id = 1;
         const updateData = { name: 'Phòng Mới VIP', base_price: 2500000 };
         const mockRoomType = { 
@@ -65,7 +65,7 @@ describe('RoomTypeService - updateRoomType', () => {
         expect(result.name).toBe('Phòng Mới VIP');
     });
 
-    it('TC_ROOMTYPE_11: Lỗi cập nhật loại phòng không tồn tại (Abnormal)', async () => {
+    it('TC_ROOM_TYPE_02: Lỗi cập nhật loại phòng không tồn tại (Abnormal)', async () => {
         const id = 999;
         RoomType.findByPk.mockResolvedValue(null);
 
@@ -80,7 +80,7 @@ describe('RoomTypeService - updateRoomType', () => {
         }
     });
 
-    it('TC_ROOMTYPE_12: Lỗi cập nhật trùng tên với loại khác (Abnormal)', async () => {
+    it('TC_ROOM_TYPE_03: Lỗi cập nhật trùng tên với loại khác (Abnormal)', async () => {
         const id = 1;
         const mockRoomType = { id, name: 'Phòng Thường' };
         RoomType.findByPk.mockResolvedValue(mockRoomType);
@@ -97,7 +97,7 @@ describe('RoomTypeService - updateRoomType', () => {
         }
     });
 
-    it('TC_ROOMTYPE_13: Ngăn chặn thay đổi tiền cọc (FScape Business Rule)', async () => {
+    it('TC_ROOM_TYPE_04: Ngăn chặn thay đổi tiền cọc (FScape Business Rule)', async () => {
         const id = 1;
         const mockRoomType = { id, name: 'Phòng VIP', capacity_min: 1, capacity_max: 2, update: jest.fn() };
         RoomType.findByPk.mockResolvedValue(mockRoomType);
@@ -114,7 +114,7 @@ describe('RoomTypeService - updateRoomType', () => {
         expect(updateCall.deposit_months).toBeUndefined();
     });
 
-    it('TC_ROOMTYPE_14: Lỗi sức chứa tối thiểu vượt quá tối đa hiện tại (Abnormal)', async () => {
+    it('TC_ROOM_TYPE_05: Lỗi sức chứa tối thiểu vượt quá tối đa hiện tại (Abnormal)', async () => {
         const id = 1;
         // Room hiện tại có min=2, max=4
         const mockRoomType = { id, capacity_min: 2, capacity_max: 4, update: jest.fn() };

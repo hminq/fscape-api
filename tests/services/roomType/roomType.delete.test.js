@@ -39,7 +39,7 @@ describe('RoomTypeService - deleteRoomType', () => {
         console.log('\n=========================================================================');
     });
 
-    it('TC_ROOMTYPE_04: Xóa loại phòng thành công (Happy Path)', async () => {
+    it('TC_ROOM_TYPE_01: Xóa loại phòng thành công (Happy Path)', async () => {
         const id = 1;
         const mockRoomType = { id, name: 'Phòng Thường', destroy: jest.fn() };
 
@@ -57,7 +57,7 @@ describe('RoomTypeService - deleteRoomType', () => {
         expect(result.message).toBe('Đã xóa loại phòng "Phòng Thường" thành công');
     });
 
-    it('TC_ROOMTYPE_05: Lỗi khi xóa loại phòng không tồn tại (Abnormal)', async () => {
+    it('TC_ROOM_TYPE_02: Lỗi khi xóa loại phòng không tồn tại (Abnormal)', async () => {
         const id = 999;
         RoomType.findByPk.mockResolvedValue(null);
 
@@ -72,7 +72,7 @@ describe('RoomTypeService - deleteRoomType', () => {
         }
     });
 
-    it('TC_ROOMTYPE_06: Lỗi không thể xóa do có phòng đang sử dụng (Abnormal)', async () => {
+    it('TC_ROOM_TYPE_03: Lỗi không thể xóa do có phòng đang sử dụng (Abnormal)', async () => {
         const id = 1;
         const mockRoomType = { id, name: 'Phòng VIP' };
         

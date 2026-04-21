@@ -12,7 +12,7 @@ describe('UniversityService - getAllUniversities', () => {
         console.log('\n=========================================================================');
     });
 
-    it('TC_UNIVERSITY_GET_01: Lấy danh sách trường đại học thành công (Happy Path)', async () => {
+    it('TC_UNIVERSITY_01: Lấy danh sách trường đại học thành công (Happy Path)', async () => {
         const mockRows = [{ id: 1, name: 'Đại học Bách Khoa', is_active: true }];
         University.findAndCountAll.mockResolvedValue({ count: 1, rows: mockRows });
 
@@ -29,7 +29,7 @@ describe('UniversityService - getAllUniversities', () => {
         }));
     });
 
-    it('TC_UNIVERSITY_GET_02: Tìm kiếm trường theo tên (Search filter)', async () => {
+    it('TC_UNIVERSITY_02: Tìm kiếm trường theo tên (Search filter)', async () => {
         const mockRows = [{ id: 1, name: 'Đại học Kinh tế' }];
         University.findAndCountAll.mockResolvedValue({ count: 1, rows: mockRows });
 

@@ -15,7 +15,7 @@ describe('UniversityService - getUniversityById', () => {
         console.log('\n=========================================================================');
     });
 
-    it('TC_UNIVERSITY_GT_01: Lấy chi tiết trường đại học thành công (Happy Path)', async () => {
+    it('TC_UNIVERSITY_01: Lấy chi tiết trường đại học thành công (Happy Path)', async () => {
         const mockUni = { 
             id: 1, 
             name: 'Đại học Bách Khoa', 
@@ -36,7 +36,7 @@ describe('UniversityService - getUniversityById', () => {
         }));
     });
 
-    it('TC_UNIVERSITY_GT_02: Lỗi khi trường đại học không tồn tại (404)', async () => {
+    it('TC_UNIVERSITY_02: Lỗi khi trường đại học không tồn tại (404)', async () => {
         University.findByPk.mockResolvedValue(null);
         const expectedError = 'Không tìm thấy trường đại học';
 
@@ -51,7 +51,7 @@ describe('UniversityService - getUniversityById', () => {
         }
     });
 
-    it('TC_UNIVERSITY_GT_03: Truy vấn với ID không hợp lệ (Abnormal)', async () => {
+    it('TC_UNIVERSITY_03: Truy vấn với ID không hợp lệ (Abnormal)', async () => {
         const expectedError = 'Không tìm thấy trường đại học';
 
         console.log(`[TEST]: Truy vấn University với ID=null`);

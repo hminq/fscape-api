@@ -36,7 +36,7 @@ describe('RoomService - Queries', () => {
     describe('getRoomsByBuilding', () => {
         const managerUser = { role: 'BUILDING_MANAGER', building_id: 1 };
 
-        it('TC_ROOM_GTB_01: Lấy danh sách thành công - Trả về Array (Happy Path)', async () => {
+        it('TC_ROOM_QU_01: Lấy danh sách thành công - Trả về Array (Happy Path)', async () => {
             const mockRooms = [
                 { id: 1, toJSON: () => ({ id: 1, images: [] }) },
                 { id: 2, toJSON: () => ({ id: 2, images: [] }) }
@@ -53,7 +53,7 @@ describe('RoomService - Queries', () => {
             }));
         });
 
-        it('TC_ROOM_GTB_02: Lỗi 403 khi MANAGER truy cập tòa nhà khác (Abnormal)', async () => {
+        it('TC_ROOM_QU_02: Lỗi 403 khi MANAGER truy cập tòa nhà khác (Abnormal)', async () => {
             try {
                 await RoomService.getRoomsByBuilding(2, {}, managerUser);
                 throw new Error('Should have thrown error');
@@ -65,7 +65,7 @@ describe('RoomService - Queries', () => {
     });
 
     describe('getMyRooms', () => {
-        it('TC_ROOM_GMR_01: Trả về danh sách phòng thuê của User (Happy Path)', async () => {
+        it('TC_ROOM_QU_03: Trả về danh sách phòng thuê của User (Happy Path)', async () => {
             const userId = 50;
             Contract.findAll.mockResolvedValue([{ room: { id: 101 }, contract_number: 'C01' }]);
 
@@ -78,7 +78,7 @@ describe('RoomService - Queries', () => {
     });
 
     describe('getRoomStats', () => {
-        it('TC_ROOM_STAT_01: Thống kê đúng số lượng và phân loại (Happy Path)', async () => {
+        it('TC_ROOM_QU_04: Thống kê đúng số lượng và phân loại (Happy Path)', async () => {
             // Mock trả về 3 phòng riêng lẻ để service đếm
             const mockRooms = [
                 { status: 'AVAILABLE', building_id: 1, building: { name: 'B1' } },
