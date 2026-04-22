@@ -13,6 +13,44 @@ const { REQUEST_SERVICE_BILLING_STATUS } = require('../constants/invoiceEnums');
 const { billingCycleToMonths, isAllInBillingCycle } = require('../utils/billingCycle.util');
 const { ROLES } = require('../constants/roles');
 
+const getScopedSettlementQuery = (user, baseWhere = {}) => {
+    if (user.role === ROLES.ADMIN) {
+        return { where: baseWhere, scopedBuildingId: null };
+    }
+
+    if (user.role === ROLES.STAFF) {
+        return {
+            where: { ...baseWhere, created_by: user.id },
+            scopedBuildingId: null
+        };
+    }
+
+    if (!user.building_id) {
+        throw { status: 403, message: 'Tài khoản chưa được gán tòa nhà' };
+    }
+
+    return { where: baseWhere, scopedBuildingId: user.building_id };
+};
+
+const buildContractInclude = ({ scopedBuildingId, required = false } = {}) => ({
+    model: Contract,
+    as: 'contract',
+    attributes: ['id', 'contract_number', 'room_id'],
+    required,
+    include: [{
+        model: Room,
+        as: 'room',
+        attributes: ['id', 'room_number'],
+        ...(scopedBuildingId ? { required: true } : {}),
+        include: [{
+            model: Building,
+            as: 'building',
+            attributes: ['id', 'name'],
+            ...(scopedBuildingId ? { where: { id: scopedBuildingId }, required: true } : {})
+        }]
+    }]
+});
+
 /**
  * Create a settlement record during checkout.
  *
@@ -192,42 +230,15 @@ const createCheckoutSettlement = async (contract, penaltyData, user, transaction
  */
 const getAllSettlements = async ({ page = 1, limit = 10, status, search } = {}, user) => {
     const offset = (page - 1) * limit;
-    const where = {};
-    const isAdmin = user.role === ROLES.ADMIN;
+    const baseWhere = {};
 
     if (status) {
         const statuses = status.split(',').map(s => s.trim()).filter(Boolean);
-        where.status = statuses.length > 1 ? { [Op.in]: statuses } : statuses[0];
+        baseWhere.status = statuses.length > 1 ? { [Op.in]: statuses } : statuses[0];
     }
 
-    // Staff scoping: only see settlements they created
-    if (user.role === ROLES.STAFF) {
-        where.created_by = user.id;
-    }
-
-    // BM scoping: only see settlements for their building
-    if (!isAdmin && !user.building_id) {
-        throw { status: 403, message: 'Building Manager chưa được gán tòa nhà.' };
-    }
-    const scopedBuildingId = isAdmin ? null : user.building_id;
-
-    const contractInclude = {
-        model: Contract,
-        as: 'contract',
-        attributes: ['id', 'contract_number', 'room_id'],
-        include: [{
-            model: Room,
-            as: 'room',
-            attributes: ['id', 'room_number'],
-            ...(scopedBuildingId ? { required: true } : {}),
-            include: [{
-                model: Building,
-                as: 'building',
-                attributes: ['id', 'name'],
-                ...(scopedBuildingId ? { where: { id: scopedBuildingId }, required: true } : {})
-            }]
-        }]
-    };
+    const { where, scopedBuildingId } = getScopedSettlementQuery(user, baseWhere);
+    const contractInclude = buildContractInclude({ scopedBuildingId, required: Boolean(scopedBuildingId) });
 
     if (search) {
         contractInclude.where = { contract_number: { [Op.iLike]: `%${search}%` } };
@@ -261,11 +272,14 @@ const getAllSettlements = async ({ page = 1, limit = 10, status, search } = {}, 
 /**
  * Get settlement by ID.
  */
-const getSettlement = async (settlementId) => {
-    const settlement = await Settlement.findByPk(settlementId, {
+const getSettlement = async (settlementId, user) => {
+    const { where, scopedBuildingId } = getScopedSettlementQuery(user, { id: settlementId });
+
+    const settlement = await Settlement.findOne({
+        where,
         include: [
             { model: SettlementItem, as: 'items' },
-            { model: Contract, as: 'contract', attributes: ['id', 'contract_number', 'room_id'] },
+            buildContractInclude({ scopedBuildingId, required: Boolean(scopedBuildingId) }),
             { model: User, as: 'resident', attributes: ['id', 'email', 'first_name', 'last_name'] },
             { model: User, as: 'creator', attributes: ['id', 'email', 'first_name', 'last_name'] }
         ]
@@ -281,12 +295,14 @@ const getSettlement = async (settlementId) => {
 /**
  * Get settlement by contract ID.
  */
-const getSettlementByContract = async (contract_id) => {
+const getSettlementByContract = async (contract_id, user) => {
+    const { where, scopedBuildingId } = getScopedSettlementQuery(user, { contract_id });
+
     const settlement = await Settlement.findOne({
-        where: { contract_id },
+        where,
         include: [
             { model: SettlementItem, as: 'items' },
-            { model: Contract, as: 'contract', attributes: ['id', 'contract_number', 'room_id'] },
+            buildContractInclude({ scopedBuildingId, required: Boolean(scopedBuildingId) }),
             { model: User, as: 'resident', attributes: ['id', 'email', 'first_name', 'last_name'] },
             { model: User, as: 'creator', attributes: ['id', 'email', 'first_name', 'last_name'] }
         ]
@@ -303,19 +319,14 @@ const getSettlementByContract = async (contract_id) => {
  * Close a settlement after offline money exchange.
  */
 const closeSettlement = async (settlementId, user) => {
-    const settlement = await Settlement.findByPk(settlementId);
+    const settlement = await getSettlement(settlementId, user);
 
     if (!settlement) {
         throw { status: 404, message: 'Không tìm thấy quyết toán' };
     }
 
-    // Staff can only close settlements they created
-    if (user.role === ROLES.STAFF && settlement.created_by !== user.id) {
-        throw { status: 403, message: 'Bạn chỉ có thể đóng quyết toán do chính bạn tạo' };
-    }
-
     if (settlement.status !== SETTLEMENT_STATUS.FINALIZED) {
-        throw { status: 400, message: `Không thể đóng quyết toán với trạng thái ${settlement.status}. Chỉ quyết toán ở trạng thái FINALIZED mới có thể đóng.` };
+        throw { status: 400, message: 'Chỉ có thể đóng quyết toán đang chờ xử lý' };
     }
 
     await settlement.update({

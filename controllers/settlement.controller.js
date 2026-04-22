@@ -14,14 +14,14 @@ const getAllSettlements = async (req, res) => {
 
 const getSettlement = async (req, res) => {
     try {
-        const result = await settlementService.getSettlement(req.params.id);
+        const result = await settlementService.getSettlement(req.params.id, req.user);
         return res.status(200).json({ data: result });
     } catch (err) { return handleError(res, err); }
 };
 
 const getSettlementByContract = async (req, res) => {
     try {
-        const result = await settlementService.getSettlementByContract(req.params.contract_id);
+        const result = await settlementService.getSettlementByContract(req.params.contract_id, req.user);
         return res.status(200).json({ data: result });
     } catch (err) { return handleError(res, err); }
 };
