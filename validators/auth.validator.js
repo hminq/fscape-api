@@ -21,7 +21,8 @@ const lastNameRules = body('last_name')
   .isLength({ min: 1, max: 100 }).withMessage('Tên phải từ 1-100 ký tự');
 
 const otpRules = body('otp')
-  .isLength({ min: 6, max: 6 }).withMessage('OTP phải gồm 6 ký tự');
+  .trim()
+  .matches(/^[0-9]{6}$/).withMessage('OTP phải gồm đúng 6 chữ số');
 
 exports.signup = [
   emailRules,
