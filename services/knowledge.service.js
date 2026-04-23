@@ -21,25 +21,8 @@ const buildRoomTypeChunk = (rt) =>
 const buildFacilityChunk = (f) =>
   `Tiện ích: ${f.name}. Tòa nhà có tiện ích này: ${f.building_names || 'Không rõ'}.`;
 
-const buildContractChunk = (c) =>
-  `Hợp đồng số ${c.contract_number}. Phòng: ${c.room_number} tại ${c.building_name}. Khách hàng: ${c.customer_name} (${c.customer_email}). Ngày bắt đầu: ${c.start_date}, ngày kết thúc: ${c.end_date || 'Không xác định'}. Giá thuê: ${Number(c.base_rent).toLocaleString('vi-VN')} VNĐ/tháng. Đặt cọc: ${Number(c.deposit_amount).toLocaleString('vi-VN')} VNĐ. Trạng thái: ${translateContractStatus(c.status)}.`;
-
-const buildBookingChunk = (bk) =>
-  `Đặt phòng số ${bk.booking_number}. Phòng: ${bk.room_number} tại ${bk.building_name}. Khách hàng: ${bk.customer_name} (${bk.customer_email}). Ngày nhận phòng dự kiến: ${bk.check_in_date}. Thời hạn: ${bk.duration_months || 'Không rõ'} tháng. Tiền cọc: ${Number(bk.deposit_amount).toLocaleString('vi-VN')} VNĐ. Trạng thái: ${translateBookingStatus(bk.status)}.`;
-
 function translateRoomStatus(s) {
   const map = { AVAILABLE: 'Còn trống', OCCUPIED: 'Đang thuê', LOCKED: 'Tạm khóa' };
-  return map[s] || s;
-}
-function translateContractStatus(s) {
-  const map = {
-    DRAFT: 'Nháp', PENDING_CUSTOMER_SIGNATURE: 'Chờ khách ký', PENDING_MANAGER_SIGNATURE: 'Chờ quản lý ký',
-    ACTIVE: 'Đang hiệu lực', EXPIRING_SOON: 'Sắp hết hạn', FINISHED: 'Đã kết thúc', TERMINATED: 'Đã chấm dứt'
-  };
-  return map[s] || s;
-}
-function translateBookingStatus(s) {
-  const map = { PENDING: 'Chờ xử lý', DEPOSIT_PAID: 'Đã đặt cọc', CONVERTED: 'Đã chuyển hợp đồng', CANCELLED: 'Đã hủy' };
   return map[s] || s;
 }
 
