@@ -25,7 +25,7 @@ const { Sequelize } = require("sequelize")
 //         }
 //       )
 
-// CODE Chạy (Khi chưa có môi trường test):
+// Runtime DB configuration.
 const sequelize = process.env.DATABASE_URL
   ? new Sequelize(process.env.DATABASE_URL, {
       dialect: "postgres",

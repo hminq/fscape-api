@@ -1,6 +1,6 @@
 const { PayOS } = require("@payos/node");
 
-// Lazy initialization: chỉ tạo instance khi PayOS được cấu hình
+// Lazy initialization: create instance only when configured.
 let _payos = null;
 
 function getPayOS() {

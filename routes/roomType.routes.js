@@ -11,7 +11,7 @@ const validator = require('../validators/roomType.validator')
 
 router.get('/', authJwtOptional, roomTypeController.getAllRoomTypes)
 
-// Stats — must be before /:id
+// Stats - must be before /:id
 router.get('/stats', authJwt, requireRoles(ROLES.ADMIN, ROLES.BUILDING_MANAGER), roomTypeController.getRoomTypeStats)
 
 router.get('/:id', authJwtOptional, validator.paramId, validate, roomTypeController.getRoomTypeById)

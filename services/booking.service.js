@@ -12,21 +12,18 @@ const {
 } = require("../constants/bookingEnums");
 const { normalizeBillingCycle } = require("../utils/billingCycle.util");
 const { generateNumberedId } = require("../utils/generateId");
-const { parseLocalDate } = require("../utils/date.util");
+const { parseUTCDate } = require("../utils/date.util");
 
 const createBooking = async (userId, bookingData) => {
   const { Booking, Room, RoomType, User, CustomerProfile } = sequelize.models;
   const {
-    roomId,
-    checkInDate,
-    rentalTerm,
-    durationMonths,
-    billingCycle,
-    customerInfo,
+    room_id,
+    check_in_date,
+    duration_months,
+    billing_cycle,
+    customer_info,
   } = bookingData;
-  const resolvedDurationMonths = Number(
-    durationMonths ?? bookingData.duration_months ?? rentalTerm,
-  );
+  const resolvedDurationMonths = Number(duration_months);
 
   if (!isValidContractLength(resolvedDurationMonths)) {
     throw {
@@ -35,25 +32,23 @@ const createBooking = async (userId, bookingData) => {
     };
   }
 
-  // Validate check-in date: phải trong khoảng [today + MIN, today + MAX]
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Validate check-in date within [today + MIN, today + MAX].
+  const todayStr = new Date().toISOString().split('T')[0];
+  const today = parseUTCDate(todayStr);
   const minCheckIn = new Date(today);
-  minCheckIn.setDate(minCheckIn.getDate() + MIN_CHECKIN_DAYS);
+  minCheckIn.setUTCDate(minCheckIn.getUTCDate() + MIN_CHECKIN_DAYS);
   const maxCheckIn = new Date(today);
-  maxCheckIn.setDate(maxCheckIn.getDate() + MAX_CHECKIN_DAYS);
-  const checkIn = parseLocalDate(checkInDate);
+  maxCheckIn.setUTCDate(maxCheckIn.getUTCDate() + MAX_CHECKIN_DAYS);
+  const checkIn = parseUTCDate(check_in_date);
   if (checkIn < minCheckIn || checkIn > maxCheckIn) {
     throw {
       status: 400,
-      message: `Ngày nhận phòng phải trong khoảng ${MIN_CHECKIN_DAYS}–${MAX_CHECKIN_DAYS} ngày kể từ hôm nay.`,
+      message: `Ngày nhận phòng phải trong khoảng ${MIN_CHECKIN_DAYS}-${MAX_CHECKIN_DAYS} ngày kể từ hôm nay.`,
     };
   }
 
   // Validate billing cycle from user input
-  const resolvedBillingCycle = normalizeBillingCycle(
-    billingCycle ?? bookingData.billing_cycle,
-  );
+  const resolvedBillingCycle = normalizeBillingCycle(billing_cycle);
   if (!isValidBookingBillingCycle(resolvedBillingCycle)) {
     throw {
       status: 400,
@@ -66,8 +61,8 @@ const createBooking = async (userId, bookingData) => {
   let booking;
 
   try {
-    // 1. Lock phòng trước
-    const room = await Room.findByPk(roomId, {
+    // 1) Lock room row first.
+    const room = await Room.findByPk(room_id, {
       include: [{ model: RoomType, as: "room_type", required: true }],
       transaction,
       lock: transaction.LOCK.UPDATE,
@@ -81,50 +76,50 @@ const createBooking = async (userId, bookingData) => {
       throw { status: 400, message: "Phòng này hiện không còn trống." };
     }
 
-    // 2. Lấy room type riêng (không cần lock)
+    // 2) Fetch room type (no lock needed).
     const roomType = await RoomType.findByPk(room.room_type_id, {
       transaction,
     });
     const basePrice = Number(roomType?.base_price || 0);
     const depositAmount = basePrice * DEPOSIT_MONTHS;
 
-    // 3. Lưu thông tin hồ sơ khách hàng (CustomerProfile)
+    // 3) Upsert customer profile details.
     const [profile, created] = await CustomerProfile.findOrCreate({
       where: { user_id: userId },
       defaults: {
-        gender: customerInfo.gender?.toUpperCase(),
-        date_of_birth: customerInfo.dateOfBirth,
-        permanent_address: customerInfo.permanentAddress,
-        emergency_contact_name: customerInfo.emergencyContactName,
-        emergency_contact_phone: customerInfo.emergencyContactPhone,
+        gender: customer_info?.gender?.toUpperCase(),
+        date_of_birth: customer_info?.date_of_birth,
+        permanent_address: customer_info?.permanent_address,
+        emergency_contact_name: customer_info?.emergency_contact_name,
+        emergency_contact_phone: customer_info?.emergency_contact_phone,
       },
       transaction,
     });
 
-    if (!created && customerInfo) {
+    if (!created && customer_info) {
       await profile.update(
         {
-          gender: customerInfo.gender?.toUpperCase() || profile.gender,
-          date_of_birth: customerInfo.dateOfBirth || profile.date_of_birth,
+          gender: customer_info.gender?.toUpperCase() || profile.gender,
+          date_of_birth: customer_info.date_of_birth || profile.date_of_birth,
           permanent_address:
-            customerInfo.permanentAddress || profile.permanent_address,
+            customer_info.permanent_address || profile.permanent_address,
           emergency_contact_name:
-            customerInfo.emergencyContactName || profile.emergency_contact_name,
+            customer_info.emergency_contact_name || profile.emergency_contact_name,
           emergency_contact_phone:
-            customerInfo.emergencyContactPhone ||
+            customer_info.emergency_contact_phone ||
             profile.emergency_contact_phone,
         },
         { transaction },
       );
     }
 
-    // 4. Tạo Booking (PENDING — chờ thanh toán)
+    // 4) Create booking in PENDING status.
     booking = await Booking.create(
       {
         booking_number: generateNumberedId("BK"),
-        room_id: roomId,
+        room_id,
         customer_id: userId,
-        check_in_date: checkInDate,
+        check_in_date,
         duration_months: resolvedDurationMonths,
         billing_cycle: resolvedBillingCycle,
         status: "PENDING",
@@ -135,7 +130,7 @@ const createBooking = async (userId, bookingData) => {
       { transaction },
     );
 
-    // 5. Giữ chỗ phòng
+    // 5) Reserve room by setting LOCKED status.
     await room.update({ status: "LOCKED" }, { transaction });
 
     await transaction.commit();
@@ -153,7 +148,7 @@ const getMyBookings = async (userId, query = {}) => {
   const {
     page = 1,
     limit = 10,
-    sort_by = 'createdAt',
+    sort_by = 'created_at',
     sort_order = 'DESC',
     status,
     search,
@@ -175,8 +170,13 @@ const getMyBookings = async (userId, query = {}) => {
   }
 
   // Allowed sort columns
-  const allowedSorts = ['createdAt', 'check_in_date', 'room_price_snapshot', 'status'];
-  const sortCol = allowedSorts.includes(sort_by) ? sort_by : 'createdAt';
+  const sortColumnMap = {
+    created_at: 'createdAt',
+    check_in_date: 'check_in_date',
+    room_price_snapshot: 'room_price_snapshot',
+    status: 'status',
+  };
+  const sortCol = sortColumnMap[sort_by] || 'createdAt';
   const sortDir = sort_order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
   const { count, rows } = await Booking.findAndCountAll({
@@ -261,16 +261,20 @@ const getBookingById = async (id, caller) => {
 
   if (!booking) throw { status: 404, message: "Không tìm thấy đơn đặt phòng." };
 
-  // ADMIN and BUILDING_MANAGER can view any booking
   const role = caller.role || caller;
-  if (role !== 'ADMIN' && role !== 'BUILDING_MANAGER') {
+  if (role === 'BUILDING_MANAGER') {
+    const bookingBuildingId = booking.room?.building?.id || booking.room?.building_id;
+    if (!bookingBuildingId || bookingBuildingId !== caller.building_id) {
+      throw { status: 403, message: "Bạn không có quyền truy cập đơn này." };
+    }
+  } else if (role !== 'ADMIN') {
     if (booking.customer_id !== caller.id)
       throw { status: 403, message: "Bạn không có quyền truy cập đơn này." };
   }
 
   return booking;
 };
-const getAllBookings = async (filters = {}) => {
+const getAllBookings = async (filters = {}, caller = {}) => {
     const { Booking, Room, Building, RoomType, User, CustomerProfile } = sequelize.models;
     
     // Pagination
@@ -283,23 +287,37 @@ const getAllBookings = async (filters = {}) => {
     if (filters.status) {
         where.status = filters.status;
     }
-    if (filters.bookingNumber) {
-        where.booking_number = { [Op.like]: `%${filters.bookingNumber}%` };
+    if (filters.booking_number) {
+        where.booking_number = { [Op.iLike]: `%${filters.booking_number}%` };
+    }
+    if (filters.search) {
+        where[Op.or] = [
+            { booking_number: { [Op.iLike]: `%${filters.search}%` } },
+            { '$customer.first_name$': { [Op.iLike]: `%${filters.search}%` } },
+            { '$customer.last_name$': { [Op.iLike]: `%${filters.search}%` } },
+            { '$room.room_number$': { [Op.iLike]: `%${filters.search}%` } }
+        ];
     }
     
     // Build includes with nested where for related models
+    const buildingWhere = caller.role === 'BUILDING_MANAGER'
+        ? { id: caller.building_id }
+        : filters.building_id
+            ? { id: filters.building_id }
+            : (filters.building_name ? { name: { [Op.iLike]: `%${filters.building_name}%` } } : undefined);
+
     const include = [
         {
             model: Room,
             as: 'room',
             attributes: ['id', 'room_number', 'floor', 'thumbnail_url'],
-            where: filters.roomNumber ? { room_number: { [Op.like]: `%${filters.roomNumber}%` } } : undefined,
+            where: filters.room_number ? { room_number: { [Op.iLike]: `%${filters.room_number}%` } } : undefined,
             include: [
                 {
                     model: Building,
                     as: 'building',
                     attributes: ['id', 'name', 'address'],
-                    where: filters.buildingName ? { name: { [Op.like]: `%${filters.buildingName}%` } } : undefined,
+                    where: buildingWhere,
                 },
                 {
                     model: RoomType,
@@ -312,11 +330,11 @@ const getAllBookings = async (filters = {}) => {
             model: User,
             as: 'customer',
             attributes: ['id', 'first_name', 'last_name', 'email', 'phone'],
-            where: filters.customerName ? {
+            where: filters.customer_name ? {
                 [Op.or]: [
-                    { first_name: { [Op.like]: `%${filters.customerName}%` } },
-                    { last_name: { [Op.like]: `%${filters.customerName}%` } },
-                    { email: { [Op.like]: `%${filters.customerName}%` } }
+                    { first_name: { [Op.iLike]: `%${filters.customer_name}%` } },
+                    { last_name: { [Op.iLike]: `%${filters.customer_name}%` } },
+                    { email: { [Op.iLike]: `%${filters.customer_name}%` } }
                 ]
             } : undefined,
             include: [
@@ -351,6 +369,7 @@ const getAllBookings = async (filters = {}) => {
         limit,
         offset,
         distinct: true,
+        subQuery: false, // Required when filtering by associated models with limit
     });
     
     return {
@@ -365,9 +384,49 @@ const getAllBookings = async (filters = {}) => {
         }
     };
 };
+
+const cancelBookingForPaymentFailure = async (bookingId) => {
+  const { Booking, Room } = sequelize.models;
+
+  const transaction = await sequelize.transaction();
+
+  try {
+    const booking = await Booking.findByPk(bookingId, {
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    if (!booking || booking.status !== "PENDING") {
+      await transaction.rollback();
+      return false;
+    }
+
+    await booking.update(
+      {
+        status: "CANCELLED",
+        cancelled_at: new Date(),
+        cancellation_reason: "Không thể khởi tạo thanh toán",
+      },
+      { transaction },
+    );
+
+    await Room.update(
+      { status: "AVAILABLE" },
+      { where: { id: booking.room_id }, transaction },
+    );
+
+    await transaction.commit();
+    return true;
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+};
+
 module.exports = {
   createBooking,
   getMyBookings,
   getBookingById,
   getAllBookings,
+  cancelBookingForPaymentFailure,
 };

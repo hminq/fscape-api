@@ -4,10 +4,10 @@ exports.create = [
   body('name')
     .notEmpty().withMessage('Tên không được để trống')
     .isString()
-    .isLength({ min: 1, max: 255 }).withMessage('Tên phải từ 1–255 ký tự'),
+    .isLength({ min: 1, max: 255 }).withMessage('Tên phải từ 1-255 ký tự'),
   body('location_id')
-    .notEmpty().withMessage('location_id không được để trống')
-    .isUUID().withMessage('location_id phải là UUID hợp lệ'),
+    .notEmpty().withMessage('Vui lòng chọn khu vực')
+    .isUUID().withMessage('Mã khu vực không hợp lệ'),
   body('address')
     .notEmpty().withMessage('Địa chỉ không được để trống')
     .isString()
@@ -27,36 +27,38 @@ exports.create = [
     .isInt({ min: 1, max: 99 }).withMessage('Số tầng phải từ 1 đến 99'),
   body('thumbnail_url')
     .optional()
-    .isURL().withMessage('URL thumbnail không hợp lệ'),
+    .isString()
+    .notEmpty().withMessage('Thumbnail không hợp lệ'),
   body('manager_id')
     .optional()
-    .isUUID().withMessage('manager_id phải là UUID hợp lệ'),
+    .isUUID().withMessage('Mã quản lý không hợp lệ'),
   body('is_active')
     .optional()
-    .isBoolean().withMessage('is_active phải là boolean'),
+    .isBoolean().withMessage('Trạng thái hoạt động không hợp lệ'),
   body('images')
     .optional()
-    .isArray({ max: 10 }).withMessage('Tối đa 10 ảnh'),
+    .isArray({ max: 5 }).withMessage('Tối đa 5 ảnh'),
   body('images.*')
     .optional()
-    .isURL().withMessage('URL ảnh không hợp lệ'),
+    .isString()
+    .notEmpty().withMessage('Ảnh không hợp lệ'),
   body('facilities')
     .optional()
     .isArray({ max: 20 }).withMessage('Tối đa 20 tiện ích'),
   body('facilities.*')
     .optional()
-    .isUUID().withMessage('facility_id phải là UUID hợp lệ'),
+    .isUUID().withMessage('Mã tiện ích không hợp lệ'),
 ];
 
 exports.update = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
   body('name')
     .optional()
     .isString()
-    .isLength({ min: 1, max: 255 }).withMessage('Tên phải từ 1–255 ký tự'),
+    .isLength({ min: 1, max: 255 }).withMessage('Tên phải từ 1-255 ký tự'),
   body('location_id')
     .optional()
-    .isUUID().withMessage('location_id phải là UUID hợp lệ'),
+    .isUUID().withMessage('Mã khu vực không hợp lệ'),
   body('address')
     .optional()
     .isString()
@@ -76,33 +78,35 @@ exports.update = [
     .isInt({ min: 1, max: 99 }).withMessage('Số tầng phải từ 1 đến 99'),
   body('thumbnail_url')
     .optional()
-    .isURL().withMessage('URL thumbnail không hợp lệ'),
+    .isString()
+    .notEmpty().withMessage('Thumbnail không hợp lệ'),
   body('manager_id')
     .optional()
-    .isUUID().withMessage('manager_id phải là UUID hợp lệ'),
+    .isUUID().withMessage('Mã quản lý không hợp lệ'),
   body('is_active')
     .optional()
-    .isBoolean().withMessage('is_active phải là boolean'),
+    .isBoolean().withMessage('Trạng thái hoạt động không hợp lệ'),
   body('images')
     .optional()
-    .isArray({ max: 10 }).withMessage('Tối đa 10 ảnh'),
+    .isArray({ max: 5 }).withMessage('Tối đa 5 ảnh'),
   body('images.*')
     .optional()
-    .isURL().withMessage('URL ảnh không hợp lệ'),
+    .isString()
+    .notEmpty().withMessage('Ảnh không hợp lệ'),
   body('facilities')
     .optional()
     .isArray({ max: 20 }).withMessage('Tối đa 20 tiện ích'),
   body('facilities.*')
     .optional()
-    .isUUID().withMessage('facility_id phải là UUID hợp lệ'),
+    .isUUID().withMessage('Mã tiện ích không hợp lệ'),
 ];
 
 exports.toggleStatus = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
   body('is_active')
-    .isBoolean().withMessage('is_active phải là boolean'),
+    .isBoolean().withMessage('Trạng thái hoạt động không hợp lệ'),
 ];
 
 exports.paramId = [
-  param('id').isUUID().withMessage('ID phải là UUID hợp lệ'),
+  param('id').isUUID().withMessage('Mã định danh không hợp lệ'),
 ];

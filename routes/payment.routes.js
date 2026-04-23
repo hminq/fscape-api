@@ -5,17 +5,9 @@ const authJwt = require("../middlewares/authJwt");
 const validate = require("../middlewares/validateResult");
 const validator = require("../validators/payment.validator");
 
-router.post("/create-booking-vnpay", authJwt, validator.createBookingPayment, validate, paymentController.createBookingPaymentUrl);
-
-router.post("/create-invoice-vnpay", authJwt, validator.createInvoicePayment, validate, paymentController.createInvoicePaymentUrl);
-
 router.get("/my", authJwt, paymentController.getMyPayments);
 
-router.get("/vnpay-ipn", paymentController.vnpayIpn);
-
-router.get("/vnpay-return", paymentController.vnpayReturn);
-
-// ─── PayOS ──────────────────────────────────────────────────────────
+// PayOS routes.
 router.post("/create-booking-payos", authJwt, validator.createBookingPayment, validate, paymentController.createBookingPaymentUrlPayOS);
 
 router.post("/create-invoice-payos", authJwt, validator.createInvoicePayment, validate, paymentController.createInvoicePaymentUrlPayOS);

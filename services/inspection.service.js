@@ -16,7 +16,7 @@ const settlementService = require('./settlement.service');
 const { ROLES } = require('../constants/roles');
 const { REQUEST_SERVICE_BILLING_STATUS } = require('../constants/invoiceEnums');
 
-// ─── Helpers ──────────────────────────────────────────────────
+// Helpers.
 
 function ensureBuildingAccess(user, room) {
     if (
@@ -39,7 +39,7 @@ async function ensureCheckoutRequest(roomId, staffId) {
     if (!checkoutRequest) {
         throw {
             status: 403,
-            message: 'Không thể thực hiện checkout — cần có yêu cầu checkout (CHECKOUT) ở trạng thái IN_PROGRESS được giao cho bạn'
+            message: 'Không thể thực hiện checkout - cần có yêu cầu checkout (CHECKOUT) ở trạng thái IN_PROGRESS được giao cho bạn'
         };
     }
     return checkoutRequest;
@@ -58,7 +58,7 @@ function findUnknownQrCodes(qrCodes, scannedAssets) {
     return qrCodes.filter(qr => !found.has(qr));
 }
 
-// ─── CHECK-IN diff (type-based, against template) ─────────────
+// CHECK-IN diff (type-based against room template).
 async function computeCheckInDiff(room, qrCodes) {
     const template = await RoomTypeAsset.findAll({
         where: { room_type_id: room.room_type_id },
@@ -126,7 +126,7 @@ async function computeCheckInDiff(room, qrCodes) {
     return { results, assetsToAssign, extra, unknown_qr_codes: unknownQrCodes, scannedAssets };
 }
 
-// ─── CHECK-OUT diff (exact asset match, against room's assets) ─
+// CHECK-OUT diff (exact match against room assets).
 async function computeCheckOutDiff(room, qrCodes) {
     // Assets currently linked to this room
     const expectedAssets = await Asset.findAll({
@@ -191,7 +191,7 @@ async function computeCheckOutDiff(room, qrCodes) {
     };
 }
 
-// ─── Shared: build conditionMap from assets input ────────────
+// Shared helper: build condition map from input assets.
 function buildConditionMap(assetsInput) {
     const conditionMap = {};
     for (const a of assetsInput) {
@@ -200,7 +200,7 @@ function buildConditionMap(assetsInput) {
     return conditionMap;
 }
 
-// ─── POST /api/inspections/preview (staff, CHECK_OUT only) ────
+// POST /api/inspections/preview (STAFF, CHECK_OUT only)
 const previewInspection = async (roomId, assetsInput, user) => {
     const room = await Room.findByPk(roomId);
     if (!room) throw { status: 404, message: 'Không tìm thấy phòng' };
@@ -232,7 +232,7 @@ const previewInspection = async (roomId, assetsInput, user) => {
 
     const totalPenalty = diff.penalty_total + brokenPenalty;
 
-    // ── Settlement preview (contract + unbilled services + deposit) ──
+    // Settlement preview (contract, unbilled services, and deposit).
     let settlementPreview = null;
 
     const contract = await Contract.findOne({
@@ -298,7 +298,7 @@ const previewInspection = async (roomId, assetsInput, user) => {
     };
 };
 
-// ─── POST /api/inspections (staff, CHECK_OUT only) ───────────
+// POST /api/inspections (STAFF, CHECK_OUT only)
 const confirmInspection = async (roomId, assetsInput, notes, user) => {
     const room = await Room.findByPk(roomId);
     if (!room) throw { status: 404, message: 'Không tìm thấy phòng' };
@@ -308,7 +308,7 @@ const confirmInspection = async (roomId, assetsInput, notes, user) => {
     return confirmCheckOut(room, assetsInput, notes, user);
 };
 
-// ─── CHECK-OUT: unassign all, BROKEN → MAINTENANCE, deduct deposit ─
+// CHECK-OUT: unassign assets, mark broken/missing, and settle deposit.
 async function confirmCheckOut(room, assetsInput, notes, user) {
     const qrCodes = assetsInput.map(a => a.qr_code);
     const conditionMap = buildConditionMap(assetsInput);
@@ -344,7 +344,7 @@ async function confirmCheckOut(room, assetsInput, notes, user) {
             notes
         }, { transaction });
 
-        // ── AssetInspectionItem records for all scanned assets ──
+        // Create AssetInspectionItem records for scanned assets.
         const itemRows = diff._scannedAssets.map(asset => ({
             inspection_id: inspection.id,
             asset_id: asset.id,
@@ -354,7 +354,7 @@ async function confirmCheckOut(room, assetsInput, notes, user) {
         }));
         const items = await AssetInspectionItem.bulkCreate(itemRows, { transaction });
 
-        // ── Asset history rows ──
+        // Build asset history records.
         const historyRows = [];
 
         for (const asset of matchedGood) {
@@ -400,7 +400,7 @@ async function confirmCheckOut(room, assetsInput, notes, user) {
             await AssetHistory.bulkCreate(historyRows, { transaction });
         }
 
-        // ── Update asset statuses ──
+        // Update asset statuses.
         const goodIds = matchedGood.map(a => a.id);
         if (goodIds.length > 0) {
             await Asset.update(
@@ -419,7 +419,7 @@ async function confirmCheckOut(room, assetsInput, notes, user) {
             );
         }
 
-        // ── Contract lookup (always, for deposit info + status update) ──
+        // Load contract for settlement and status updates.
         const contract = await Contract.findOne({
             where: {
                 room_id: room.id,
@@ -437,7 +437,7 @@ async function confirmCheckOut(room, assetsInput, notes, user) {
             const penalty = hasDiscrepancy ? totalPenalty : 0;
             const finalDeposit = originalDeposit - penalty;
 
-            // ── Create Settlement record ──
+            // Create settlement record.
             settlement = await settlementService.createCheckoutSettlement(
                 contract,
                 {
@@ -539,7 +539,7 @@ async function confirmCheckOut(room, assetsInput, notes, user) {
     }
 }
 
-// ─── RESIDENT SELF-SERVICE CHECK-IN ──────────────────────────
+// RESIDENT self-service check-in.
 
 async function resolveResidentContract(user, { forCheckIn = false } = {}) {
     const statuses = forCheckIn
@@ -595,7 +595,7 @@ const residentPreviewCheckIn = async (assetsInput, user) => {
 
     const brokenItems = conditionSummary.filter(c => c.condition === 'BROKEN');
     for (const item of brokenItems) {
-        failureReasons.push(`${item.asset_type_name} (${item.qr_code}): tình trạng BROKEN${item.note ? ' — ' + item.note : ''}`);
+        failureReasons.push(`${item.asset_type_name} (${item.qr_code}): tình trạng BROKEN${item.note ? ' - ' + item.note : ''}`);
     }
 
     const canCheckIn = shortItems.length === 0 && brokenItems.length === 0;
@@ -643,7 +643,7 @@ const residentConfirmCheckIn = async (assetsInput, notes, user) => {
 
     const brokenItems = conditionSummary.filter(c => c.condition === 'BROKEN');
     for (const item of brokenItems) {
-        failureReasons.push(`${item.asset_type_name} (${item.qr_code}): tình trạng BROKEN${item.note ? ' — ' + item.note : ''}`);
+        failureReasons.push(`${item.asset_type_name} (${item.qr_code}): tình trạng BROKEN${item.note ? ' - ' + item.note : ''}`);
     }
 
     if (failureReasons.length > 0) {
@@ -678,6 +678,13 @@ const residentConfirmCheckIn = async (assetsInput, notes, user) => {
             note: conditionMap[asset.qr_code]?.note || null
         }));
         const items = await AssetInspectionItem.bulkCreate(itemRows, { transaction });
+
+        // Validate building matching before assignment
+        for (const asset of assetsToAssign) {
+            if (asset.building_id !== room.building_id) {
+                throw { status: 400, message: `Tài sản ${asset.name} (${asset.qr_code}) không thuộc tòa nhà này.` };
+            }
+        }
 
         // Assign assets to room
         if (assetsToAssign.length > 0) {
@@ -724,7 +731,7 @@ const residentConfirmCheckIn = async (assetsInput, notes, user) => {
     }
 };
 
-// ─── GET /api/inspections?room_id= ────────────────────────────
+// GET /api/inspections?room_id=
 const getInspectionsByRoom = async (roomId, caller) => {
     const room = await Room.findByPk(roomId);
     if (!room) throw { status: 404, message: 'Không tìm thấy phòng' };

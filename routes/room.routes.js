@@ -11,17 +11,19 @@ const validator = require('../validators/room.validator');
 
 router.get('/', authJwtOptional, roomController.getAllRooms);
 
-// Stats — ADMIN / BUILDING_MANAGER only (must be before /:id)
+// Stats - ADMIN / BUILDING_MANAGER only (must be before /:id)
 router.get('/stats', authJwt, requireRoles(ROLES.ADMIN, ROLES.BUILDING_MANAGER), roomController.getRoomStats);
 
-// My rooms — CUSTOMER / RESIDENT only (must be before /:id)
+// My rooms - CUSTOMER / RESIDENT only (must be before /:id)
 router.get('/my', authJwt, requireRoles(ROLES.CUSTOMER, ROLES.RESIDENT), roomController.getMyRooms);
 
 router.get('/:id', authJwtOptional, validator.paramId, validate, roomController.getRoomById);
 
-router.get("/building/:buildingId",
+router.get("/building/:building_id",
   authJwt,
   requireRoles(ROLES.BUILDING_MANAGER),
+  validator.paramBuildingId,
+  validate,
   roomController.getRoomsByBuilding
 );
 

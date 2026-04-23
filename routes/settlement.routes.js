@@ -12,7 +12,7 @@ const staffOrAbove = requireRoles(ROLES.ADMIN, ROLES.BUILDING_MANAGER, ROLES.STA
 router.get('/', authJwt, staffOrAbove, settlementController.getAllSettlements);
 
 // GET by contract must come before GET by :id to avoid route conflict
-router.get('/contract/:contractId', authJwt, staffOrAbove, validator.paramContractId, validate, settlementController.getSettlementByContract);
+router.get('/contract/:contract_id', authJwt, staffOrAbove, validator.paramContractId, validate, settlementController.getSettlementByContract);
 router.get('/:id', authJwt, staffOrAbove, validator.paramId, validate, settlementController.getSettlement);
 router.patch('/:id/close', authJwt, staffOrAbove, validator.paramId, validate, settlementController.closeSettlement);
 

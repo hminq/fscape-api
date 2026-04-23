@@ -2,7 +2,7 @@ const { Op } = require('sequelize');
 const { sequelize } = require('../config/db');
 
 /**
- * Lấy danh sách địa điểm
+ * Get paginated locations.
  */
 const getAllLocations = async ({ page = 1, limit = 10, search, is_active } = {}) => {
     const { Location, Building, University } = sequelize.models;
@@ -37,7 +37,7 @@ const getAllLocations = async ({ page = 1, limit = 10, search, is_active } = {})
 };
 
 /**
- * Lấy chi tiết 1 địa điểm
+ * Get location details by ID.
  */
 const getLocationById = async (id) => {
     const { Location, Building, University } = sequelize.models;
@@ -54,7 +54,7 @@ const getLocationById = async (id) => {
 };
 
 /**
- * Tạo địa điểm mới
+ * Create a location.
  */
 const createLocation = async (data) => {
     const { Location } = sequelize.models;
@@ -72,7 +72,7 @@ const createLocation = async (data) => {
 };
 
 /**
- * Cập nhật địa điểm
+ * Update a location.
  */
 const updateLocation = async (id, data) => {
     const { Location } = sequelize.models;
@@ -102,7 +102,7 @@ const updateLocation = async (id, data) => {
 };
 
 /**
- * Xóa địa điểm
+ * Delete a location.
  */
 const deleteLocation = async (id) => {
     const { Location, Building, University } = sequelize.models;
@@ -131,7 +131,7 @@ const toggleLocationStatus = async (id, isActive) => {
     if (!location) throw { status: 404, message: 'Không tìm thấy khu vực' }
 
     if (location.is_active === isActive) {
-        throw { status: 400, message: `Khu vực đã ở trạng thái ${isActive ? 'hoạt động' : 'ngừng hoạt động'}` }
+        throw { status: 400, message: `Khu vực đã ở trạng thái ${isActive ? 'hoạt động' : 'vô hiệu hóa'}` }
     }
 
     location.is_active = isActive

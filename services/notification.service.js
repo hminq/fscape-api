@@ -6,7 +6,7 @@ const Contract = require("../models/contract.model");
 const Room = require("../models/room.model");
 
 /**
- * Tạo mới thông báo và gửi đến danh sách người nhận
+ * Create a notification and dispatch it to recipients.
  */
 const createNotification = async (payload) => {
   const {
@@ -99,7 +99,7 @@ const createNotification = async (payload) => {
 };
 
 /**
- * Lấy danh sách thông báo của 1 User (Dùng cho API Resident/Staff xem thông báo)
+ * Get paginated notifications for a user.
  */
 const getUserNotifications = async (
   userId,
@@ -140,7 +140,7 @@ const getUserNotifications = async (
 };
 
 /**
- * Đánh dấu đã đọc
+ * Mark one notification as read for a user.
  */
 const markAsRead = async (notificationId, userId) => {
   const recipient = await NotificationRecipient.findOne({
@@ -156,7 +156,7 @@ const markAsRead = async (notificationId, userId) => {
 };
 
 /**
- * Đánh dấu tất cả thông báo chưa đọc là đã đọc
+ * Mark all unread notifications as read for a user.
  */
 const markAllAsRead = async (userId) => {
   await NotificationRecipient.update(
@@ -166,7 +166,7 @@ const markAllAsRead = async (userId) => {
 };
 
 /**
- * Đếm số thông báo chưa đọc
+ * Count unread notifications for a user.
  */
 const getUnreadCount = async (userId) => {
   return await NotificationRecipient.count({
@@ -175,7 +175,7 @@ const getUnreadCount = async (userId) => {
 };
 
 /**
- * BM tạo thông báo gửi đến cư dân trong building hoặc room cụ thể
+ * Create a building-manager announcement for a building or room.
  */
 const createBmNotification = async (caller, { title, content, target, room_id }) => {
   if (!caller.building_id) {
@@ -185,7 +185,7 @@ const createBmNotification = async (caller, { title, content, target, room_id })
   let recipientIds = [];
 
   if (target === "building") {
-    // Tìm tất cả resident có hợp đồng ACTIVE/EXPIRING_SOON trong building của BM
+    // Find residents with active lifecycle contracts in manager's building.
     const contracts = await Contract.findAll({
       attributes: ["customer_id"],
       where: { status: ["PENDING_CHECK_IN", "ACTIVE", "EXPIRING_SOON"] },
@@ -201,10 +201,10 @@ const createBmNotification = async (caller, { title, content, target, room_id })
     recipientIds = [...new Set(contracts.map((c) => c.customer_id))];
   } else if (target === "room") {
     if (!room_id) {
-      throw { status: 400, message: "room_id là bắt buộc khi đối tượng gửi là 'room'" };
+      throw { status: 400, message: "Mã phòng là bắt buộc khi gửi theo phòng" };
     }
 
-    // Kiểm tra room thuộc building của BM
+    // Ensure the room belongs to manager's building.
     const room = await Room.findByPk(room_id, { attributes: ["id", "building_id"] });
     if (!room) throw { status: 404, message: "Không tìm thấy phòng" };
     if (room.building_id !== caller.building_id) {
@@ -218,7 +218,7 @@ const createBmNotification = async (caller, { title, content, target, room_id })
 
     recipientIds = [...new Set(contracts.map((c) => c.customer_id))];
   } else {
-    throw { status: 400, message: "Đối tượng gửi không hợp lệ. Phải là 'building' hoặc 'room'" };
+    throw { status: 400, message: "Đối tượng gửi không hợp lệ. Chỉ hỗ trợ gửi toàn tòa nhà hoặc theo phòng." };
   }
 
   if (recipientIds.length === 0) {
@@ -239,7 +239,7 @@ const createBmNotification = async (caller, { title, content, target, room_id })
 };
 
 /**
- * Admin: lấy tất cả thông báo trong hệ thống (không theo user)
+ * Admin endpoint: get all notifications across the system.
  */
 const getAllNotifications = async ({ page = 1, limit = 10, type, search } = {}) => {
   const offset = (page - 1) * limit;

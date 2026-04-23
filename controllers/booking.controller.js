@@ -1,22 +1,15 @@
 const bookingService = require('../services/booking.service');
 const paymentService = require('../services/payment.service');
 
-const usePayOS = !!process.env.PAYOS_CLIENT_ID;
-
 const createBooking = async (req, res) => {
+    let booking = null;
+
     try {
         const userId = req.user.id;
-        const booking = await bookingService.createBooking(userId, req.body);
+        booking = await bookingService.createBooking(userId, req.body);
 
-        let paymentData;
-        if (usePayOS) {
-            const payosResult = await paymentService.createBookingPaymentUrlPayOS(userId, booking.id);
-            paymentData = { checkoutUrl: payosResult.checkoutUrl, orderCode: payosResult.orderCode };
-        } else {
-            const ipAddr = "127.0.0.1";
-            const vnpayResult = await paymentService.createBookingPaymentUrl(userId, booking.id, ipAddr);
-            paymentData = { paymentUrl: vnpayResult.paymentUrl };
-        }
+        const payosResult = await paymentService.createBookingPaymentUrlPayOS(userId, booking.id);
+        const paymentData = { checkoutUrl: payosResult.checkoutUrl, orderCode: payosResult.orderCode };
 
         return res.status(201).json({
             message: 'Đã tạo đơn đặt phòng thành công.',
@@ -26,7 +19,15 @@ const createBooking = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('❌ Controller Error (createBooking):', error);
+        if (booking && error.status === 502) {
+            try {
+                await bookingService.cancelBookingForPaymentFailure(booking.id);
+            } catch (cleanupError) {
+                console.error('Failed to cleanup booking after payment gateway error:', cleanupError);
+            }
+        }
+
+        console.error('Controller Error (createBooking):', error);
         return res.status(error.status || 500).json({
             message: error.message || 'Internal Server Error'
         });
@@ -66,13 +67,15 @@ const getAllBookings = async (req, res) => {
             page: req.query.page || 1,
             limit: req.query.limit || 10,
             status: req.query.status,
-            bookingNumber: req.query.bookingNumber,
-            customerName: req.query.customerName,
-            roomNumber: req.query.roomNumber,
-            buildingName: req.query.buildingName
+            booking_number: req.query.booking_number,
+            customer_name: req.query.customer_name,
+            room_number: req.query.room_number,
+            building_name: req.query.building_name,
+            building_id: req.query.building_id,
+            search: req.query.search
         };
         
-        const result = await bookingService.getAllBookings(filters);
+        const result = await bookingService.getAllBookings(filters, req.user);
 
         return res.status(200).json({
             message: 'Danh sách đơn đặt phòng',

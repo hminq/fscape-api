@@ -27,8 +27,8 @@ class AdminUserService {
 
     const generatedPassword = crypto.randomBytes(4).toString('hex');
 
-    if (phone.length < 9 || phone.length > 15) {
-      throw new Error('Số điện thoại phải từ 9 đến 15 ký tự');
+    if (!/^[0-9]{8,15}$/.test(phone)) {
+      throw new Error('Số điện thoại phải gồm 8-15 chữ số');
     }
 
     // --- Email & Phone uniqueness ---
@@ -289,8 +289,8 @@ class AdminUserService {
     const user = await User.findByPk(userId);
     if (!user) throw new Error('Không tìm thấy người dùng');
 
-    if (user.role === ROLES.ADMIN) {
-      throw new Error('Không thể đặt lại mật khẩu cho quản trị viên tối cao');
+    if (![ROLES.BUILDING_MANAGER, ROLES.STAFF].includes(user.role)) {
+      throw new Error('Chỉ có thể đặt lại mật khẩu cho quản lý tòa nhà hoặc nhân viên');
     }
 
     const newPassword = crypto.randomBytes(4).toString('hex');

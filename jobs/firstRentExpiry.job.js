@@ -56,11 +56,13 @@ const run = async () => {
                     { where: { id: contract.id }, transaction }
                 );
 
-                // Room → AVAILABLE
-                await Room.update(
-                    { status: 'AVAILABLE' },
-                    { where: { id: contract.room_id }, transaction }
-                );
+                // Room → AVAILABLE (only for new contracts, not renewals)
+                if (!contract.renewed_from_contract_id) {
+                    await Room.update(
+                        { status: 'AVAILABLE' },
+                        { where: { id: contract.room_id }, transaction }
+                    );
+                }
 
                 // Booking → CANCELLED
                 const booking = await Booking.findOne({
@@ -110,7 +112,7 @@ const run = async () => {
 
                 await transaction.commit();
                 processed++;
-                console.log(`[FirstRentExpiryJob] Terminated contract ${contract.contract_number} — first rent unpaid`);
+                console.log(`[FirstRentExpiryJob] Terminated contract ${contract.contract_number} - first rent unpaid`);
 
                 // Send cancellation notification email
                 try {

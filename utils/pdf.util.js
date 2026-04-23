@@ -1,25 +1,39 @@
 const puppeteer = require('puppeteer');
+const path = require('path');
+const { pathToFileURL } = require('url');
 const { uploadBuffer } = require('../services/upload.service');
 
 const PDF_PAGE_FORMAT = 'A4';
 const PDF_MARGIN = { top: '20mm', right: '15mm', bottom: '20mm', left: '15mm' };
+const TIMES_FONT_FILE_URL = pathToFileURL(
+  path.resolve(__dirname, '../assets/fonts/times.ttf'),
+).href;
 
 /**
  * Wrap rendered contract HTML in a full HTML document with proper styling.
  */
 const buildFullHtml = (renderedContent) => `
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
   <style>
+    @font-face {
+      font-family: 'TimesLocal';
+      src: url('${TIMES_FONT_FILE_URL}') format('truetype');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
     body {
-      font-family: 'Times New Roman', serif;
+      font-family: 'TimesLocal', 'Times New Roman', Times, 'Liberation Serif', 'DejaVu Serif', serif;
       font-size: 14px;
       line-height: 1.6;
       color: #000;
       margin: 0;
       padding: 0;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
     }
     img { max-width: 100%; }
     h1, h2, h3, h4 { margin-top: 16px; margin-bottom: 8px; }
@@ -35,11 +49,11 @@ const buildFullHtml = (renderedContent) => `
  * 1. Launch headless Chromium
  * 2. Set HTML content and wait for images (signatures, logos) to load
  * 3. Export PDF buffer
- * 4. Upload buffer to Cloudinary via uploadBuffer
+ * 4. Upload buffer to S3 via uploadBuffer
  *
  * @param {string} renderedContent - The contract's rendered HTML
  * @param {string} contractNumber  - Used for the PDF filename
- * @returns {string}  secure_url of the uploaded PDF
+ * @returns {string}  S3 object key of the uploaded PDF
  */
 async function generateContractPdf(renderedContent, contractNumber) {
   let browser;
@@ -52,6 +66,12 @@ async function generateContractPdf(renderedContent, contractNumber) {
     const page = await browser.newPage();
     await page.setContent(buildFullHtml(renderedContent), {
       waitUntil: 'networkidle0',
+    });
+    await page.emulateMediaType('screen');
+    await page.evaluate(async () => {
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
     });
 
     const pdfBuffer = await page.pdf({

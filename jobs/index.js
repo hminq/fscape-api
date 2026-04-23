@@ -7,9 +7,10 @@ const firstRentExpiry = require('./firstRentExpiry.job');
 const signingReminder = require('./signingReminder.job');
 const firstRentReminder = require('./firstRentReminder.job');
 const checkInExpiry = require('./checkInExpiry.job');
+const invoiceOverdue = require('./invoiceOverdue.job');
 
 function initCronJobs() {
-    // Contract signature expiry — every 15 minutes
+    // Contract signature expiry - every 15 minutes
     cron.schedule('*/15 * * * *', async () => {
         try {
             await contractSignatureExpiry.run();
@@ -18,7 +19,7 @@ function initCronJobs() {
         }
     });
 
-    // Booking expiry — every 5 minutes
+    // Booking expiry - every 5 minutes
     cron.schedule('*/5 * * * *', async () => {
         try {
             await bookingExpiry.run();
@@ -27,7 +28,7 @@ function initCronJobs() {
         }
     });
 
-    // Contract expiring soon — daily at 3:00 AM
+    // Contract expiring soon - daily at 3:00 AM
     cron.schedule('0 3 * * *', async () => {
         try {
             await contractExpiringSoon.run();
@@ -36,7 +37,7 @@ function initCronJobs() {
         }
     });
 
-    // Invoice generation — daily at 2:00 AM
+    // Invoice generation - daily at 2:00 AM
     cron.schedule('0 2 * * *', async () => {
         try {
             await invoiceGeneration.run();
@@ -45,7 +46,7 @@ function initCronJobs() {
         }
     });
 
-    // First rent invoice expiry — every 15 minutes
+    // First rent invoice expiry - every 15 minutes
     cron.schedule('*/15 * * * *', async () => {
         try {
             await firstRentExpiry.run();
@@ -54,7 +55,7 @@ function initCronJobs() {
         }
     });
 
-    // Signing reminder — every 15 minutes
+    // Signing reminder - every 15 minutes
     cron.schedule('*/15 * * * *', async () => {
         try {
             await signingReminder.run();
@@ -63,7 +64,7 @@ function initCronJobs() {
         }
     });
 
-    // First rent payment reminder — daily at 8:00 AM
+    // First rent payment reminder - daily at 8:00 AM
     cron.schedule('0 8 * * *', async () => {
         try {
             await firstRentReminder.run();
@@ -72,12 +73,21 @@ function initCronJobs() {
         }
     });
 
-    // Check-in expiry — every 15 minutes
+    // Check-in expiry - every 15 minutes
     cron.schedule('*/15 * * * *', async () => {
         try {
             await checkInExpiry.run();
         } catch (err) {
             console.error('[CronScheduler] checkInExpiry error:', err.message);
+        }
+    });
+
+    // Invoice overdue - daily at 6:00 AM
+    cron.schedule('0 6 * * *', async () => {
+        try {
+            await invoiceOverdue.run();
+        } catch (err) {
+            console.error('[CronScheduler] invoiceOverdue error:', err.message);
         }
     });
 

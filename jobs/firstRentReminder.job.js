@@ -1,19 +1,19 @@
 const { Op } = require('sequelize');
 const { sequelize } = require('../config/db');
-const { parseLocalDate } = require('../utils/date.util');
 const {
     sendPaymentReminderEmail,
     sendPaymentUrgentReminderEmail
 } = require('../utils/mail.util');
+const { FIRST_RENT_REMINDER_DAYS_BEFORE_DUE } = require('../constants/jobTimeRules');
 
 const run = async () => {
     const { Invoice, Contract, User, Room, Building } = sequelize.models;
 
-    const today = parseLocalDate(new Date().toISOString().split('T')[0]);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const today = new Date(todayStr + 'T00:00:00Z');
     const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + FIRST_RENT_REMINDER_DAYS_BEFORE_DUE);
     const tomorrowStr = tomorrow.toISOString().split('T')[0];
-    const todayStr = today.toISOString().split('T')[0];
 
     const invoiceIncludes = [{
         model: Contract,
@@ -39,9 +39,11 @@ const run = async () => {
         include: invoiceIncludes
     });
 
+    console.log(`[FirstRentReminderJob] Found ${tomorrowInvoices.length} invoice(s) due tomorrow (${tomorrowStr})`);
+
     for (const invoice of tomorrowInvoices) {
         try {
-            if (invoice.billing_period_start !== invoice.contract.start_date) continue;
+            if (String(invoice.billing_period_start) !== String(invoice.contract.start_date)) continue;
             const customer = invoice.contract.customer;
             if (!customer) continue;
 
@@ -69,9 +71,11 @@ const run = async () => {
         include: invoiceIncludes
     });
 
+    console.log(`[FirstRentReminderJob] Found ${todayInvoices.length} invoice(s) due today (${todayStr})`);
+
     for (const invoice of todayInvoices) {
         try {
-            if (invoice.billing_period_start !== invoice.contract.start_date) continue;
+            if (String(invoice.billing_period_start) !== String(invoice.contract.start_date)) continue;
             const customer = invoice.contract.customer;
             if (!customer) continue;
 

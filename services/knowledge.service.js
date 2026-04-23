@@ -4,7 +4,7 @@ const { sequelize } = require('../config/db');
 const { QueryTypes } = require('sequelize');
 
 /**
- * Chuyển đổi một object thành text chunk có ngữ nghĩa
+ * Build a semantic text chunk from a building record.
  */
 const buildBuildingChunk = (b) =>
   `Tòa nhà: ${b.name}. Địa chỉ: ${b.address}. Khu vực/Vị trí: ${b.location_name || 'Không rõ'}. Mô tả: ${b.description || 'Không có'}. Số tầng: ${b.total_floors || 'Không rõ'}. Trạng thái: ${b.is_active ? 'Đang hoạt động' : 'Ngừng hoạt động'}. Tổng số phòng: ${b.total_rooms ?? 'Không rõ'}. Phòng còn trống có thể thuê: ${b.available_rooms ?? 'Không rõ'}. Tiện ích đi kèm: ${b.facilities || 'Chưa cập nhật'}. Gần các trường đại học: ${b.nearby_universities || 'Không rõ'}.`;
@@ -27,7 +27,7 @@ function translateRoomStatus(s) {
 }
 
 /**
- * Tạo embedding vector cho một đoạn text
+ * Generate an embedding vector for a text chunk.
  */
 async function embedText(text) {
   const result = await embeddingModel.embedContent(text);
@@ -35,21 +35,21 @@ async function embedText(text) {
   if (!raw || raw.length === 0) {
     throw new Error(`Empty embedding returned for text: "${text.slice(0, 50)}"`);
   }
-  // Chuyển về plain number[] — Pinecone SDK v7 yêu cầu regular Array
+  // Convert to plain number[] for Pinecone SDK v7.
   return Array.from(raw);
 }
 
 /**
- * Upsert một batch vectors vào Pinecone
+ * Upsert vectors to Pinecone in fixed-size batches.
  */
 async function upsertBatch(index, vectors) {
   if (vectors.length === 0) {
-    console.log('[upsertBatch] Skipped — empty array');
+    console.log('[upsertBatch] Skipped - empty array');
     return;
   }
   const first = vectors[0];
   console.log(`[upsertBatch] → ${vectors.length} records | id="${first.id}" | values.length=${first.values?.length}`);
-  // Pinecone SDK v7: upsert nhận {records: [...]} thay vì direct array
+  // Pinecone SDK v7 expects { records: [...] }.
   const batchSize = 100;
   for (let i = 0; i < vectors.length; i += batchSize) {
     const batch = vectors.slice(i, i + batchSize);
@@ -58,13 +58,13 @@ async function upsertBatch(index, vectors) {
 }
 
 /**
- * Sync toàn bộ knowledge base từ PostgreSQL vào Pinecone
+ * Sync all searchable knowledge from PostgreSQL to Pinecone.
  */
 async function syncKnowledge() {
   const index = getPineconeIndex();
   let totalUpserted = 0;
 
-  // ── Kiểm tra kết nối Pinecone với dummy vector ──────────────────
+  // Validate Pinecone connectivity with a dummy vector.
   console.log('[KnowledgeSync] Testing Pinecone connectivity...');
   const dummyVector = {
     id: '__connectivity-test__',
@@ -73,18 +73,9 @@ async function syncKnowledge() {
   };
   await index.upsert({ records: [dummyVector] });
 
-  console.log('[KnowledgeSync] ✅ Pinecone connectivity OK');
+  console.log('[KnowledgeSync] Pinecone connectivity OK');
 
-  // Xóa tất cả vector cũ trước khi sync để purge dữ liệu hợp đồng cũ
-  try {
-    console.log('[KnowledgeSync] Deleting all existing vectors...');
-    await index.deleteAll();
-    console.log('[KnowledgeSync] ✅ All old vectors deleted');
-  } catch (error) {
-    console.warn('[KnowledgeSync] Warning: Failed to deleteAll() which is fine if index is empty', error.message);
-  }
-
-  // ── 1. Buildings ──────────────────────────────────────────────
+  // 1) Buildings
   const buildings = await sequelize.query(
     `SELECT b.id, b.name, b.address, b.description, b.total_floors, b.is_active, l.name as location_name,
             (SELECT COUNT(*) FROM rooms r WHERE r.building_id = b.id AND r.deleted_at IS NULL) as total_rooms,
@@ -118,9 +109,9 @@ async function syncKnowledge() {
   }
   await upsertBatch(index, buildingVectors);
   totalUpserted += buildingVectors.length;
-  console.log(`[KnowledgeSync] ✅ Buildings upserted: ${buildingVectors.length}`);
+  console.log(`[KnowledgeSync] Buildings upserted: ${buildingVectors.length}`);
 
-  // ── 2. Room Types ─────────────────────────────────────────────
+  // 2) Room types
   const roomTypes = await sequelize.query(
     `SELECT rt.id, rt.name, rt.description, rt.base_price, rt.deposit_months, rt.capacity_min, rt.capacity_max, rt.bedrooms, rt.bathrooms, rt.area_sqm,
             (SELECT STRING_AGG(CONCAT(at.name, ' (x', rta.quantity, ')'), ', ')
@@ -147,7 +138,7 @@ async function syncKnowledge() {
   totalUpserted += rtVectors.length;
   console.log(`[KnowledgeSync] ✅ RoomTypes upserted: ${rtVectors.length}`);
 
-  // ── 3. Rooms (joined with building + roomtype) ────────────────
+  // 3) Rooms (joined with building and room type)
   const rooms = await sequelize.query(
     `SELECT r.id, r.room_number, r.floor, r.status,
             b.name AS building_name,
@@ -177,7 +168,7 @@ async function syncKnowledge() {
   totalUpserted += roomVectors.length;
   console.log(`[KnowledgeSync] Rooms: ${roomVectors.length}`);
 
-  // ── 4. Facilities ─────────────────────────────────────────────
+  // 4) Facilities
   const facilities = await sequelize.query(
     `SELECT f.id, f.name,
             STRING_AGG(DISTINCT b.name, ', ') AS building_names
@@ -202,9 +193,63 @@ async function syncKnowledge() {
   totalUpserted += facVectors.length;
   console.log(`[KnowledgeSync] Facilities: ${facVectors.length}`);
 
+  // 5) Contracts (active lifecycle states)
+  const contracts = await sequelize.query(
+    `SELECT c.id, c.contract_number, c.start_date, c.end_date,
+            c.base_rent, c.deposit_amount, c.status,
+            r.room_number, b.name AS building_name,
+            CONCAT(u.first_name, ' ', u.last_name) AS customer_name, u.email AS customer_email
+     FROM contracts c
+     JOIN rooms r ON r.id = c.room_id
+     JOIN buildings b ON b.id = r.building_id
+     JOIN users u ON u.id = c.customer_id
+     WHERE c.status IN ('PENDING_CUSTOMER_SIGNATURE','PENDING_MANAGER_SIGNATURE','PENDING_FIRST_PAYMENT','PENDING_CHECK_IN','ACTIVE','EXPIRING_SOON')`,
+    { type: QueryTypes.SELECT }
+  );
 
+  const contractVectors = [];
+  for (const c of contracts) {
+    const text = buildContractChunk(c);
+    const embedding = await embedText(text);
+    contractVectors.push({
+      id: `contract-${c.id}`,
+      values: embedding,
+      metadata: { type: 'contract', id: c.id, content: text }
+    });
+  }
+  await upsertBatch(index, contractVectors);
+  totalUpserted += contractVectors.length;
+  console.log(`[KnowledgeSync] Contracts: ${contractVectors.length}`);
 
-  // ── 7. Universities ─────────────────────────────────────────────
+  // 6) Bookings (active states)
+  const bookings = await sequelize.query(
+    `SELECT bk.id, bk.booking_number, bk.check_in_date, bk.duration_months,
+            bk.deposit_amount, bk.status,
+            r.room_number, b.name AS building_name,
+            CONCAT(u.first_name, ' ', u.last_name) AS customer_name, u.email AS customer_email
+     FROM bookings bk
+     JOIN rooms r ON r.id = bk.room_id
+     JOIN buildings b ON b.id = r.building_id
+     JOIN users u ON u.id = bk.customer_id
+     WHERE bk.status IN ('PENDING', 'DEPOSIT_PAID')`,
+    { type: QueryTypes.SELECT }
+  );
+
+  const bookingVectors = [];
+  for (const bk of bookings) {
+    const text = buildBookingChunk(bk);
+    const embedding = await embedText(text);
+    bookingVectors.push({
+      id: `booking-${bk.id}`,
+      values: embedding,
+      metadata: { type: 'booking', id: bk.id, content: text }
+    });
+  }
+  await upsertBatch(index, bookingVectors);
+  totalUpserted += bookingVectors.length;
+  console.log(`[KnowledgeSync] Bookings: ${bookingVectors.length}`);
+
+  // 7) Universities
   const universities = await sequelize.query(
     `SELECT u.id, u.name, u.address, u.is_active, l.name as location_name,
             (SELECT STRING_AGG(DISTINCT b.name, ', ')
@@ -229,9 +274,9 @@ async function syncKnowledge() {
   }
   await upsertBatch(index, universityVectors);
   totalUpserted += universityVectors.length;
-  console.log(`[KnowledgeSync] ✅ Universities upserted: ${universityVectors.length}`);
+  console.log(`[KnowledgeSync] Universities upserted: ${universityVectors.length}`);
 
-  console.log(`[KnowledgeSync] ✅ Done! Total vectors upserted: ${totalUpserted}`);
+  console.log(`[KnowledgeSync] Sync complete. Total vectors upserted: ${totalUpserted}`);
   return totalUpserted;
 }
 

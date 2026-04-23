@@ -9,18 +9,18 @@ app.use(cors())
 app.use(express.json())
 app.use(snakeCaseResponse)
 
-// ─── Health check ──────────────────────────────────────────
+// Health check.
 app.get('/health', (req, res) => res.json({ status: 'ok' }))
 
-// ─── Routes ────────────────────────────────────────────────
+// API routes.
 app.use('/api/rooms', require('./routes/room.routes'))
 app.use('/api/room-types', require('./routes/roomType.routes'))
 app.use('/api/assets', require('./routes/asset.routes'))
-app.use('/api/locations', require('./routes/location.routes'));     //
-app.use('/api/universities', require('./routes/university.routes')); //
-app.use('/api/buildings', require('./routes/building.routes'));      //
-app.use('/api/buildings/rooms', require('./routes/room.routes'));      //
-app.use('/api/facilities', require('./routes/facility.routes'));     //
+app.use('/api/locations', require('./routes/location.routes'));
+app.use('/api/universities', require('./routes/university.routes'));
+app.use('/api/buildings', require('./routes/building.routes'));
+app.use('/api/buildings/rooms', require('./routes/room.routes'));
+app.use('/api/facilities', require('./routes/facility.routes'));
 app.use('/api/requests', require('./routes/request.routes'));
 app.use('/api/auth/internal', require('./routes/internalAuth.route'));
 app.use('/api/users', require('./routes/adminUser.route'));
@@ -40,4 +40,5 @@ app.use('/api/notifications', require('./routes/notification.routes'));
 app.use('/api/dashboard', require('./routes/dashboard.route'));
 app.use('/api/utils', require('./routes/utils.routes'));
 app.use('/api/chatbot', require('./routes/chatbot.routes'));
+app.use('/api/admin/jobs', require('./routes/adminJob.routes'));
 module.exports = app

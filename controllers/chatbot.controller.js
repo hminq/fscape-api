@@ -31,7 +31,7 @@ const chat = async (req, res) => {
 
 /**
  * POST /api/chatbot/sync
- * Sync knowledge base từ DB vào Pinecone — admin only
+ * Sync knowledge base từ DB vào Pinecone - admin only
  */
 const syncKnowledge = async (req, res) => {
   try {

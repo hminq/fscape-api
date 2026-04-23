@@ -16,19 +16,20 @@ const {
 } = require('../constants/bookingEnums');
 const { billingCycleToMonths } = require('../utils/billingCycle.util');
 const { SIGNATURE_EXPIRY_MS } = require('../constants/contract');
+const { RENEWAL_MAX_GAP_DAYS } = require('../constants/jobTimeRules');
 const { generateSequentialId, generateNumberedId } = require('../utils/generateId');
 const { INVOICE_TYPE } = require('../constants/invoiceEnums');
 const { sendContractSigningEmail, sendManagerSigningEmail, sendInvoiceCreatedEmail, sendRenewalSigningEmail, sendCheckInReminderEmail, sendManualExpiringReminderEmail, sendContractTerminatedEmail } = require('../utils/mail.util');
 const Invoice = require('../models/invoice.model');
 const { generateContractPdf } = require('../utils/pdf.util');
 const auditService = require('./audit.service');
-const { parseLocalDate } = require('../utils/date.util');
+const { parseUTCDate } = require('../utils/date.util');
 const Request = require('../models/request.model');
 const RequestStatusHistory = require('../models/requestStatusHistory.model');
 const { createNotification } = require('./notification.service');
 const { generateRequestNumber } = require('./request.service');
 
-/* ── helpers ─────────────────────────────────────────────────── */
+/* Helpers */
 
 const TIMESTAMP_FIELDS = ['created_at', 'updated_at', 'createdAt', 'updatedAt'];
 
@@ -45,20 +46,43 @@ const formatCurrency = (amount) => {
 
 const formatDate = (date) => {
     if (!date) return '';
-    const d = parseLocalDate(date);
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const yyyy = d.getFullYear();
+    const d = parseUTCDate(date);
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const yyyy = d.getUTCFullYear();
     return `${dd}/${mm}/${yyyy}`;
 };
 
+const formatGender = (gender) => {
+    switch ((gender || '').toUpperCase()) {
+        case 'MALE':
+            return 'Nam';
+        case 'FEMALE':
+            return 'Nữ';
+        case 'OTHER':
+            return 'Khác';
+        default:
+            return '';
+    }
+};
+
 const addMonths = (dateStr, months) => {
-    const d = parseLocalDate(dateStr);
-    d.setMonth(d.getMonth() + months);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
+    const d = parseUTCDate(dateStr);
+    d.setUTCMonth(d.getUTCMonth() + months);
+    const yyyy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(d.getUTCDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
+};
+
+const HARD_CODED_CDN_BASE = 'https://d1b3vbhmpnv3fk.cloudfront.net';
+
+const toPublicAssetUrl = (value) => {
+    if (!value) return value;
+    if (value.startsWith('http://') || value.startsWith('https://')) return value;
+    const base = (process.env.CLOUD_FRONT_URL || process.env.CDN_BASE_URL || HARD_CODED_CDN_BASE).replace(/\/$/, '');
+    const path = value.replace(/^\//, '');
+    return base ? `${base}/${path}` : value;
 };
 
 /**
@@ -72,12 +96,12 @@ const renderTemplate = (htmlContent, fields) => {
     return rendered;
 };
 
-/* ── queries ─────────────────────────────────────────────────── */
+/* Queries */
 
 /**
- * Lấy danh sách hợp đồng.
- * - ADMIN: xem tất cả, bao gồm timestamps.
- * - BUILDING_MANAGER: chỉ xem hợp đồng trong tòa nhà mình, ẩn timestamps.
+ * Get contract list.
+ * - ADMIN: can view all contracts with timestamps.
+ * - BUILDING_MANAGER: can view contracts in assigned building, without timestamps.
  */
 const getAllContracts = async ({ page = 1, limit = 10, status, building_id, search } = {}, user) => {
     const offset = (page - 1) * limit;
@@ -105,7 +129,7 @@ const getAllContracts = async ({ page = 1, limit = 10, status, building_id, sear
         {
             model: Room,
             as: 'room',
-            attributes: ['id', 'room_number'],
+            attributes: ['id', 'room_number', 'floor'],
             ...(scopedBuildingId ? { required: true } : {}),
             include: [{
                 model: Building,
@@ -133,10 +157,10 @@ const getAllContracts = async ({ page = 1, limit = 10, status, building_id, sear
 };
 
 /**
- * Chi tiết hợp đồng.
- * - ADMIN: đầy đủ.
- * - BUILDING_MANAGER: chỉ xem nếu thuộc building mình, ẩn timestamps.
- * - RESIDENT / CUSTOMER: chỉ xem hợp đồng của mình.
+ * Get contract details.
+ * - ADMIN: full access.
+ * - BUILDING_MANAGER: only assigned building, without timestamps.
+ * - RESIDENT / CUSTOMER: own contracts only.
  */
 const getContractById = async (id, user) => {
     const contract = await Contract.findByPk(id, {
@@ -176,10 +200,9 @@ const getContractById = async (id, user) => {
 };
 
 /**
- * Cập nhật thông tin hợp đồng (gia hạn, dời end_date, ...)
- * - ADMIN: update bất kì hợp đồng nào.
- * - BUILDING_MANAGER: chỉ update hợp đồng trong tòa nhà mình.
- * - Chỉ cho phép khi contract chưa ACTIVE.
+ * Update contract metadata.
+ * - ADMIN: can update any contract.
+ * - BUILDING_MANAGER: can update contracts in assigned building.
  */
 const updateContract = async (id, data, user) => {
     const contract = await Contract.findByPk(id, {
@@ -203,13 +226,13 @@ const updateContract = async (id, data, user) => {
 };
 
 /**
- * Lấy danh sách hợp đồng của tôi (RESIDENT / CUSTOMER)
+ * Get contracts of current user (RESIDENT / CUSTOMER).
  */
 const getMyContracts = async (userId, query = {}) => {
     const {
         page = 1,
         limit = 10,
-        sort_by = 'createdAt',
+        sort_by = 'created_at',
         sort_order = 'DESC',
         status,
         search,
@@ -231,8 +254,14 @@ const getMyContracts = async (userId, query = {}) => {
     }
 
     // Allowed sort columns
-    const allowedSorts = ['createdAt', 'start_date', 'end_date', 'base_rent', 'status'];
-    const sortCol = allowedSorts.includes(sort_by) ? sort_by : 'createdAt';
+    const sortColumnMap = {
+        created_at: 'createdAt',
+        start_date: 'start_date',
+        end_date: 'end_date',
+        base_rent: 'base_rent',
+        status: 'status',
+    };
+    const sortCol = sortColumnMap[sort_by] || 'createdAt';
     const sortDir = sort_order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
     const { count, rows } = await Contract.findAndCountAll({
@@ -267,25 +296,25 @@ const getMyContracts = async (userId, query = {}) => {
     };
 };
 
-/* ── contract creation ────────────────────────────── */
+/* Contract creation */
 
 /**
- * Tạo hợp đồng từ booking(sau khi depóosit thanhành coông).
+ * Create contract from a DEPOSIT_PAID booking.
  *
- *   1. Lấy default contract template
- *   2. Lấy thông tin customer, room, building, manager
- *   3. Build dynamic_fields + rendered_content
- *   4. INSERT contract với status = PENDING_CUSTOMER_SIGNATURE
- *   5. Cập nhật booking.contract_id
+ * 1. Load default contract template.
+ * 2. Load customer, room, building, and manager.
+ * 3. Build dynamic_fields and rendered_content.
+ * 4. Insert contract with PENDING_CUSTOMER_SIGNATURE status.
+ * 5. Link booking.contract_id.
  *
- * @param {string} bookingId - UUID của booking đã DEPOSIT_PAID
- * @returns {Object} contract instance
+ * @param {string} bookingId - Booking UUID in DEPOSIT_PAID status
+ * @returns {Object} Contract instance
  */
 const createContractFromBooking = async (bookingId) => {
     const transaction = await sequelize.transaction();
 
     try {
-        // 1. Lấy booking + room + room_type + building
+        // 1) Load booking, room, room type, and building.
         const { RoomType } = sequelize.models;
         const booking = await Booking.findByPk(bookingId, {
             include: [{
@@ -308,28 +337,28 @@ const createContractFromBooking = async (bookingId) => {
         const building = room.building;
         const roomType = room.room_type;
 
-        // 2. Lấy customer + profile
+        // 2) Load customer and profile.
         const customer = await User.findByPk(booking.customer_id, {
             include: [{ model: CustomerProfile, as: 'profile' }],
             transaction
         });
         if (!customer) throw { status: 404, message: 'Không tìm thấy khách hàng' };
 
-        // 3. Lấy building manager
+        // 3) Load building manager.
         const manager = await User.findOne({
             where: { building_id: building.id, role: ROLES.BUILDING_MANAGER, is_active: true },
             transaction
         });
         if (!manager) throw { status: 400, message: 'Không tìm thấy Quản lý tòa nhà đang hoạt động cho tòa nhà này' };
 
-        // 4. Lấy default contract template
+        // 4) Load default contract template.
         const template = await ContractTemplate.findOne({
             where: { is_default: true, is_active: true },
             transaction
         });
         if (!template) throw { status: 400, message: 'Không tìm thấy mẫu hợp đồng mặc định đang hoạt động' };
 
-        // 5. Tính toán dates + term/billing
+        // 5) Resolve dates and billing values.
         const durationMonths = Number(booking.duration_months);
         const resolvedDurationMonths = isValidContractLength(durationMonths)
             ? durationMonths
@@ -355,7 +384,7 @@ const createContractFromBooking = async (bookingId) => {
             manager_name: `${manager.last_name || ''} ${manager.first_name || ''}`.trim(),
             customer_name: `${customer.last_name || ''} ${customer.first_name || ''}`.trim(),
             customer_date_of_birth: formatDate(profile?.date_of_birth),
-            customer_gender: profile?.gender || '',
+            customer_gender: formatGender(profile?.gender),
             customer_phone: customer.phone || '',
             customer_email: customer.email || '',
             customer_permanent_address: profile?.permanent_address || '',
@@ -404,7 +433,7 @@ const createContractFromBooking = async (bookingId) => {
 
         // Send signing email with direct link
         const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-        const signingUrl = `${clientUrl}/sign?contractId=${contract.id}`;
+        const signingUrl = `${clientUrl}/sign?contract_id=${contract.id}`;
 
         await sendContractSigningEmail(customer.email, {
             customerName: dynamicFields.customer_name,
@@ -422,23 +451,23 @@ const createContractFromBooking = async (bookingId) => {
     }
 };
 
-/* ── contract renewal ─────────────────────────────────────────── */
+/* Contract renewal */
 
 /**
- * Gia hạn hợp đồng (RESIDENT only).
+ * Renew contract (RESIDENT only).
  *
- *   1. Validate user owns the contract and is RESIDENT
- *   2. Validate contract status (ACTIVE or EXPIRING_SOON)
- *   3. Validate no pending renewal exists
- *   4. Validate duration_months and billing_cycle
- *   5. Create new contract linked via renewed_from_contract_id
- *   6. Create ContractExtension audit record
- *   7. Send renewal signing email
+ * 1. Validate owner and role.
+ * 2. Validate contract status.
+ * 3. Ensure no pending renewal exists.
+ * 4. Validate duration_months and billing_cycle.
+ * 5. Create renewed contract linked by renewed_from_contract_id.
+ * 6. Create ContractExtension audit trail.
+ * 7. Send renewal signing email.
  *
- * @param {string} contractId - UUID of the contract to renew
- * @param {Object} body - { duration_months, billing_cycle?, notes? }
+ * @param {string} contractId - Contract UUID to renew
+ * @param {Object} body - { duration_months, billing_cycle?, start_date?, notes? }
  * @param {Object} user - Authenticated user (req.user)
- * @returns {Object} new contract instance
+ * @returns {Object} New contract instance
  */
 const renewContract = async (contractId, body, user) => {
     const transaction = await sequelize.transaction();
@@ -484,7 +513,7 @@ const renewContract = async (contractId, body, user) => {
         }
 
         // 5. Validate duration_months
-        const { duration_months, billing_cycle, notes } = body;
+        const { duration_months, billing_cycle, notes, start_date } = body;
         if (!duration_months || !isValidContractLength(duration_months)) {
             throw { status: 400, message: 'duration_months phải là 6 hoặc 12' };
         }
@@ -495,34 +524,50 @@ const renewContract = async (contractId, body, user) => {
             throw { status: 400, message: 'billing_cycle không hợp lệ (CYCLE_1M, CYCLE_3M, CYCLE_6M, ALL_IN)' };
         }
 
+        // 7. Validate start_date: must be within [old.end_date, old.end_date + RENEWAL_MAX_GAP_DAYS]
+        const oldEndDate = parseUTCDate(oldContract.end_date);
+        const maxStartDate = new Date(oldEndDate);
+        maxStartDate.setUTCDate(maxStartDate.getUTCDate() + RENEWAL_MAX_GAP_DAYS);
+
+        let startDate = oldContract.end_date;
+        if (start_date) {
+            const requested = parseUTCDate(start_date);
+            if (requested < oldEndDate || requested > maxStartDate) {
+                throw {
+                    status: 400,
+                    message: `Ngày bắt đầu phải từ ${oldContract.end_date} đến ${maxStartDate.toISOString().split('T')[0]}`
+                };
+            }
+            startDate = start_date;
+        }
+
         const room = oldContract.room;
         const building = room.building;
         const roomType = room.room_type;
 
-        // 7. Fetch customer + profile
+        // 8. Fetch customer + profile
         const customer = await User.findByPk(oldContract.customer_id, {
             include: [{ model: CustomerProfile, as: 'profile' }],
             transaction
         });
         if (!customer) throw { status: 404, message: 'Không tìm thấy khách hàng' };
 
-        // 8. Fetch building manager
+        // 9. Fetch building manager
         const manager = await User.findOne({
             where: { building_id: building.id, role: ROLES.BUILDING_MANAGER, is_active: true },
             transaction
         });
         if (!manager) throw { status: 400, message: 'Không tìm thấy Quản lý tòa nhà đang hoạt động cho tòa nhà này' };
 
-        // 9. Fetch default contract template
+        // 10. Fetch default contract template
         const template = await ContractTemplate.findOne({
             where: { is_default: true, is_active: true },
             transaction
         });
         if (!template) throw { status: 400, message: 'Không tìm thấy mẫu hợp đồng mặc định đang hoạt động' };
 
-        // 10. Calculate dates
+        // 11. Calculate dates
         const durationMonths = Number(duration_months);
-        const startDate = oldContract.end_date; // seamless transition
         const endDate = addMonths(startDate, durationMonths);
 
         // 11. Generate contract number
@@ -540,7 +585,7 @@ const renewContract = async (contractId, body, user) => {
             manager_name: `${manager.last_name || ''} ${manager.first_name || ''}`.trim(),
             customer_name: `${customer.last_name || ''} ${customer.first_name || ''}`.trim(),
             customer_date_of_birth: formatDate(profile?.date_of_birth),
-            customer_gender: profile?.gender || '',
+            customer_gender: formatGender(profile?.gender),
             customer_phone: customer.phone || '',
             customer_email: customer.email || '',
             customer_permanent_address: profile?.permanent_address || '',
@@ -594,7 +639,7 @@ const renewContract = async (contractId, body, user) => {
 
         // 16. Send renewal signing email
         const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-        const signingUrl = `${clientUrl}/sign?contractId=${newContract.id}`;
+        const signingUrl = `${clientUrl}/sign?contract_id=${newContract.id}`;
 
         await sendRenewalSigningEmail(customer.email, {
             customerName: dynamicFields.customer_name,
@@ -615,7 +660,7 @@ const renewContract = async (contractId, body, user) => {
     }
 };
 
-/* ── contract signing ────────────────────────────────────────── */
+/* Contract signing */
 
 /**
  * Customer / Resident ký hợp đồng.
@@ -652,7 +697,7 @@ const customerSign = async (contractId, signatureUrl, user, req) => {
     const oldStatus = contract.status;
 
     // Update rendered_content: replace customer_signature placeholder with <img>
-    const signatureImg = `<img src="${signatureUrl}" alt="Customer Signature" style="width:200px;height:80px;object-fit:contain" />`;
+    const signatureImg = `<img src="${toPublicAssetUrl(signatureUrl)}" alt="Customer Signature" style="width:200px;height:80px;object-fit:contain" />`;
     let updatedContent = contract.rendered_content || '';
     updatedContent = updatedContent.replace('{{customer_signature}}', signatureImg);
 
@@ -742,7 +787,7 @@ const managerSign = async (contractId, signatureUrl, user, req) => {
         const oldStatus = contract.status;
 
         // Update rendered_content: replace manager_signature placeholder with <img>
-        const signatureImg = `<img src="${signatureUrl}" alt="Manager Signature" style="width:200px;height:80px;object-fit:contain" />`;
+        const signatureImg = `<img src="${toPublicAssetUrl(signatureUrl)}" alt="Manager Signature" style="width:200px;height:80px;object-fit:contain" />`;
         let updatedContent = contract.rendered_content || '';
         updatedContent = updatedContent.replace('{{manager_signature}}', signatureImg);
 
@@ -755,10 +800,10 @@ const managerSign = async (contractId, signatureUrl, user, req) => {
         // Compute new billing timestamp fields
         const nextRentBillingAt = billingMonths == null
             ? null
-            : parseLocalDate(addMonths(contract.start_date, billingMonths));
-        const startLocal = parseLocalDate(contract.start_date);
+            : parseUTCDate(addMonths(contract.start_date, billingMonths));
+        const startUTC = parseUTCDate(contract.start_date);
         const nextServiceBillingAt = new Date(
-            startLocal.getTime() + 30 * 24 * 60 * 60 * 1000
+            startUTC.getTime() + 30 * 24 * 60 * 60 * 1000
         );
 
         // 1. Update contract → PENDING_FIRST_PAYMENT (awaiting 1st rent payment)
@@ -773,11 +818,11 @@ const managerSign = async (contractId, signatureUrl, user, req) => {
             signature_expires_at: null
         }, { transaction });
 
-        // 2–4. Handle room, user role, and booking based on renewal vs new contract
+        // 2-4. Handle room, user role, and booking based on renewal vs new contract
         if (contract.renewed_from_contract_id) {
-            // RENEWAL: do NOT finish old contract yet — defer to payment callback
-            // Room stays OCCUPIED — no change needed
-            // No booking to CONVERT — renewals don't create bookings
+            // RENEWAL: do NOT finish old contract yet - defer to payment callback
+            // Room stays OCCUPIED - no change needed
+            // No booking to CONVERT - renewals don't create bookings
 
             // Safety net: restore RESIDENT role if cron downgraded it
             // (edge case: old contract expired before renewal was signed)
@@ -820,8 +865,8 @@ const managerSign = async (contractId, signatureUrl, user, req) => {
             rentMonths = Number(contract.duration_months);
         } else {
             // Subtract 1 day from end: e.g. Jan 1 + 3 months = Apr 1, end = Mar 31
-            const endDate = new Date(addMonths(billingPeriodStart, billingMonths));
-            endDate.setDate(endDate.getDate() - 1);
+            const endDate = parseUTCDate(addMonths(billingPeriodStart, billingMonths));
+            endDate.setUTCDate(endDate.getUTCDate() - 1);
             billingPeriodEnd = endDate.toISOString().split('T')[0];
             rentMonths = billingMonths;
         }
@@ -864,7 +909,7 @@ const managerSign = async (contractId, signatureUrl, user, req) => {
 
         await transaction.commit();
 
-        // Generate final PDF and upload to Cloudinary (async, non-blocking)
+        // Generate final PDF and upload to S3 (async, non-blocking)
         generateContractPdf(contract.rendered_content, contract.contract_number)
             .then(async (pdfUrl) => {
                 await Contract.update({ pdf_url: pdfUrl }, { where: { id: contract.id } });
@@ -885,7 +930,7 @@ const managerSign = async (contractId, signatureUrl, user, req) => {
                 invoiceId: firstInvoice.id,
                 roomNumber: contract.room?.room_number || '',
                 buildingName: contract.room?.building?.name || '',
-                billingPeriod: `${formatDate(billingPeriodStart)} – ${formatDate(billingPeriodEnd)}`,
+                billingPeriod: `${formatDate(billingPeriodStart)} - ${formatDate(billingPeriodEnd)}`,
                 totalAmount: formatAmount(roomRent),
                 dueDate: formatDate(contract.start_date)
             }).catch(err => console.error('[ContractService] Failed to send invoice email:', err));
@@ -899,13 +944,24 @@ const managerSign = async (contractId, signatureUrl, user, req) => {
     }
 };
 
-const getContractStats = async () => {
+const getContractStats = async (user) => {
+    const include = [{
+        model: Room, as: 'room', attributes: ['id'],
+        include: [{ model: Building, as: 'building', attributes: ['id', 'name'] }]
+    }];
+
+    if (user?.role === ROLES.BUILDING_MANAGER) {
+        if (!user.building_id) {
+            throw { status: 403, message: 'Building Manager chưa được gán tòa nhà.' };
+        }
+        include[0].include[0].where = { id: user.building_id };
+        include[0].include[0].required = true;
+        include[0].required = true;
+    }
+
     const contracts = await Contract.findAll({
         attributes: ['status', 'room_id'],
-        include: [{
-            model: Room, as: 'room', attributes: ['id'],
-            include: [{ model: Building, as: 'building', attributes: ['id', 'name'] }]
-        }],
+        include,
         raw: true, nest: true,
     });
 
@@ -930,7 +986,7 @@ const getContractStats = async () => {
     return { total: contracts.length, by_status: byStatus, by_building: Object.values(byBuilding).sort((a, b) => b.count - a.count) };
 };
 
-/* ── Manual reminder ─────────────────────────────────────── */
+/* Manual reminder */
 
 const REMINDER_STATUS_MAP = {
     SIGN: 'PENDING_CUSTOMER_SIGNATURE',
@@ -981,7 +1037,7 @@ const sendManualReminder = async (contractId, reminderType, user) => {
     const roomNumber = contract.room?.room_number || '';
     const buildingName = contract.room?.building?.name || '';
     const contractNumber = contract.contract_number;
-    const signingUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/sign?contract=${contractId}`;
+    const signingUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/sign?contract_id=${contractId}`;
 
     switch (reminderType) {
         case 'SIGN': {
@@ -1029,7 +1085,7 @@ const sendManualReminder = async (contractId, reminderType, user) => {
     return { message: `Đã gửi email nhắc nhở ${REMINDER_LABEL[reminderType]} đến ${customer.email}` };
 };
 
-/* ── Contract termination (Admin / BM) ─────────────────────── */
+/* Contract termination (ADMIN / BM) */
 
 const PENDING_STATUSES = [
     'PENDING_CUSTOMER_SIGNATURE',
@@ -1043,8 +1099,8 @@ const ACTIVE_STATUSES = ['ACTIVE', 'EXPIRING_SOON'];
 /**
  * Admin/BM chấm dứt hợp đồng.
  *
- * Case 1 — Pending contracts: terminate immediately, cancel booking, release room.
- * Case 2 — Active contracts: auto-create CHECKOUT request at IN_PROGRESS,
+ * Case 1 - Pending contracts: terminate immediately, cancel booking, release room.
+ * Case 2 - Active contracts: auto-create CHECKOUT request at IN_PROGRESS,
  *           staff then performs checkout inspection via existing flow.
  */
 const terminateContract = async (contractId, body, user, req) => {
@@ -1082,7 +1138,7 @@ const terminateContract = async (contractId, body, user, req) => {
 
     // Active contracts require assigned_staff_id
     if (isActive && !assigned_staff_id) {
-        throw { status: 400, message: 'Hợp đồng đang hoạt động — cần chỉ định nhân viên (assigned_staff_id) để thực hiện checkout' };
+        throw { status: 400, message: 'Hợp đồng đang hoạt động - cần chỉ định nhân viên (assigned_staff_id) để thực hiện checkout' };
     }
 
     // Validate staff if provided
@@ -1101,7 +1157,7 @@ const terminateContract = async (contractId, body, user, req) => {
 
     try {
         if (isPending) {
-            // ── Case 1: Pending → terminate immediately ──
+            // Case 1: pending contract -> terminate immediately.
             await contract.update({
                 status: 'TERMINATED',
                 notes: `[Chấm dứt bởi ${user.role}] ${termination_reason}`,
@@ -1188,7 +1244,7 @@ const terminateContract = async (contractId, body, user, req) => {
             return { contract, case: 'TERMINATED' };
 
         } else {
-            // ── Case 2: Active → create CHECKOUT request at IN_PROGRESS ──
+            // Case 2: active contract -> create IN_PROGRESS checkout request.
             await contract.update({
                 notes: `[Chấm dứt bởi ${user.role}] ${termination_reason}`
             }, { transaction });
@@ -1200,7 +1256,7 @@ const terminateContract = async (contractId, body, user, req) => {
                 resident_id: contract.customer_id,
                 assigned_staff_id: assigned_staff_id,
                 request_type: 'CHECKOUT',
-                title: `Checkout — Chấm dứt hợp đồng ${contract.contract_number}`,
+                title: `Checkout - Chấm dứt hợp đồng ${contract.contract_number}`,
                 description: `Yêu cầu checkout tự động do hợp đồng bị chấm dứt. Lý do: ${termination_reason}`,
                 status: 'IN_PROGRESS',
                 service_price: 0
@@ -1243,7 +1299,7 @@ const terminateContract = async (contractId, body, user, req) => {
                 await createNotification({
                     type: 'CONTRACT_TERMINATION_INITIATED',
                     title: 'Hợp đồng sắp bị chấm dứt',
-                    content: `Hợp đồng ${contract.contract_number} sẽ bị chấm dứt. Nhân viên sẽ liên hệ bạn để thực hiện checkout. Lý do: ${termination_reason}`,
+                    content: `Hợp đồng ${contract.contract_number} sẽ bị chấm dứt. Nhân viên sẽ liên hệ bạn để thực hiện trả phòng. Lý do: ${termination_reason}`,
                     target_type: 'CONTRACT',
                     target_id: contract.id,
                     created_by: user.id,
@@ -1253,8 +1309,8 @@ const terminateContract = async (contractId, body, user, req) => {
                 // Notify assigned staff
                 await createNotification({
                     type: 'CHECKOUT_REQUEST_ASSIGNED',
-                    title: 'Nhiệm vụ checkout mới',
-                    content: `Bạn được giao thực hiện checkout phòng ${contract.room?.room_number || ''} (hợp đồng ${contract.contract_number})`,
+                    title: 'Nhiệm vụ trả phòng mới',
+                    content: `Bạn được giao thực hiện trả phòng ${contract.room?.room_number || ''} (hợp đồng ${contract.contract_number}).`,
                     target_type: 'REQUEST',
                     target_id: checkoutRequest.id,
                     created_by: user.id,

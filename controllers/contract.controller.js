@@ -45,7 +45,7 @@ const getMyContracts = async (req, res) => {
     } catch (err) { return handleError(res, err); }
 };
 
-// [PATCH] /api/contracts/:id/sign — Customer/Resident signs (authenticated)
+// [PATCH] /api/contracts/:id/sign - Customer/Resident signs (authenticated)
 const customerSign = async (req, res) => {
     try {
         const { signature_url } = req.body;
@@ -65,7 +65,7 @@ const customerSign = async (req, res) => {
     } catch (err) { return handleError(res, err); }
 };
 
-// [PATCH] /api/contracts/:id/manager-sign — Building Manager signs
+// [PATCH] /api/contracts/:id/manager-sign - Building Manager signs
 const managerSign = async (req, res) => {
     try {
         const { signature_url } = req.body;
@@ -85,7 +85,7 @@ const managerSign = async (req, res) => {
     } catch (err) { return handleError(res, err); }
 };
 
-// [POST] /api/contracts/:id/renew — Resident renews their contract
+// [POST] /api/contracts/:id/renew - Resident renews their contract
 const renewContract = async (req, res) => {
     try {
         const contract = await contractService.renewContract(
@@ -101,12 +101,12 @@ const renewContract = async (req, res) => {
 // [GET] /api/contracts/stats
 const getContractStats = async (req, res) => {
     try {
-        const stats = await contractService.getContractStats();
+        const stats = await contractService.getContractStats(req.user);
         return res.status(200).json({ data: stats });
     } catch (err) { return handleError(res, err); }
 };
 
-// [POST] /api/contracts/:id/send-reminder — BM/Admin sends manual email reminder
+// [POST] /api/contracts/:id/send-reminder - BM/Admin sends manual email reminder
 const sendReminder = async (req, res) => {
     try {
         const { reminder_type } = req.body;
@@ -117,7 +117,7 @@ const sendReminder = async (req, res) => {
     } catch (err) { return handleError(res, err); }
 };
 
-// [PATCH] /api/contracts/:id/terminate — Admin/BM terminates contract
+// [PATCH] /api/contracts/:id/terminate - Admin/BM terminates contract
 const terminateContract = async (req, res) => {
     try {
         const result = await contractService.terminateContract(
@@ -126,7 +126,7 @@ const terminateContract = async (req, res) => {
 
         const message = result.case === 'TERMINATED'
             ? 'Đã chấm dứt hợp đồng thành công'
-            : 'Đã tạo yêu cầu checkout — nhân viên sẽ thực hiện checkout để hoàn tất';
+            : 'Đã tạo yêu cầu checkout - nhân viên sẽ thực hiện checkout để hoàn tất';
 
         return res.status(200).json({
             message,

@@ -1,8 +1,8 @@
 /**
- * Tạo mã số dạng PREFIX-TIMESTAMP-RANDOM.
- * Ví dụ: BK-1709812345678-042
+ * Generate ID in PREFIX-TIMESTAMP-RANDOM format.
+ * Example: BK-1709812345678-042
  *
- * @param {string} prefix - Prefix (VD: 'BK', 'PAY')
+ * @param {string} prefix - Prefix (e.g., 'BK', 'PAY')
  * @returns {string}
  */
 const generateNumberedId = (prefix) => {
@@ -12,11 +12,11 @@ const generateNumberedId = (prefix) => {
 };
 
 /**
- * Tạo mã số dạng PREFIX-YYYY-NNNN dựa trên count hiện tại.
- * Ví dụ: CON-2026-0001
+ * Generate ID in PREFIX-YYYY-NNNN format from current record count.
+ * Example: CON-2026-0001
  *
- * @param {string} prefix - Prefix (VD: 'CON')
- * @param {number} currentCount - Số lượng record hiện tại trong bảng
+ * @param {string} prefix - Prefix (e.g., 'CON')
+ * @param {number} currentCount - Current record count in the table
  * @returns {string}
  */
 const generateSequentialId = (prefix, currentCount) => {

@@ -1,18 +1,25 @@
 /**
- * Parse a YYYY-MM-DD date string as local midnight.
+ * Parse a YYYY-MM-DD string as UTC midnight.
  *
- * `new Date("2026-03-18")` parses as UTC midnight, which shifts the date
- * in non-UTC timezones. This helper avoids that by using the
- * three-argument Date constructor, which always uses local time.
+ * Sequelize DATEONLY columns return plain "YYYY-MM-DD" strings.
+ * `new Date("2026-03-18")` already parses as UTC midnight, but this
+ * helper is explicit and safe against edge-case browser/runtime
+ * differences.
  *
  * @param {string|Date} date - "YYYY-MM-DD" string or Date object
- * @returns {Date} Date set to local midnight
+ * @returns {Date} Date set to UTC midnight
  */
-const parseLocalDate = (date) => {
+const parseUTCDate = (date) => {
     if (!date) return null;
     if (date instanceof Date) return date;
     const [y, m, d] = String(date).split('-').map(Number);
-    return new Date(y, m - 1, d);
+    return new Date(Date.UTC(y, m - 1, d));
 };
 
-module.exports = { parseLocalDate };
+/**
+ * Get today's date string in UTC (YYYY-MM-DD).
+ * @returns {string}
+ */
+const todayUTC = () => new Date().toISOString().split('T')[0];
+
+module.exports = { parseUTCDate, todayUTC };

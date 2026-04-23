@@ -11,6 +11,7 @@ const RoomType = require('../models/roomType.model');
 const User = require('../models/user.model');
 const Contract = require('../models/contract.model');
 const Booking = require('../models/booking.model');
+const { ROLES } = require('../constants/roles');
 
 const ACTIVE_CONTRACT_STATUSES = [
     'DRAFT', 'PENDING_CUSTOMER_SIGNATURE', 'PENDING_MANAGER_SIGNATURE',
@@ -30,7 +31,7 @@ const getAllBuildings = async ({ page = 1, limit = 10, location_id, search, is_a
         throw { status: 403, message: 'Quản lý và nhân viên phải sử dụng endpoint tòa nhà được phân công' };
     }
 
-    // Public attributes — exclude timestamps for non-admin
+    // Public attributes - exclude timestamps for non-admin
     const publicBuildingAttrs = [
         'id', 'location_id', 'name', 'address', 'latitude', 'longitude',
         'description', 'total_floors', 'thumbnail_url', 'is_active'
@@ -141,6 +142,10 @@ const getBuildingById = async (id, user) => {
 const createBuilding = async (data) => {
     const { facilities, images, manager_id, ...buildingData } = data;
 
+    if (images && images.length > 5) {
+        throw { status: 400, message: 'Tối đa 5 ảnh' };
+    }
+
     if (facilities && facilities.length > 20) {
         throw { status: 400, message: 'Một tòa nhà chỉ được gán tối đa 20 tiện ích' };
     }
@@ -200,6 +205,10 @@ const createBuilding = async (data) => {
 
 const updateBuilding = async (id, data) => {
     const { facilities, images, is_active, ...updateData } = data;
+
+    if (images && images.length > 5) {
+        throw { status: 400, message: 'Tối đa 5 ảnh' };
+    }
 
     if (facilities && facilities.length > 20) {
         throw { status: 400, message: 'Một tòa nhà chỉ được gán tối đa 20 tiện ích' };
@@ -324,7 +333,7 @@ const getStaffsByBuilding = async (buildingId) => {
   return await User.findAll({
     where: {
       building_id: buildingId,
-      role: "STAFF",
+      role: ROLES.STAFF,
       is_active: true
     },
     attributes: [
@@ -336,7 +345,7 @@ const getStaffsByBuilding = async (buildingId) => {
       "avatar_url",
       "is_active"
     ],
-    order: [["created_at", "DESC"]]
+    order: [["createdAt", "DESC"]]
   });
 };
 

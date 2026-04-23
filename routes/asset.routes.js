@@ -10,7 +10,7 @@ const validator = require('../validators/asset.validator');
 
 router.get('/', authJwt, requireRoles(ROLES.ADMIN, ROLES.BUILDING_MANAGER, ROLES.STAFF), assetController.getAllAssets);
 
-// Stats — must be before /:id
+// Stats - must be before /:id
 router.get('/stats', authJwt, requireRoles(ROLES.ADMIN, ROLES.BUILDING_MANAGER), assetController.getAssetStats);
 
 router.get('/:id', authJwt, requireRoles(ROLES.ADMIN, ROLES.BUILDING_MANAGER, ROLES.STAFF), validator.paramId, validate, assetController.getAssetById);
@@ -19,7 +19,7 @@ router.post('/', authJwt, requireAdmin, validator.create, validate, assetControl
 
 router.post('/batch', authJwt, requireAdmin, validator.createBatch, validate, assetController.createBatchAssets);
 
-router.put('/:id', authJwt, requireAdmin, validator.update, validate, assetController.updateAsset);
+router.put('/:id', authJwt, requireRoles(ROLES.ADMIN, ROLES.BUILDING_MANAGER), validator.update, validate, assetController.updateAsset);
 
 router.patch('/:id/assign', authJwt, requireRoles(ROLES.ADMIN, ROLES.BUILDING_MANAGER, ROLES.STAFF), validator.assign, validate, assetController.assignAsset);
 

@@ -11,7 +11,7 @@ const { ROLES } = require('../constants/roles');
 
 const TIMESTAMP_FIELDS = ['created_at', 'updated_at', 'createdAt', 'updatedAt'];
 
-// ─── Helpers ──────────────────────────────────────────────────
+// Helpers.
 
 function stripTimestamps(obj) {
     const data = typeof obj.toJSON === 'function' ? obj.toJSON() : { ...obj };
@@ -28,10 +28,119 @@ function ensureBuildingAccess(user, buildingId) {
     }
 }
 
-// ─── GET /api/assets ──────────────────────────────────────────
+function toPlain(record) {
+    return typeof record?.toJSON === 'function' ? record.toJSON() : record;
+}
+
+function getFloorKey(asset) {
+    return asset.room?.floor == null ? 'storage' : String(asset.room.floor);
+}
+
+function buildStorageStacks(assets) {
+    const map = new Map();
+    for (const asset of assets) {
+        const typeId = asset.asset_type?.id || asset.asset_type_id || 'unknown';
+        const typeName = asset.asset_type?.name || 'Tài sản';
+        if (!map.has(typeId)) {
+            map.set(typeId, {
+                asset_type_id: typeId,
+                asset_type_name: typeName,
+                count: 0,
+                assets: [],
+            });
+        }
+        const stack = map.get(typeId);
+        stack.count += 1;
+        stack.assets.push(asset);
+    }
+    return [...map.values()].sort((a, b) => b.count - a.count || a.asset_type_name.localeCompare(b.asset_type_name));
+}
+
+function buildBuildingHierarchy(rows) {
+    const buildingMap = new Map();
+
+    for (const row of rows) {
+        const asset = toPlain(row);
+        const buildingId = asset.building_id;
+        const buildingName = asset.building?.name || 'Khác';
+        if (!buildingMap.has(buildingId)) {
+            buildingMap.set(buildingId, {
+                building_id: buildingId,
+                name: buildingName,
+                total_assets: 0,
+                storage_total: 0,
+                floors: new Map(),
+            });
+        }
+
+        const building = buildingMap.get(buildingId);
+        building.total_assets += 1;
+
+        const floorKey = getFloorKey(asset);
+        if (!building.floors.has(floorKey)) {
+            building.floors.set(floorKey, {
+                floor_key: floorKey,
+                floor: floorKey === 'storage' ? null : Number(floorKey),
+                total_assets: 0,
+                rooms: new Map(),
+                storage: [],
+            });
+        }
+
+        const floor = building.floors.get(floorKey);
+        floor.total_assets += 1;
+
+        if (floorKey === 'storage') {
+            floor.storage.push(asset);
+            building.storage_total += 1;
+            continue;
+        }
+
+        const roomId = asset.room?.id || 'unknown-room';
+        if (!floor.rooms.has(roomId)) {
+            floor.rooms.set(roomId, {
+                room_id: roomId,
+                room_number: asset.room?.room_number || '-',
+                assets: [],
+            });
+        }
+        floor.rooms.get(roomId).assets.push(asset);
+    }
+
+    return [...buildingMap.values()]
+        .map((building) => {
+            const floors = [...building.floors.values()]
+                .sort((a, b) => {
+                    if (a.floor_key === 'storage') return -1;
+                    if (b.floor_key === 'storage') return 1;
+                    return Number(a.floor) - Number(b.floor);
+                })
+                .map((floor) => ({
+                    floor_key: floor.floor_key,
+                    floor: floor.floor,
+                    total_assets: floor.total_assets,
+                    storage_stacks: floor.floor_key === 'storage' ? buildStorageStacks(floor.storage) : [],
+                    rooms: [...floor.rooms.values()].map((room) => ({
+                        room_id: room.room_id,
+                        room_number: room.room_number,
+                        assets: room.assets,
+                    })),
+                }));
+
+            return {
+                building_id: building.building_id,
+                name: building.name,
+                total_assets: building.total_assets,
+                storage_total: building.storage_total,
+                floors,
+            };
+        })
+        .sort((a, b) => b.total_assets - a.total_assets || a.name.localeCompare(b.name));
+}
+
+// GET /api/assets
 const getAllAssets = async (query = {}, user = {}) => {
-    const { page = 1, limit = 10, building_id, current_room_id, status, search } = query;
-    const offset = (page - 1) * limit;
+    const { page = 1, limit = 10, building_id, current_room_id, status, search, grouped } = query;
     const where = {};
 
     // Building-scoped for BM and STAFF
@@ -50,14 +159,46 @@ const getAllAssets = async (query = {}, user = {}) => {
         ];
     }
 
+    const include = [
+        { model: Building, as: 'building', attributes: ['id', 'name'] },
+        { model: Room, as: 'room', attributes: ['id', 'room_number', 'floor', 'building_id'] },
+        { model: require('../models/assetType.model'), as: 'asset_type', attributes: ['id', 'name'] }
+    ];
+
+    if (grouped === 'true' || grouped === true) {
+        const rows = await Asset.findAll({
+            where,
+            include,
+            order: [
+                [{ model: Building, as: 'building' }, 'name', 'ASC'],
+                [{ model: Room, as: 'room' }, 'floor', 'ASC'],
+                ['createdAt', 'DESC']
+            ]
+        });
+
+        const data = buildBuildingHierarchy(rows);
+        const total = data.length;
+        const offset = (page - 1) * limit;
+        const paged = data.slice(offset, offset + Number(limit));
+
+        return {
+            total,
+            page: Number(page),
+            limit: Number(limit),
+            current_page: Number(page),
+            per_page: Number(limit),
+            totalPages: Math.ceil(total / limit),
+            total_pages: Math.ceil(total / limit),
+            data: paged
+        };
+    }
+
     const { count, rows } = await Asset.findAndCountAll({
         where,
-        include: [
-            { model: Building, as: 'building', attributes: ['id', 'name'] },
-            { model: Room, as: 'room', attributes: ['id', 'room_number'] }
-        ],
+        include,
+        distinct: true,
         limit: Number(limit),
-        offset: Number(offset),
+        offset: (page - 1) * limit,
         order: [['createdAt', 'DESC']]
     });
 
@@ -70,12 +211,15 @@ const getAllAssets = async (query = {}, user = {}) => {
         total: count,
         page: Number(page),
         limit: Number(limit),
+        current_page: Number(page),
+        per_page: Number(limit),
         totalPages: Math.ceil(count / limit),
+        total_pages: Math.ceil(count / limit),
         data
     };
 };
 
-// ─── GET /api/assets/:id ──────────────────────────────────────
+// GET /api/assets/:id
 const getAssetById = async (id, user = {}) => {
     const asset = await Asset.findByPk(id, {
         include: [
@@ -99,7 +243,7 @@ const getAssetById = async (id, user = {}) => {
     return asset;
 };
 
-// ─── POST /api/assets (Admin only) ───────────────────────────
+// POST /api/assets (ADMIN only)
 const createAsset = async (data) => {
     const transaction = await sequelize.transaction();
     try {
@@ -147,7 +291,7 @@ const createAsset = async (data) => {
     }
 };
 
-// ─── POST /api/assets/batch (Admin only) ─────────────────────
+// POST /api/assets/batch (ADMIN only)
 const createBatchAssets = async (data) => {
     const { name, building_id, asset_type_id, quantity = 1, price } = data;
 
@@ -203,10 +347,12 @@ const createBatchAssets = async (data) => {
     }
 };
 
-// ─── PUT /api/assets/:id (Admin only) ────────────────────────
-const updateAsset = async (id, data, performerId = null) => {
+// PUT /api/assets/:id (ADMIN only)
+const updateAsset = async (id, data, user) => {
     const asset = await Asset.findByPk(id);
     if (!asset) throw { status: 404, message: 'Không tìm thấy tài sản' };
+
+    ensureBuildingAccess(user, asset.building_id);
 
     // Prevent changing qr_code
     delete data.qr_code;
@@ -215,19 +361,64 @@ const updateAsset = async (id, data, performerId = null) => {
     try {
         const oldStatus = asset.status;
         const oldRoom = asset.current_room_id;
+        const oldBuildingId = asset.building_id;
 
-        // If changing room, validate it belongs to same building
-        if (data.current_room_id && data.current_room_id !== oldRoom) {
-            const room = await Room.findByPk(data.current_room_id);
+        // Validate consistency between new building_id and new room_id
+        const targetRoomId = data.current_room_id !== undefined ? data.current_room_id : oldRoom;
+        const targetBuildingId = data.building_id !== undefined ? data.building_id : asset.building_id;
+
+        const buildingChanged = targetBuildingId !== oldBuildingId;
+
+        if (buildingChanged) {
+            if (oldStatus === 'IN_USE') {
+                throw { status: 400, message: 'Chỉ có thể chuyển tòa nhà khi tài sản không ở trạng thái đang sử dụng' };
+            }
+
+            if (oldRoom) {
+                throw { status: 400, message: 'Chỉ có thể chuyển tòa nhà khi tài sản đang ở kho' };
+            }
+
+            const building = await Building.findByPk(targetBuildingId);
+            if (!building) {
+                throw { status: 404, message: 'Không tìm thấy tòa nhà đích' };
+            }
+
+            data.current_room_id = null;
+            if (data.status === undefined) {
+                data.status = oldStatus;
+            }
+        }
+
+        if (targetRoomId) {
+            const room = await Room.findByPk(targetRoomId);
             if (!room) throw { status: 404, message: 'Không tìm thấy phòng' };
-            if (room.building_id !== asset.building_id) {
+            if (room.building_id !== targetBuildingId) {
                 throw { status: 400, message: 'Phòng không thuộc tòa nhà của tài sản' };
             }
         }
 
+        if (data.current_room_id !== undefined && data.current_room_id !== oldRoom) {
+            throw { status: 400, message: 'Không thể đổi phòng tại màn hình này. Vui lòng dùng quy trình check-in hoặc checkout tài sản.' };
+        }
+
+        if (data.status !== undefined && data.status !== oldStatus) {
+            throw { status: 400, message: 'Không thể đổi trạng thái tại màn hình này. Trạng thái tài sản được cập nhật qua quy trình vận hành.' };
+        }
+
         await asset.update(data, { transaction });
 
-        if (data.status !== oldStatus || data.current_room_id !== oldRoom) {
+        if (buildingChanged) {
+            await AssetHistory.create({
+                asset_id: asset.id,
+                from_room_id: null,
+                to_room_id: null,
+                from_status: oldStatus,
+                to_status: oldStatus,
+                action: 'UPDATE_INFO',
+                performed_by: user?.id || null,
+                notes: data.notes || 'Chuyển tài sản sang kho của tòa nhà khác'
+            }, { transaction });
+        } else if (data.status !== oldStatus || data.current_room_id !== oldRoom) {
             await AssetHistory.create({
                 asset_id: asset.id,
                 from_room_id: oldRoom,
@@ -235,20 +426,20 @@ const updateAsset = async (id, data, performerId = null) => {
                 from_status: oldStatus,
                 to_status: data.status || oldStatus,
                 action: 'UPDATE_INFO',
-                performed_by: performerId,
+                performed_by: user?.id || null,
                 notes: data.notes || 'Cập nhật thông tin tài sản'
             }, { transaction });
         }
 
         await transaction.commit();
-        return getAssetById(id, { role: ROLES.ADMIN });
+        return getAssetById(id, user);
     } catch (error) {
         await transaction.rollback();
         throw error;
     }
 };
 
-// ─── PATCH /api/assets/:id/assign (Staff, BM, Admin) ─────────
+// PATCH /api/assets/:id/assign (STAFF, BM, ADMIN)
 const assignAsset = async (id, { room_id, notes }, user) => {
     const asset = await Asset.findByPk(id);
     if (!asset) throw { status: 404, message: 'Không tìm thấy tài sản' };
@@ -266,7 +457,7 @@ const assignAsset = async (id, { room_id, notes }, user) => {
     const transaction = await sequelize.transaction();
     try {
         if (room_id) {
-            // CHECK_IN or MOVE
+            // CHECK_IN only: storage -> room
             const room = await Room.findByPk(room_id);
             if (!room) throw { status: 404, message: 'Không tìm thấy phòng đích' };
             if (room.building_id !== asset.building_id) {
@@ -278,7 +469,7 @@ const assignAsset = async (id, { room_id, notes }, user) => {
             } else if (oldRoom === room_id) {
                 throw { status: 400, message: 'Tài sản đã ở trong phòng này' };
             } else {
-                action = 'MOVE';
+                throw { status: 400, message: 'Không thể chuyển trực tiếp tài sản giữa hai phòng. Vui lòng thu hồi về kho trước.' };
             }
 
             await asset.update({ current_room_id: room_id, status: 'IN_USE' }, { transaction });
@@ -310,7 +501,7 @@ const assignAsset = async (id, { room_id, notes }, user) => {
     }
 };
 
-// ─── DELETE /api/assets/:id (Admin only) ─────────────────────
+// DELETE /api/assets/:id (ADMIN only)
 const deleteAsset = async (id) => {
     const asset = await Asset.findByPk(id);
     if (!asset) throw { status: 404, message: 'Không tìm thấy tài sản' };
@@ -334,9 +525,16 @@ const deleteAsset = async (id) => {
     return { message: `Đã xóa tài sản "${asset.name}" thành công` };
 };
 
-// ─── GET /api/assets/stats ──────────────────────────────────
-const getAssetStats = async () => {
+// GET /api/assets/stats
+const getAssetStats = async (user = {}) => {
+    const where = {};
+
+    if (user.role === ROLES.BUILDING_MANAGER || user.role === ROLES.STAFF) {
+        where.building_id = user.building_id;
+    }
+
     const assets = await Asset.findAll({
+        where,
         attributes: ['status', 'building_id'],
         include: [{ model: Building, as: 'building', attributes: ['id', 'name'] }],
         raw: true,

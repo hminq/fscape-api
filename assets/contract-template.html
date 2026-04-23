@@ -1,0 +1,179 @@
+<div style="font-family: 'Times New Roman', serif; max-width: 800px; margin: 0 auto; padding: 40px; color: #1a1a1a; line-height: 1.6;">
+  <div style="text-align: center; margin-bottom: 40px;">
+    <h1 style="font-size: 18px; text-transform: uppercase; margin: 0; font-weight: bold;">
+      CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
+    </h1>
+    <h2 style="font-size: 15px; margin: 5px 0 0 0; text-decoration: underline;">
+      Độc lập - Tự do - Hạnh phúc
+    </h2>
+  </div>
+
+  <div style="text-align: center; margin-bottom: 30px;">
+    <h2 style="font-size: 24px; font-weight: bold; margin-bottom: 5px;">HỢP ĐỒNG THUÊ PHÒNG</h2>
+    <p style="font-size: 14px; font-style: italic; margin: 0;">Số: <strong>{{contract_number}}</strong></p>
+  </div>
+
+  <p style="text-align: justify; margin-bottom: 20px;">
+    Hôm nay, ngày <strong>{{start_date}}</strong>, tại địa chỉ <strong>{{building_address}}</strong>, chúng tôi gồm có:
+  </p>
+
+  <div style="margin-bottom: 30px;">
+    <h3 style="font-size: 16px; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">BÊN A (Bên cho thuê):</h3>
+    <table style="width: 100%; border-collapse: collapse; font-size: 15px;">
+      <tr>
+        <td style="width: 30%; padding: 4px 0;">Đại diện tòa nhà:</td>
+        <td style="font-weight: bold;">{{building_name}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 4px 0;">Họ và tên quản lý:</td>
+        <td style="font-weight: bold;">{{manager_name}}</td>
+      </tr>
+    </table>
+  </div>
+
+  <div style="margin-bottom: 30px;">
+    <h3 style="font-size: 16px; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">BÊN B (Bên thuê):</h3>
+    <table style="width: 100%; border-collapse: collapse; font-size: 15px;">
+      <tr>
+        <td style="width: 30%; padding: 4px 0;">Họ và tên:</td>
+        <td style="font-weight: bold; text-transform: uppercase;">{{customer_name}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 4px 0;">Giới tính:</td>
+        <td>{{customer_gender}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 4px 0;">Ngày sinh:</td>
+        <td>{{customer_date_of_birth}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 4px 0;">Số điện thoại:</td>
+        <td>{{customer_phone}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 4px 0;">Email:</td>
+        <td>{{customer_email}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 4px 0;">Địa chỉ thường trú:</td>
+        <td>{{customer_permanent_address}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 4px 0;">Liên hệ khẩn cấp:</td>
+        <td>{{customer_emergency_contact_name}} - SĐT: <strong>{{customer_emergency_contact_phone}}</strong></td>
+      </tr>
+    </table>
+  </div>
+
+  <p style="font-weight: bold; margin-bottom: 15px;">Hai bên thống nhất ký kết Hợp đồng thuê phòng với các điều khoản sau đây:</p>
+
+  <div style="margin-bottom: 30px;">
+    <h3 style="font-size: 16px; font-weight: bold; margin: 20px 0 10px 0;">ĐIỀU 1: ĐỐI TƯỢNG HỢP ĐỒNG</h3>
+    <p style="text-align: justify; margin-top: 0;">
+      Bên A đồng ý cho Bên B thuê phòng số <strong>{{room_number}}</strong> (Loại phòng: <strong>{{room_type}}</strong>) tại tòa nhà <strong>{{building_name}}</strong>.
+    </p>
+
+    <h3 style="font-size: 16px; font-weight: bold; margin: 20px 0 10px 0;">ĐIỀU 2: LOẠI HỢP ĐỒNG VÀ THỜI HẠN</h3>
+    <ul style="margin-top: 0; padding-left: 20px;">
+      <li>Loại hợp đồng: <strong>{{term_type}}</strong></li>
+      <li>Thời hạn thuê bắt đầu từ ngày <strong>{{start_date}}</strong> đến ngày <strong>{{end_date}}</strong>.</li>
+    </ul>
+
+    <h3 style="font-size: 16px; font-weight: bold; margin: 20px 0 10px 0;">ĐIỀU 3: GIÁ THUÊ VÀ THANH TOÁN</h3>
+    <ul style="margin-top: 0; padding-left: 20px;">
+      <li>Giá thuê phòng hàng tháng: <strong>{{base_rent}} VNĐ/tháng</strong>.</li>
+      <li>Giá thuê đã bao gồm chi phí điện, nước và các tiện ích cơ bản của phòng.</li>
+      <li>Giá thuê <strong>chưa bao gồm</strong> các khoản phí dịch vụ phát sinh theo yêu cầu của Bên B (sửa chữa, vệ sinh, thay đổi tài sản, v.v.). Các chi phí này sẽ được tính riêng theo bảng giá dịch vụ hiện hành và thanh toán theo chu kỳ hoặc khi trả phòng.</li>
+      <li>Tiền đặt cọc bảo đảm: <strong>{{deposit_amount}} VNĐ</strong>.</li>
+    </ul>
+
+    <h3 style="font-size: 16px; font-weight: bold; margin: 20px 0 10px 0;">ĐIỀU 4: QUY ĐỊNH VỀ ĐẶT CỌC</h3>
+    <ul style="margin-top: 0; padding-left: 20px;">
+      <li>Tiền đặt cọc được thu nhằm đảm bảo nghĩa vụ hợp đồng của Bên B.</li>
+      <li>Trong trường hợp Bên B đã thanh toán tiền cọc nhưng <strong>không ký hợp đồng trong thời hạn quy định</strong> (24 giờ kể từ khi hợp đồng được tạo), tiền cọc sẽ <strong>không được hoàn trả</strong>.</li>
+      <li>Trong trường hợp Bên B đã ký hợp đồng nhưng <strong>không thanh toán hóa đơn tiền thuê kỳ đầu tiên đúng hạn</strong>, hợp đồng sẽ bị hủy và tiền cọc sẽ <strong>không được hoàn trả</strong>.</li>
+      <li>Nếu Bên B có nhu cầu khiếu nại hoặc yêu cầu xem xét đặc biệt liên quan đến tiền cọc, vui lòng liên hệ qua email: <strong>support@fscape.vn</strong>.</li>
+      <li>Tiền cọc sẽ được xử lý khi kết thúc hợp đồng theo quy trình trả phòng, sau khi đã trừ các khoản phí phát sinh (nếu có).</li>
+    </ul>
+
+    <h3 style="font-size: 16px; font-weight: bold; margin: 20px 0 10px 0;">ĐIỀU 5: QUY ĐỊNH THANH TOÁN VÀ TRẢ PHÒNG TRƯỚC HẠN</h3>
+    <ul style="margin-top: 0; padding-left: 20px;">
+      <li>Bên B thanh toán tiền thuê theo chu kỳ đã thỏa thuận (hàng tháng, 3 tháng, 6 tháng hoặc trả trọn gói).</li>
+      <li>Tiền thuê đã thanh toán cho chu kỳ hiện tại sẽ <strong>không được hoàn trả</strong> nếu Bên B trả phòng trước khi kết thúc chu kỳ đó.</li>
+      <li>Nếu Bên B <strong>trả phòng trước ngày kết thúc hợp đồng</strong>, Bên B sẽ bị phạt <strong>50% tiền cọc ban đầu</strong>. Miễn phạt khi Bên B đã thanh toán trọn gói toàn bộ thời hạn hợp đồng.</li>
+      <li>Mọi trường hợp đặc biệt cần liên hệ ban quản lý qua email: <strong>support@fscape.vn</strong>.</li>
+    </ul>
+
+    <h3 style="font-size: 18px; font-weight: bold; margin: 30px 0 15px 0; text-align: center;">ĐIỀU 6: ĐIỀU KHOẢN VÀ ĐIỀU KIỆN SỬ DỤNG HỆ THỐNG FSCAPE</h3>
+    <p style="font-style: italic; font-size: 14px; text-align: center; margin-bottom: 15px;">VUI LÒNG ĐỌC KỸ CÁC ĐIỀU KHOẢN NÀY BÊN DƯỚI.</p>
+
+    <div style="font-size: 14px; text-align: justify;">
+      <p><strong>1. PHẠM VI ÁP DỤNG</strong></p>
+      <p>1.1. Các Điều khoản Sử dụng này áp dụng cho toàn bộ nội dung của hệ thống quản lý lưu trú sinh viên FScape (bao gồm website và ứng dụng di động).<br/>
+      1.2. Việc sử dụng Hệ thống bao gồm: truy cập, duyệt tin, đăng ký tài khoản hoặc thực hiện các giao dịch đặt phòng.<br/>
+      1.3. Bằng việc sử dụng FScape, Bên B xác nhận chấp nhận các Điều khoản này.</p>
+
+      <p><strong>2. CÁC CHÍNH SÁCH BỔ SUNG</strong></p>
+      <p>2.1. Chính sách Bảo mật: Quy định cách chúng tôi xử lý dữ liệu cá nhân (bao gồm thông tin đăng ký, CCCD/Hộ chiếu).<br/>
+      2.2. Điều khoản Đặt phòng và Hợp đồng: Cụ thể về tiền cọc, thanh toán và nội quy nhà trọ được áp dụng bổ sung.</p>
+
+      <p><strong>3. THÔNG TIN VỀ CHÚNG TÔI</strong></p>
+      <p>Hệ thống FScape được vận hành bởi Đội ngũ Quản lý FScape. Hỗ trợ qua email: support@fscape.vn.</p>
+
+      <p><strong>4. ĐĂNG KÝ VÀ BẢO MẬT TÀI KHOẢN</strong></p>
+      <p>4.1. Mỗi tài khoản trên hệ thống chỉ dành cho một người dùng duy nhất.<br/>
+      4.2. Bên B có trách nhiệm bảo mật thông tin đăng nhập. FScape không chịu trách nhiệm cho bất kỳ tổn thất nào phát sinh do tiết lộ thông tin.<br/>
+      4.3. Chúng tôi có quyền vô hiệu hóa tài khoản nếu phát hiện vi phạm hoặc nghi ngờ gian lận.</p>
+
+      <p><strong>5. QUYỀN SỞ HỮU TRÍ TUỆ</strong></p>
+      <p>5.1. FScape và các đối tác sở hữu toàn bộ bản quyền hình ảnh, giao diện và mã nguồn.<br/>
+      5.2. Khi Bên B tải lên hình ảnh (ảnh phòng, hồ sơ, yêu cầu), FScape có quyền sử dụng các hình ảnh này cho mục đích quản lý vận hành.</p>
+
+      <p><strong>6. TUYÊN BỐ MIỄN TRỪ TRÁCH NHIỆM (TRÍ TUỆ NHÂN TẠO)</strong></p>
+      <p>6.1. Các phản hồi của tính năng trợ lý ảo trên FScape chỉ mang tính chất tham khảo, không được coi là lời khuyên pháp lý hay tài chính.<br/>
+      6.2. Mặc dù nỗ lực cập nhật, FScape không cam kết thông tin hiển thị chính xác 100% tại mọi thời điểm do biến động thị trường.</p>
+
+      <p><strong>7. GIỚI HẠN TRÁCH NHIỆM</strong></p>
+      <p>7.1. FScape không chịu trách nhiệm cho các thiệt hại do gián đoạn dịch vụ, thông tin sai lệch từ bên thứ ba hoặc tấn công mạng.<br/>
+      7.2. FScape đơn thuần kết nối và quản lý lưu trú, không chịu trách nhiệm giao dịch dân sự ngoài phạm vi hệ thống.</p>
+
+      <p><strong>8. CHÍNH SÁCH SỬ DỤNG HỢP LỆ</strong></p>
+      <p>8.1. Cấm các hành vi: Đăng tải nội dung độc hại; phá hoại hệ thống; sử dụng hình ảnh giả mạo.<br/>
+      8.2. Bảng tin nội bộ phải tuân thủ ngôn từ văn minh. Nội dung vi phạm sẽ bị xóa không cần báo trước.</p>
+
+      <p><strong>9. QUY TRÌNH QUẢN LÝ CƯ DÂN</strong></p>
+      <p>Bên B đồng ý tuân thủ quy trình điện tử của FScape gồm: Tìm kiếm, Đặt phòng và Đặt cọc, Ký hợp đồng điện tử, Nhận phòng, Lưu trú (thanh toán định kỳ và bảo trì), và Trả phòng.</p>
+
+      <p><strong>10. ĐIỀU KHOẢN LIÊN LẠC VÀ THÔNG BÁO</strong></p>
+      <p>Bên B đồng ý nhận thông báo từ FScape bao gồm: Hóa đơn, nhắc hẹn thanh toán, thông báo vận hành và các chương trình sự kiện.</p>
+
+      <p><strong>11. LUẬT PHÁP VÀ THẨM QUYỀN</strong></p>
+      <p>Điều khoản này được điều chỉnh theo Pháp luật Việt Nam. Mọi tranh chấp sẽ được giải quyết tại cơ quan có thẩm quyền.</p>
+    </div>
+  </div>
+
+  <p style="text-align: justify; margin-bottom: 40px; font-weight: bold;">
+    Hợp đồng này được lập và đồng thuận ký điện tử thông qua hệ thống quản lý FScape. Hai bên đã đọc, hiểu rõ và đồng ý với tất cả các điều khoản nêu trên.
+  </p>
+
+  <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 15px;">
+    <tr>
+      <td style="width: 50%; padding: 10px;">
+        <strong style="display: block; font-size: 16px; margin-bottom: 5px;">ĐẠI DIỆN BÊN A</strong>
+        <i style="display: block; font-size: 13px; color: #555; margin-bottom: 20px;">(Ký, ghi rõ họ tên)</i>
+        <div style="min-height: 100px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          {{manager_signature}}
+        </div>
+        <p style="margin: 10px 0 0 0; font-weight: bold;">{{manager_name}}</p>
+      </td>
+      <td style="width: 50%; padding: 10px;">
+        <strong style="display: block; font-size: 16px; margin-bottom: 5px;">ĐẠI DIỆN BÊN B</strong>
+        <i style="display: block; font-size: 13px; color: #555; margin-bottom: 20px;">(Ký, ghi rõ họ tên)</i>
+        <div style="min-height: 100px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          {{customer_signature}}
+        </div>
+        <p style="margin: 10px 0 0 0; font-weight: bold; text-transform: uppercase;">{{customer_name}}</p>
+      </td>
+    </tr>
+  </table>
+</div>

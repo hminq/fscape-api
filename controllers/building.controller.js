@@ -45,12 +45,7 @@ const createBuilding = async (req, res) => {
             manager_id
         } = req.body;
 
-        if (!location_id || !name || !address || latitude === undefined || longitude === undefined || !total_floors) {
-            console.warn('[BuildingController] createBuilding: missing required fields');
-            return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
-        }
-
-        // Xử lý mảng facilities
+        // Normalize facilities to array format.
         let parsedFacilities = [];
         if (facilities) {
             if (Array.isArray(facilities)) {
@@ -90,7 +85,7 @@ const updateBuilding = async (req, res) => {
     try {
         const updateData = { ...req.body };
 
-        // Xử lý mảng facilities
+        // Normalize facilities to array format.
         if (updateData.facilities) {
             if (!Array.isArray(updateData.facilities)) {
                 updateData.facilities = [updateData.facilities];
@@ -145,9 +140,9 @@ const toggleBuildingStatus = async (req, res) => {
 
 const getStaffsInBuilding = async (req, res) => {
   try {
-    const { buildingId } = req.params;
+    const { building_id } = req.params;
 
-    const staffs = await buildingService.getStaffsByBuilding(buildingId);
+    const staffs = await buildingService.getStaffsByBuilding(building_id);
 
     return res.json(staffs);
   } catch (error) {

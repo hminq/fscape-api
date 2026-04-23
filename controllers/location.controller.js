@@ -1,7 +1,7 @@
 const locationService = require('../services/location.service');
 
 /**
- * Lấy danh sách khu vực (Kèm phân trang và lọc)
+ * Get paginated locations with filters.
  */
 const getAllLocations = async (req, res) => {
     try {
@@ -19,7 +19,7 @@ const getAllLocations = async (req, res) => {
             ...result
         });
     } catch (error) {
-        console.error("❌ Controller Error (getAllLocations):", error);
+        console.error("LocationController getAllLocations:", error);
         return res.status(error.status || 500).json({
             message: error.message || "Lỗi hệ thống"
         });
@@ -27,7 +27,7 @@ const getAllLocations = async (req, res) => {
 };
 
 /**
- * Lấy chi tiết một khu vực
+ * Get location details by ID.
  */
 const getLocationById = async (req, res) => {
     try {
@@ -38,7 +38,7 @@ const getLocationById = async (req, res) => {
             data: location
         });
     } catch (error) {
-        console.error(`❌ Controller Error (getLocationById - ${req.params.id}):`, error);
+        console.error(`LocationController getLocationById (${req.params.id}):`, error);
         return res.status(error.status || 500).json({
             message: error.message || "Lỗi hệ thống"
         });
@@ -46,7 +46,7 @@ const getLocationById = async (req, res) => {
 };
 
 /**
- * Tạo mới khu vực
+ * Create a location.
  */
 const createLocation = async (req, res) => {
     try {
@@ -57,7 +57,7 @@ const createLocation = async (req, res) => {
             data: location
         });
     } catch (error) {
-        console.error("❌ Controller Error (createLocation):", error);
+        console.error("LocationController createLocation:", error);
         return res.status(error.status || 500).json({
             message: error.message || "Lỗi hệ thống"
         });
@@ -65,7 +65,7 @@ const createLocation = async (req, res) => {
 };
 
 /**
- * Cập nhật khu vực
+ * Update a location.
  */
 const updateLocation = async (req, res) => {
     try {
@@ -77,7 +77,7 @@ const updateLocation = async (req, res) => {
             data: updatedLocation
         });
     } catch (error) {
-        console.error(`❌ Controller Error (updateLocation - ${req.params.id}):`, error);
+        console.error(`LocationController updateLocation (${req.params.id}):`, error);
         return res.status(error.status || 500).json({
             message: error.message || "Lỗi hệ thống"
         });
@@ -85,7 +85,7 @@ const updateLocation = async (req, res) => {
 };
 
 /**
- * Xóa khu vực
+ * Delete a location.
  */
 const deleteLocation = async (req, res) => {
     try {
@@ -96,7 +96,7 @@ const deleteLocation = async (req, res) => {
             ...result
         });
     } catch (error) {
-        console.error(`❌ Controller Error (deleteLocation - ${req.params.id}):`, error);
+        console.error(`LocationController deleteLocation (${req.params.id}):`, error);
         return res.status(error.status || 500).json({
             message: error.message || "Lỗi hệ thống"
         });

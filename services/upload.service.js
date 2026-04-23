@@ -1,11 +1,26 @@
 const path = require('path');
 const Busboy = require('busboy');
-const cloudinary = require('../config/cloudinary');
+const { PutObjectCommand } = require('@aws-sdk/client-s3');
+const { s3Client, bucketName } = require('../config/s3');
 const { UPLOAD_CATEGORIES } = require('../constants/upload');
 
 /**
+ * MIME type to file extension mapping for image uploads.
+ */
+const MIME_TO_EXT = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+  'image/svg+xml': '.svg',
+  'image/bmp': '.bmp',
+  'image/tiff': '.tiff',
+  'application/pdf': '.pdf',
+};
+
+/**
  * Parse multipart files from request, validate against category config,
- * upload to Cloudinary, and return an array of secure_url strings.
+ * upload to S3, and return an array of S3 key strings.
  */
 async function uploadFiles(req, categoryKey) {
   const config = UPLOAD_CATEGORIES[categoryKey];
@@ -26,17 +41,27 @@ async function uploadFiles(req, categoryKey) {
   const resourceType = config.resourceType || 'image';
 
   const uploads = files.map((file) => {
-    // For raw uploads, preserve original file extension in public_id
-    // so the Cloudinary URL ends with .glb, .gltf, .pdf, etc.
-    const ext = file.filename ? path.extname(file.filename).toLowerCase() : '';
-    return uploadToCloudinary(file.buffer, {
+    const ext = resolveExtension(file, resourceType);
+    return uploadToS3(file.buffer, {
       folder: config.folder,
-      resourceType,
-      extension: resourceType === 'raw' ? ext : '',
+      contentType: file.mimeType,
+      extension: ext,
     });
   });
 
   return Promise.all(uploads);
+}
+
+/**
+ * Resolve file extension.
+ * - For raw uploads (3D models, PDFs): preserve original filename extension.
+ * - For image uploads: derive from MIME type for consistency.
+ */
+function resolveExtension(file, resourceType) {
+  if (resourceType === 'raw' && file.filename) {
+    return path.extname(file.filename).toLowerCase();
+  }
+  return MIME_TO_EXT[file.mimeType] || '';
 }
 
 /**
@@ -115,39 +140,38 @@ function parseMultipart(req, config) {
 }
 
 /**
- * Upload a buffer to Cloudinary using upload_stream.
- * Returns the secure_url string.
+ * Upload a buffer to S3 and return the object key.
+ *
+ * @param {Buffer} buffer - File content
+ * @param {object} opts
+ * @param {string} opts.folder - S3 key prefix (e.g. 'rooms/gallery')
+ * @param {string} opts.contentType - MIME type for Content-Type header
+ * @param {string} opts.extension - File extension including dot (e.g. '.jpg')
+ * @returns {Promise<string>} S3 object key (e.g. 'rooms/gallery/1712345678_a1b2c3.jpg')
  */
-function uploadToCloudinary(buffer, { folder, resourceType, extension = '' }) {
-  return new Promise((resolve, reject) => {
-    const opts = { folder, resource_type: resourceType };
+async function uploadToS3(buffer, { folder, contentType, extension = '' }) {
+  const uniqueId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const key = `${folder}/${uniqueId}${extension}`;
 
-    // Append extension to public_id so the URL preserves it
-    // e.g. rooms/3d/abc123.glb instead of rooms/3d/abc123
-    if (extension) {
-      const uniqueId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      opts.public_id = `${uniqueId}${extension}`;
-    }
-
-    const stream = cloudinary.uploader.upload_stream(
-      opts,
-      (err, result) => {
-        if (err) return reject(err);
-        resolve(result.secure_url);
-      }
-    );
-    stream.end(buffer);
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: key,
+    Body: buffer,
+    ContentType: contentType,
   });
+
+  await s3Client.send(command);
+  return key;
 }
 
 /**
- * Upload a raw buffer to Cloudinary for a given category.
+ * Upload a raw buffer to S3 for a given category.
  * Used for server-side uploads (e.g. PDF generation) where there is no HTTP request.
  *
  * @param {Buffer} buffer - File content
  * @param {string} categoryKey - Key from UPLOAD_CATEGORIES (e.g. 'contract_pdf')
  * @param {string} filename - Original filename (used for extension)
- * @returns {string} Cloudinary secure_url
+ * @returns {Promise<string>} S3 object key
  */
 async function uploadBuffer(buffer, categoryKey, filename) {
   const config = UPLOAD_CATEGORIES[categoryKey];
@@ -158,12 +182,12 @@ async function uploadBuffer(buffer, categoryKey, filename) {
   }
 
   const resourceType = config.resourceType || 'image';
-  const ext = filename ? path.extname(filename).toLowerCase() : '';
+  const ext = resolveExtension({ filename, mimeType: 'application/octet-stream' }, resourceType);
 
-  return uploadToCloudinary(buffer, {
+  return uploadToS3(buffer, {
     folder: config.folder,
-    resourceType,
-    extension: resourceType === 'raw' ? ext : '',
+    contentType: resourceType === 'raw' ? 'application/octet-stream' : 'application/pdf',
+    extension: ext,
   });
 }
 
