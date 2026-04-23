@@ -21,25 +21,8 @@ const buildRoomTypeChunk = (rt) =>
 const buildFacilityChunk = (f) =>
   `Tiện ích: ${f.name}. Tòa nhà có tiện ích này: ${f.building_names || 'Không rõ'}.`;
 
-const buildContractChunk = (c) =>
-  `Hợp đồng số ${c.contract_number}. Phòng: ${c.room_number} tại ${c.building_name}. Khách hàng: ${c.customer_name} (${c.customer_email}). Ngày bắt đầu: ${c.start_date}, ngày kết thúc: ${c.end_date || 'Không xác định'}. Giá thuê: ${Number(c.base_rent).toLocaleString('vi-VN')} VNĐ/tháng. Đặt cọc: ${Number(c.deposit_amount).toLocaleString('vi-VN')} VNĐ. Trạng thái: ${translateContractStatus(c.status)}.`;
-
-const buildBookingChunk = (bk) =>
-  `Đặt phòng số ${bk.booking_number}. Phòng: ${bk.room_number} tại ${bk.building_name}. Khách hàng: ${bk.customer_name} (${bk.customer_email}). Ngày nhận phòng dự kiến: ${bk.check_in_date}. Thời hạn: ${bk.duration_months || 'Không rõ'} tháng. Tiền cọc: ${Number(bk.deposit_amount).toLocaleString('vi-VN')} VNĐ. Trạng thái: ${translateBookingStatus(bk.status)}.`;
-
 function translateRoomStatus(s) {
   const map = { AVAILABLE: 'Còn trống', OCCUPIED: 'Đang thuê', LOCKED: 'Tạm khóa' };
-  return map[s] || s;
-}
-function translateContractStatus(s) {
-  const map = {
-    DRAFT: 'Nháp', PENDING_CUSTOMER_SIGNATURE: 'Chờ khách ký', PENDING_MANAGER_SIGNATURE: 'Chờ quản lý ký',
-    ACTIVE: 'Đang hiệu lực', EXPIRING_SOON: 'Sắp hết hạn', FINISHED: 'Đã kết thúc', TERMINATED: 'Đã chấm dứt'
-  };
-  return map[s] || s;
-}
-function translateBookingStatus(s) {
-  const map = { PENDING: 'Chờ xử lý', DEPOSIT_PAID: 'Đã đặt cọc', CONVERTED: 'Đã chuyển hợp đồng', CANCELLED: 'Đã hủy' };
   return map[s] || s;
 }
 
@@ -91,6 +74,15 @@ async function syncKnowledge() {
   await index.upsert({ records: [dummyVector] });
 
   console.log('[KnowledgeSync] ✅ Pinecone connectivity OK');
+
+  // Xóa tất cả vector cũ trước khi sync để purge dữ liệu hợp đồng cũ
+  try {
+    console.log('[KnowledgeSync] Deleting all existing vectors...');
+    await index.deleteAll();
+    console.log('[KnowledgeSync] ✅ All old vectors deleted');
+  } catch (error) {
+    console.warn('[KnowledgeSync] Warning: Failed to deleteAll() which is fine if index is empty', error.message);
+  }
 
   // ── 1. Buildings ──────────────────────────────────────────────
   const buildings = await sequelize.query(
@@ -210,61 +202,7 @@ async function syncKnowledge() {
   totalUpserted += facVectors.length;
   console.log(`[KnowledgeSync] Facilities: ${facVectors.length}`);
 
-  // ── 5. Contracts (active only) ────────────────────────────────
-  const contracts = await sequelize.query(
-    `SELECT c.id, c.contract_number, c.start_date, c.end_date,
-            c.base_rent, c.deposit_amount, c.status,
-            r.room_number, b.name AS building_name,
-            CONCAT(u.first_name, ' ', u.last_name) AS customer_name, u.email AS customer_email
-     FROM contracts c
-     JOIN rooms r ON r.id = c.room_id
-     JOIN buildings b ON b.id = r.building_id
-     JOIN users u ON u.id = c.customer_id
-     WHERE c.status IN ('PENDING_CUSTOMER_SIGNATURE','PENDING_MANAGER_SIGNATURE','PENDING_FIRST_PAYMENT','PENDING_CHECK_IN','ACTIVE','EXPIRING_SOON')`,
-    { type: QueryTypes.SELECT }
-  );
 
-  const contractVectors = [];
-  for (const c of contracts) {
-    const text = buildContractChunk(c);
-    const embedding = await embedText(text);
-    contractVectors.push({
-      id: `contract-${c.id}`,
-      values: embedding,
-      metadata: { type: 'contract', id: c.id, content: text }
-    });
-  }
-  await upsertBatch(index, contractVectors);
-  totalUpserted += contractVectors.length;
-  console.log(`[KnowledgeSync] Contracts: ${contractVectors.length}`);
-
-  // ── 6. Bookings (active/recent) ───────────────────────────────
-  const bookings = await sequelize.query(
-    `SELECT bk.id, bk.booking_number, bk.check_in_date, bk.duration_months,
-            bk.deposit_amount, bk.status,
-            r.room_number, b.name AS building_name,
-            CONCAT(u.first_name, ' ', u.last_name) AS customer_name, u.email AS customer_email
-     FROM bookings bk
-     JOIN rooms r ON r.id = bk.room_id
-     JOIN buildings b ON b.id = r.building_id
-     JOIN users u ON u.id = bk.customer_id
-     WHERE bk.status IN ('PENDING', 'DEPOSIT_PAID')`,
-    { type: QueryTypes.SELECT }
-  );
-
-  const bookingVectors = [];
-  for (const bk of bookings) {
-    const text = buildBookingChunk(bk);
-    const embedding = await embedText(text);
-    bookingVectors.push({
-      id: `booking-${bk.id}`,
-      values: embedding,
-      metadata: { type: 'booking', id: bk.id, content: text }
-    });
-  }
-  await upsertBatch(index, bookingVectors);
-  totalUpserted += bookingVectors.length;
-  console.log(`[KnowledgeSync] Bookings: ${bookingVectors.length}`);
 
   // ── 7. Universities ─────────────────────────────────────────────
   const universities = await sequelize.query(
