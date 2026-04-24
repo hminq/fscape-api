@@ -10,6 +10,7 @@ const { ROLES } = require('../constants/roles');
 const validator = require('../validators/room.validator');
 
 router.get('/', authJwtOptional, roomController.getAllRooms);
+router.get('/facets', authJwtOptional, roomController.getRoomFacets);
 
 // Stats - ADMIN / BUILDING_MANAGER only (must be before /:id)
 router.get('/stats', authJwt, requireRoles(ROLES.ADMIN, ROLES.BUILDING_MANAGER), roomController.getRoomStats);

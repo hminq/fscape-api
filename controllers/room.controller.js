@@ -16,6 +16,15 @@ const getAllRooms = async (req, res) => {
     }
 };
 
+const getRoomFacets = async (req, res) => {
+    try {
+        const result = await roomService.getRoomFacets(req.query, req.user);
+        return res.status(200).json({ ...result });
+    } catch (err) {
+        return handleError(res, err);
+    }
+};
+
 const getRoomById = async (req, res) => {
     try {
         const room = await roomService.getRoomById(req.params.id, req.user);
@@ -167,6 +176,7 @@ const getRoomStats = async (req, res) => {
 
 module.exports = {
     getAllRooms,
+    getRoomFacets,
     getRoomById,
     createRoom,
     createBatchRooms,

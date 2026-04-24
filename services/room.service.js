@@ -25,33 +25,80 @@ const ACTIVE_CONTRACT_STATUSES = [
 // Fields stripped from detail response by role.
 const TIMESTAMP_FIELDS = ['created_at', 'updated_at', 'deleted_at', 'createdAt', 'updatedAt', 'deletedAt'];
 
-// GET /api/rooms
-const getAllRooms = async (query = {}, user = {}) => {
-  const { page = 1, limit = 10, building_id, room_type_id, status, floor, search } = query;
-  const offset = (page - 1) * limit;
-  const where = {};
+const buildRoomListFilters = (query = {}, user = {}) => {
+  const {
+    building_id,
+    room_type_id,
+    status,
+    floor,
+    search,
+    capacity,
+  } = query;
 
-  // Building-scoped access for BUILDING_MANAGER and STAFF
+  const where = {};
+  const roomTypeWhere = {};
+  const roomTypeIds = String(room_type_id || '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean);
+  const normalizedCapacity = Number(capacity);
+
   if (user.role === ROLES.BUILDING_MANAGER || user.role === ROLES.STAFF) {
     where.building_id = user.building_id;
   } else if (building_id) {
     where.building_id = building_id;
   }
 
-  if (room_type_id) where.room_type_id = room_type_id;
+  if (roomTypeIds.length === 1) {
+    where.room_type_id = roomTypeIds[0];
+  } else if (roomTypeIds.length > 1) {
+    where.room_type_id = { [Op.in]: roomTypeIds };
+  }
+
   if (status) where.status = status;
-  if (floor !== undefined) where.floor = floor;
+  if (floor !== undefined && floor !== '') where.floor = floor;
   if (search) where.room_number = { [Op.iLike]: `%${search}%` };
+  if (Number.isFinite(normalizedCapacity) && normalizedCapacity > 0) {
+    roomTypeWhere.capacity_max = { [Op.gte]: normalizedCapacity };
+  }
+
+  return { where, roomTypeWhere };
+};
+
+// GET /api/rooms
+const getAllRooms = async (query = {}, user = {}) => {
+  const {
+    page = 1,
+    limit = 10,
+    capacity,
+    sort_by = 'created_at',
+    sort_order = 'DESC'
+  } = query;
+  const safePage = Math.max(Number(page) || 1, 1);
+  const safeLimit = Math.max(Number(limit) || 10, 1);
+  const offset = (safePage - 1) * safeLimit;
+  const allowedSorts = {
+    created_at: ['createdAt'],
+    price: [{ model: RoomType, as: 'room_type' }, 'base_price'],
+  };
+  const sortPath = allowedSorts[sort_by] || allowedSorts.created_at;
+  const sortDir = String(sort_order).toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+  const { where, roomTypeWhere } = buildRoomListFilters(query, user);
 
   const { count, rows } = await Room.findAndCountAll({
     where,
     include: [
       { model: Building, as: 'building', attributes: ['id', 'name'] },
-      { model: RoomType, as: 'room_type', attributes: ['id', 'name', 'base_price'] }
+      {
+        model: RoomType,
+        as: 'room_type',
+        attributes: ['id', 'name', 'base_price', 'capacity_min', 'capacity_max', 'area_sqm', 'bedrooms', 'bathrooms'],
+        where: roomTypeWhere,
+      }
     ],
-    limit: Number(limit),
+    limit: safeLimit,
     offset: Number(offset),
-    order: [['createdAt', 'DESC']]
+    order: [[...sortPath, sortDir]]
   });
 
   let data = rows;
@@ -67,10 +114,51 @@ const getAllRooms = async (query = {}, user = {}) => {
 
   return {
     total: count,
-    page: Number(page),
-    limit: Number(limit),
-    totalPages: Math.ceil(count / limit),
+    page: safePage,
+    limit: safeLimit,
+    totalPages: Math.ceil(count / safeLimit),
     data
+  };
+};
+
+// GET /api/rooms/facets
+const getRoomFacets = async (query = {}, user = {}) => {
+  const facetQuery = { ...query };
+  delete facetQuery.room_type_id;
+
+  const { where, roomTypeWhere } = buildRoomListFilters(facetQuery, user);
+
+  const rows = await Room.findAll({
+    where,
+    attributes: ['id', 'room_type_id'],
+    include: [
+      {
+        model: RoomType,
+        as: 'room_type',
+        attributes: ['id', 'name'],
+        where: roomTypeWhere,
+      }
+    ],
+    raw: false,
+  });
+
+  const roomTypeMap = new Map();
+  rows.forEach((room) => {
+    const type = room.room_type;
+    if (!type?.id) return;
+    const previous = roomTypeMap.get(type.id);
+    roomTypeMap.set(type.id, {
+      id: type.id,
+      name: type.name || 'Loại phòng',
+      count: (previous?.count || 0) + 1,
+    });
+  });
+
+  return {
+    data: {
+      total: rows.length,
+      room_types: Array.from(roomTypeMap.values()),
+    }
   };
 };
 
