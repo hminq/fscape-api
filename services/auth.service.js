@@ -25,6 +25,26 @@ const rethrowAuthPersistenceError = (error, fallbackMessage) => {
   throw error;
 };
 
+const toSafeAuthError = (error, fallbackMessage) => {
+  if (!error) {
+    return new Error(fallbackMessage);
+  }
+
+  if (error.name === "SequelizeUniqueConstraintError") {
+    return new Error("Email đã được đăng ký");
+  }
+
+  if (error.name === "SequelizeValidationError" || error.name === "TypeError") {
+    return new Error(fallbackMessage);
+  }
+
+  if (error.message === "Thông tin đăng nhập không hợp lệ" || error.message === "Tài khoản đã bị vô hiệu hóa") {
+    return error;
+  }
+
+  return new Error(fallbackMessage);
+};
+
 class AuthService {
   // Step 1: signup and send verification OTP.
   static async signup(email, password) {
@@ -97,98 +117,109 @@ class AuthService {
 
   static async signin(email, password) {
     const normalizedEmail = normalizeEmail(email);
-    const auth = await AuthProvider.findOne({
-      where: { provider: "EMAIL", provider_id: normalizedEmail },
-      include: [
-        {
-          model: User,
-          as: "User",
-          attributes: [
-            "id",
-            "email",
-            "role",
-            "first_name",
-            "last_name",
-            "avatar_url",
-            "is_active",
-          ],
-        },
-      ],
-    });
+    try {
+      const auth = await AuthProvider.findOne({
+        where: { provider: "EMAIL", provider_id: normalizedEmail },
+        include: [
+          {
+            model: User,
+            as: "User",
+            attributes: [
+              "id",
+              "email",
+              "role",
+              "first_name",
+              "last_name",
+              "avatar_url",
+              "is_active",
+            ],
+          },
+        ],
+      });
 
-    if (!auth || !auth.is_verified) {
-      const existingUser = await User.findOne({ where: { email: normalizedEmail } });
-      if (existingUser) {
-        throw new Error("Tài khoản của bạn được đăng ký bằng Google. Vui lòng đăng nhập bằng Google hoặc Đăng ký để tạo mật khẩu.");
+      if (!auth || !auth.is_verified) {
+        const existingUser = await User.findOne({ where: { email: normalizedEmail } });
+        if (existingUser) {
+          throw new Error("Tài khoản của bạn được đăng ký bằng Google. Vui lòng đăng nhập bằng Google hoặc Đăng ký để tạo mật khẩu.");
+        }
+        throw new Error("Thông tin đăng nhập không hợp lệ");
       }
-      throw new Error("Thông tin đăng nhập không hợp lệ");
-    }
-    if (!auth.User || auth.User.is_active === false) {
-      if (auth.User && auth.User.is_active === false) {
-        console.log("Account is inactive", auth.User.id, auth.User.email, auth.User.is_active);
+
+      if (!auth.User) {
+        throw new Error("Thông tin đăng nhập không hợp lệ");
+      }
+
+      if (auth.User.is_active === false) {
         throw new Error("Tài khoản đã bị vô hiệu hóa");
       }
-    }
-    const match = await comparePassword(password, auth.password_hash);
-    if (!match) throw new Error("Thông tin đăng nhập không hợp lệ");
 
-    return {
-      access_token: generateAccessToken(auth.User),
-      user: {
-        id: auth.User.id,
-        email: auth.User.email,
-        role: auth.User.role,
-        first_name: auth.User.first_name,
-        last_name: auth.User.last_name,
-        avatar_url: auth.User.avatar_url,
-      },
-    };
+      const match = await comparePassword(password, auth.password_hash);
+      if (!match) throw new Error("Thông tin đăng nhập không hợp lệ");
+
+      return {
+        access_token: generateAccessToken(auth.User),
+        user: {
+          id: auth.User.id,
+          email: auth.User.email,
+          role: auth.User.role,
+          first_name: auth.User.first_name,
+          last_name: auth.User.last_name,
+          avatar_url: auth.User.avatar_url,
+        },
+      };
+    } catch (error) {
+      throw toSafeAuthError(error, "Đăng nhập không thành công");
+    }
   }
 
   static async appLogin(email, password) {
     const normalizedEmail = normalizeEmail(email);
-    const auth = await AuthProvider.findOne({
-      where: { provider: "EMAIL", provider_id: normalizedEmail },
-      include: [
-        {
-          model: User,
-          as: "User",
-          attributes: ["id", "email", "role", "first_name", "last_name", "avatar_url", "is_active"],
-        },
-      ],
-    });
+    try {
+      const auth = await AuthProvider.findOne({
+        where: { provider: "EMAIL", provider_id: normalizedEmail },
+        include: [
+          {
+            model: User,
+            as: "User",
+            attributes: ["id", "email", "role", "first_name", "last_name", "avatar_url", "is_active"],
+          },
+        ],
+      });
 
-    if (!auth || !auth.is_verified) {
-      const existingUser = await User.findOne({ where: { email: normalizedEmail } });
-      if (existingUser) {
-        throw new Error("Tài khoản của bạn được đăng ký bằng Google. Vui lòng đăng nhập bằng Google hoặc Đăng ký để tạo mật khẩu.");
+      if (!auth || !auth.is_verified) {
+        const existingUser = await User.findOne({ where: { email: normalizedEmail } });
+        if (existingUser) {
+          throw new Error("Tài khoản của bạn được đăng ký bằng Google. Vui lòng đăng nhập bằng Google hoặc Đăng ký để tạo mật khẩu.");
+        }
+        throw new Error("Thông tin đăng nhập không hợp lệ");
       }
-      throw new Error("Thông tin đăng nhập không hợp lệ");
+      if (!auth.User) throw new Error("Thông tin đăng nhập không hợp lệ");
+      if (auth.User.role !== 'RESIDENT') {
+        const err = new Error("Chỉ cư dân được phép đăng nhập tại đây");
+        err.status = 403;
+        throw err;
+      }
+      if (auth.User.is_active === false) throw new Error("Tài khoản đã bị vô hiệu hóa");
+
+      const match = await comparePassword(password, auth.password_hash);
+      if (!match) throw new Error("Thông tin đăng nhập không hợp lệ");
+
+      await auth.User.update({ last_login_at: new Date() });
+
+      return {
+        access_token: generateAccessToken(auth.User),
+        user: {
+          id: auth.User.id,
+          email: auth.User.email,
+          role: auth.User.role,
+          first_name: auth.User.first_name,
+          last_name: auth.User.last_name,
+          avatar_url: auth.User.avatar_url,
+        },
+      };
+    } catch (error) {
+      throw toSafeAuthError(error, "Đăng nhập không thành công");
     }
-    if (!auth.User) throw new Error("Thông tin đăng nhập không hợp lệ");
-    if (auth.User.role !== 'RESIDENT') {
-      const err = new Error("Chỉ cư dân được phép đăng nhập tại đây");
-      err.status = 403;
-      throw err;
-    }
-    if (auth.User.is_active === false) throw new Error("Tài khoản đã bị vô hiệu hóa");
-
-    const match = await comparePassword(password, auth.password_hash);
-    if (!match) throw new Error("Thông tin đăng nhập không hợp lệ");
-
-    await auth.User.update({ last_login_at: new Date() });
-
-    return {
-      access_token: generateAccessToken(auth.User),
-      user: {
-        id: auth.User.id,
-        email: auth.User.email,
-        role: auth.User.role,
-        first_name: auth.User.first_name,
-        last_name: auth.User.last_name,
-        avatar_url: auth.User.avatar_url,
-      },
-    };
   }
 
   static async forgotPassword(email) {
