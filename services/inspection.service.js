@@ -58,6 +58,48 @@ function findUnknownQrCodes(qrCodes, scannedAssets) {
     return qrCodes.filter(qr => !found.has(qr));
 }
 
+function startOfDayUtc(dateString) {
+    return new Date(`${dateString}T00:00:00.000Z`);
+}
+
+async function buildContractInspectionWindow(roomId, contractId, caller) {
+    const contract = await Contract.findByPk(contractId, {
+        include: [{ model: Room, as: 'room' }]
+    });
+
+    if (!contract) {
+        throw { status: 404, message: 'Không tìm thấy hợp đồng' };
+    }
+
+    if (contract.room_id !== roomId) {
+        throw { status: 400, message: 'Dữ liệu không hợp lệ' };
+    }
+
+    if (caller.role === ROLES.BUILDING_MANAGER || caller.role === ROLES.STAFF) {
+        ensureBuildingAccess(caller, contract.room);
+    } else if (caller.role === ROLES.RESIDENT && contract.customer_id !== caller.id) {
+        throw { status: 403, message: 'Bạn không có quyền xem kiểm tra của hợp đồng này' };
+    }
+
+    const nextContract = await Contract.findOne({
+        where: {
+            room_id: roomId,
+            start_date: { [Op.gt]: contract.start_date }
+        },
+        order: [['start_date', 'ASC']]
+    });
+
+    const createdAtRange = {
+        [Op.gte]: startOfDayUtc(contract.start_date)
+    };
+
+    if (nextContract?.start_date) {
+        createdAtRange[Op.lt] = startOfDayUtc(nextContract.start_date);
+    }
+
+    return createdAtRange;
+}
+
 // CHECK-IN diff (type-based against room template).
 async function computeCheckInDiff(room, qrCodes) {
     const template = await RoomTypeAsset.findAll({
@@ -732,7 +774,8 @@ const residentConfirmCheckIn = async (assetsInput, notes, user) => {
 };
 
 // GET /api/inspections?room_id=
-const getInspectionsByRoom = async (roomId, caller) => {
+const getInspectionsByRoom = async (roomId, caller, options = {}) => {
+    const { contractId } = options;
     const room = await Room.findByPk(roomId);
     if (!room) throw { status: 404, message: 'Không tìm thấy phòng' };
 
@@ -747,8 +790,14 @@ const getInspectionsByRoom = async (roomId, caller) => {
     }
     // ADMIN: no restriction
 
+    const where = { room_id: roomId };
+
+    if (contractId) {
+        where.created_at = await buildContractInspectionWindow(roomId, contractId, caller);
+    }
+
     const inspections = await AssetInspection.findAll({
-        where: { room_id: roomId },
+        where,
         order: [['created_at', 'DESC']],
         include: [
             { model: User, as: 'performer', attributes: ['id', 'first_name', 'last_name', 'email'] },

@@ -94,11 +94,11 @@ const residentConfirmCheckIn = async (req, res) => {
 
 const getInspectionsByRoom = async (req, res) => {
     try {
-        const { room_id } = req.query;
+        const { room_id, contract_id } = req.query;
         if (!room_id) {
             return res.status(400).json({ message: 'room_id là bắt buộc' });
         }
-        const result = await inspectionService.getInspectionsByRoom(room_id, req.user);
+        const result = await inspectionService.getInspectionsByRoom(room_id, req.user, { contractId: contract_id });
         return res.status(200).json({ data: result });
     } catch (err) { return handleError(res, err); }
 };
