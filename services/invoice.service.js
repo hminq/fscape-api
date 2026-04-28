@@ -3,6 +3,7 @@ const { Op } = require('sequelize');
 const moment = require('moment');
 const { generateNumberedId } = require('../utils/generateId');
 const { billingCycleToMonths } = require('../utils/billingCycle.util');
+const { parseUTCDate, todayUTC } = require('../utils/date.util');
 const { createNotification } = require('./notification.service');
 const { INVOICE_PAYMENT_DEADLINE_DAYS } = require('../constants/jobTimeRules');
 
@@ -103,12 +104,13 @@ const generateRentInvoices = async () => {
 const generateServiceInvoices = async () => {
     const { Contract, Invoice, InvoiceItem, Request, Room } = sequelize.models;
 
-    const now = new Date();
+    const today = todayUTC();
+    const todayDate = parseUTCDate(today);
 
     const dueContracts = await Contract.findAll({
         where: {
             status: { [Op.in]: ['ACTIVE', 'EXPIRING_SOON'] },
-            next_service_billing_at: { [Op.lte]: now }
+            next_service_billing_at: { [Op.lte]: todayDate }
         },
         include: [{ model: Room, as: 'room' }]
     });
@@ -130,8 +132,14 @@ const generateServiceInvoices = async () => {
                 transaction
             });
 
-            // Advance next_service_billing_at regardless of whether there are requests
-            const nextServiceBillingAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+            // Service billing is now day-based: once the billing date is reached,
+            // the contract is due for the whole day.
+            const currentBillingDate = contract.next_service_billing_at
+                ? moment(contract.next_service_billing_at).utc().format('YYYY-MM-DD')
+                : today;
+            const nextServiceBillingAt = parseUTCDate(
+                moment(currentBillingDate).add(30, 'days').format('YYYY-MM-DD')
+            );
             await contract.update({ next_service_billing_at: nextServiceBillingAt }, { transaction });
 
             // Skip invoice creation if no unbilled requests
@@ -144,9 +152,9 @@ const generateServiceInvoices = async () => {
                 (sum, req) => sum + Number(req.request_price || 0), 0
             );
 
-            const billingPeriodEnd = moment(now).format('YYYY-MM-DD');
-            const billingPeriodStart = moment(now).subtract(30, 'days').format('YYYY-MM-DD');
-            const dueDate = moment(now).add(INVOICE_PAYMENT_DEADLINE_DAYS, 'days').format('YYYY-MM-DD');
+            const billingPeriodEnd = today;
+            const billingPeriodStart = moment(today).subtract(30, 'days').format('YYYY-MM-DD');
+            const dueDate = moment(today).add(INVOICE_PAYMENT_DEADLINE_DAYS, 'days').format('YYYY-MM-DD');
 
             const newInvoice = await Invoice.create({
                 invoice_number: generateNumberedId('INV-SVC'),

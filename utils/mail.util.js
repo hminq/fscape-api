@@ -222,24 +222,109 @@ exports.sendManagerSigningEmail = async (
 };
 
 /**
- * Gửi email xác nhận hợp đồng đã được kích hoạt cho resident.
+ * Gửi email xác nhận hệ thống đã ghi nhận thanh toán thành công.
  */
-exports.sendContractActivatedEmail = async (
+exports.sendPaymentReceivedEmail = async (
   email,
-  { customerName, contractNumber, roomNumber, buildingName, startDate },
+  {
+    customerName,
+    paymentNumber,
+    paymentId,
+    paymentTypeLabel,
+    referenceNumber,
+    roomNumber,
+    buildingName,
+    amount,
+    paidAt,
+  },
 ) => {
+  const subject = `Thanh toán ${paymentNumber} - Đã ghi nhận thành công`;
   await sendMailWithAudit({
     to: email,
-    subject: `Hợp đồng ${contractNumber} - Đã kích hoạt thành công`,
-    templateKey: "CONTRACT_ACTIVATED",
+    subject,
+    templateKey: "PAYMENT_RECEIVED",
+    context: { paymentNumber, paymentTypeLabel, referenceNumber, roomNumber, buildingName },
+    html: wrapEmailTemplate(`
+      <h2 style="margin:0 0 8px; color:#011936;">Xin chào ${customerName},</h2>
+      <p style="margin:0 0 16px; color:#52525b;">
+        FScape đã ghi nhận <strong>thanh toán thành công</strong> của bạn.
+      </p>
+
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; margin:0 0 24px;">
+        <tr>
+          <td style="padding:16px;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Mã thanh toán</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${paymentNumber}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Loại thanh toán</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${paymentTypeLabel}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Tham chiếu</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${referenceNumber}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Phòng</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${roomNumber}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Tòa nhà</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${buildingName}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Số tiền</td>
+                <td style="padding:4px 0; text-align:right; font-weight:700; color:#16a34a; font-size:16px;">${amount}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0; color:#64748b; font-size:13px;">Thời gian ghi nhận</td>
+                <td style="padding:4px 0; text-align:right; font-weight:600; color:#011936;">${paidAt}</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <p style="margin:0 0 8px; color:#52525b;">
+        Biên nhận này xác nhận hệ thống đã nhận được khoản thanh toán của bạn và đã cập nhật trạng thái tương ứng.
+      </p>
+      <p style="margin:0; color:#71717a; font-size:13px;">
+        Nếu có bất kỳ thắc mắc nào, vui lòng liên hệ quản lý tòa nhà qua hệ thống FScape.
+      </p>
+    `),
+  });
+  await logEmailSent(email, subject, "PAYMENT_RECEIVED", paymentId);
+};
+
+/**
+ * Gửi email chào mừng và hướng dẫn check-in sau khi thanh toán kỳ đầu.
+ */
+exports.sendWelcomeCheckInEmail = async (
+  email,
+  {
+    customerName,
+    contractNumber,
+    contractId,
+    roomNumber,
+    buildingName,
+    startDate,
+  },
+) => {
+  const subject = `Chào mừng bạn đến với FScape - Hãy hoàn tất nhận phòng`;
+  await sendMailWithAudit({
+    to: email,
+    subject,
+    templateKey: "WELCOME_CHECK_IN",
     context: { contractNumber, roomNumber, buildingName },
     html: wrapEmailTemplate(`
       <h2 style="margin:0 0 8px; color:#011936;">Xin chào ${customerName},</h2>
       <p style="margin:0 0 16px; color:#52525b;">
-        Hợp đồng thuê phòng của bạn đã được quản lý tòa nhà ký xác nhận và <strong>kích hoạt thành công</strong>.
+        Chúng tôi đã ghi nhận thanh toán kỳ đầu của bạn. Chào mừng bạn đến với <strong>${buildingName}</strong>.
       </p>
 
-      <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; margin:0 0 24px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; margin:0 0 24px;">
         <tr>
           <td style="padding:16px;">
             <table width="100%" cellpadding="0" cellspacing="0">
@@ -265,13 +350,14 @@ exports.sendContractActivatedEmail = async (
       </table>
 
       <p style="margin:0 0 8px; color:#52525b;">
-        Bạn chính thức trở thành cư dân tại <strong>${buildingName}</strong>. Chúc bạn có trải nghiệm tuyệt vời!
+        Vui lòng mở ứng dụng FScape và vào mục <strong>Phòng của tôi</strong> để hoàn tất bước <strong>nhận phòng</strong> trước khi bắt đầu sử dụng phòng.
       </p>
       <p style="margin:0; color:#71717a; font-size:13px;">
         Nếu có bất kỳ thắc mắc nào, vui lòng liên hệ quản lý tòa nhà qua hệ thống FScape.
       </p>
     `),
   });
+  await logEmailSent(email, subject, "WELCOME_CHECK_IN", contractId);
 };
 
 /**
