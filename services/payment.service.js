@@ -2,6 +2,11 @@ const { sequelize } = require('../config/db');
 const getPayOS = require('../utils/payos');
 const payosConfig = require('../config/payos.config');
 const contractService = require('./contract.service');
+const { parseUTCDate } = require('../utils/date.util');
+const {
+    sendPaymentReceivedEmail,
+    sendWelcomeCheckInEmail
+} = require('../utils/mail.util');
 
 const PAYOS_GATEWAY_ERROR = {
     status: 502,
@@ -25,6 +30,45 @@ const normalizePayosCreateError = (error, context = {}) => {
     });
 
     return PAYOS_GATEWAY_ERROR;
+};
+
+const formatCurrency = (amount) => `${Number(amount).toLocaleString('vi-VN')}đ`;
+
+const formatDateTime = (date) => {
+    if (!date) return '';
+    const formatted = new Intl.DateTimeFormat('vi-VN', {
+        timeZone: 'UTC',
+        hour12: false,
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    }).format(new Date(date));
+    return `${formatted} UTC`;
+};
+
+const formatDate = (date) => {
+    if (!date) return '';
+    const d = parseUTCDate(date);
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const yyyy = d.getUTCFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+};
+
+const getPaymentTypeLabel = (paymentType) => {
+    switch (paymentType) {
+        case 'DEPOSIT':
+            return 'Đặt cọc';
+        case 'RENT':
+            return 'Tiền phòng';
+        case 'REQUEST':
+        case 'SERVICE':
+            return 'Phí dịch vụ';
+        default:
+            return 'Thanh toán';
+    }
 };
 
 const createBookingPaymentUrlPayOS = async (userId, booking_id) => {
@@ -91,7 +135,7 @@ const createInvoicePaymentUrlPayOS = async (userId, invoice_id) => {
         throw { status: 404, message: "Không tìm thấy hóa đơn cần thanh toán" };
     }
 
-    const paymentType = invoice.invoice_type === 'SERVICE' ? 'SERVICE' : 'RENT';
+    const paymentType = invoice.invoice_type === 'SERVICE' ? 'REQUEST' : 'RENT';
     const orderCode = Date.now();
     const paymentNumber = `PAY-INV-${orderCode}`;
 
@@ -137,8 +181,11 @@ const createInvoicePaymentUrlPayOS = async (userId, invoice_id) => {
  * Shared business flow after successful PayOS payment.
  */
 const processSuccessPayment = async (payment, gatewayResponse) => {
-    const { Booking, Invoice } = sequelize.models;
+    const { Booking, Invoice, Contract, User, Room, Building } = sequelize.models;
     const transaction = await sequelize.transaction();
+    let depositPaidBookingId = null;
+    let paymentReceiptEmail = null;
+    let welcomeCheckInEmail = null;
 
     try {
         await payment.update({
@@ -147,18 +194,47 @@ const processSuccessPayment = async (payment, gatewayResponse) => {
             gateway_response: gatewayResponse
         }, { transaction });
 
-        let depositPaidBookingId = null;
-
         if (payment.payment_type === 'DEPOSIT') {
-            const booking = await Booking.findOne({ where: { deposit_payment_id: payment.id }, transaction });
+            const booking = await Booking.findOne({
+                where: { deposit_payment_id: payment.id },
+                include: [{
+                    model: Room,
+                    as: 'room',
+                    include: [{ model: Building, as: 'building' }]
+                }],
+                transaction
+            });
             if (booking) {
                 await booking.update({
                     status: 'DEPOSIT_PAID',
                     deposit_paid_at: new Date()
                 }, { transaction });
                 depositPaidBookingId = booking.id;
+
+                const customer = await User.findByPk(booking.customer_id, { transaction });
+                if (customer?.email) {
+                    const customerName = `${customer.last_name || ''} ${customer.first_name || ''}`.trim();
+                    paymentReceiptEmail = {
+                        email: customer.email,
+                        payload: {
+                            customerName,
+                            paymentNumber: payment.payment_number,
+                            paymentId: payment.id,
+                            paymentTypeLabel: getPaymentTypeLabel(payment.payment_type),
+                            referenceNumber: booking.booking_number,
+                            roomNumber: booking.room?.room_number || '',
+                            buildingName: booking.room?.building?.name || '',
+                            amount: formatCurrency(payment.amount),
+                            paidAt: formatDateTime(payment.paid_at),
+                        }
+                    };
+                }
             }
-        } else if (payment.payment_type === 'RENT' || payment.payment_type === 'SERVICE') {
+        } else if (
+            payment.payment_type === 'RENT'
+            || payment.payment_type === 'REQUEST'
+            || payment.payment_type === 'SERVICE'
+        ) {
             const invoice = await Invoice.findByPk(payment.invoice_id, { transaction });
             if (invoice) {
                 await invoice.update({
@@ -166,8 +242,35 @@ const processSuccessPayment = async (payment, gatewayResponse) => {
                     paid_at: new Date()
                 }, { transaction });
 
-                const { Contract, User, Room, Building } = sequelize.models;
-                const contract = await Contract.findByPk(invoice.contract_id, { transaction });
+                const contract = await Contract.findByPk(invoice.contract_id, {
+                    include: [{
+                        model: Room,
+                        as: 'room',
+                        include: [{ model: Building, as: 'building' }]
+                    }],
+                    transaction
+                });
+                const customer = contract
+                    ? await User.findByPk(contract.customer_id, { transaction })
+                    : null;
+
+                if (customer?.email) {
+                    const customerName = `${customer.last_name || ''} ${customer.first_name || ''}`.trim();
+                    paymentReceiptEmail = {
+                        email: customer.email,
+                        payload: {
+                            customerName,
+                            paymentNumber: payment.payment_number,
+                            paymentId: payment.id,
+                            paymentTypeLabel: getPaymentTypeLabel(payment.payment_type),
+                            referenceNumber: invoice.invoice_number,
+                            roomNumber: contract?.room?.room_number || '',
+                            buildingName: contract?.room?.building?.name || '',
+                            amount: formatCurrency(payment.amount),
+                            paidAt: formatDateTime(payment.paid_at),
+                        }
+                    };
+                }
 
                 if (contract && contract.status === 'PENDING_FIRST_PAYMENT') {
                     if (invoice.billing_period_start === contract.start_date) {
@@ -183,16 +286,26 @@ const processSuccessPayment = async (payment, gatewayResponse) => {
                         } else {
                             await contract.update({ status: 'PENDING_CHECK_IN' }, { transaction });
 
-                            const customer = await User.findByPk(contract.customer_id, { transaction });
                             if (customer && customer.role === 'CUSTOMER') {
-                                const room = await Room.findByPk(contract.room_id, {
-                                    include: [{ model: Building, as: 'building' }],
-                                    transaction
-                                });
                                 await customer.update({
                                     role: 'RESIDENT',
-                                    building_id: room?.building?.id || room?.building_id
+                                    building_id: contract.room?.building?.id || contract.room?.building_id
                                 }, { transaction });
+                            }
+
+                            if (customer?.email) {
+                                const customerName = `${customer.last_name || ''} ${customer.first_name || ''}`.trim();
+                                welcomeCheckInEmail = {
+                                    email: customer.email,
+                                    payload: {
+                                        customerName,
+                                        contractNumber: contract.contract_number,
+                                        contractId: contract.id,
+                                        roomNumber: contract.room?.room_number || '',
+                                        buildingName: contract.room?.building?.name || '',
+                                        startDate: formatDate(contract.start_date),
+                                    }
+                                };
                             }
                         }
                     }
@@ -205,6 +318,16 @@ const processSuccessPayment = async (payment, gatewayResponse) => {
         if (depositPaidBookingId) {
             contractService.createContractFromBooking(depositPaidBookingId)
                 .catch(err => console.error('[PaymentService] Failed to create contract:', err));
+        }
+
+        if (paymentReceiptEmail) {
+            sendPaymentReceivedEmail(paymentReceiptEmail.email, paymentReceiptEmail.payload)
+                .catch(err => console.error('[PaymentService] Failed to send payment receipt email:', err));
+        }
+
+        if (welcomeCheckInEmail) {
+            sendWelcomeCheckInEmail(welcomeCheckInEmail.email, welcomeCheckInEmail.payload)
+                .catch(err => console.error('[PaymentService] Failed to send welcome check-in email:', err));
         }
 
         return true;

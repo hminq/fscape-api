@@ -105,7 +105,7 @@ const Contract = sequelize.define('Contract', {
     allowNull: true
   },
   next_service_billing_at: {
-    // Next service billing timestamp (+30 days cycle in UTC).
+    // Next service billing date stored as a DATE timestamp at UTC midnight.
     type: DataTypes.DATE,
     allowNull: true
   },
